@@ -638,3 +638,17 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 	.home { padding-top: 72px; }
 	.talk-page { width: 100%; border-left: 0; border-right: 0; border-radius: 0; }
 }
+
+.site-talk-shortcut {
+	flex: none;
+	width: 34px;
+	height: 34px;
+	border: 2px solid var(--ink);
+	border-radius: 10px;
+	background: var(--sun);
+	color: var(--ink);
+	font: 900 1rem var(--body);
+	cursor: pointer;
+	box-shadow: 2px 2px 0 var(--ink);
+}
+.site-talk-shortcut:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
