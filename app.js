@@ -9,6 +9,10 @@ const DEFAULTS = {
 	transport: "libcurl",
 	wisp: "wss://wisp.mercurywork.shop/",
 	cloak: false,
+	background: "",
+	accent: "#d8262f",
+	theme: "light",
+	reducedMotion: false,
 };
 const ENGINE_NAMES = {
 	"https://duckduckgo.com/?q=%s": "DuckDuckGo",
@@ -27,8 +31,40 @@ const TILES = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const settings = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("dss-settings") || "{}"));
-const save = () => localStorage.setItem("dss-settings", JSON.stringify(settings));
+let storedSettings = {};
+try { storedSettings = JSON.parse(localStorage.getItem("dss-settings") || "{}") || {}; } catch { storedSettings = {}; }
+const settings = Object.assign({}, DEFAULTS, storedSettings);
+const save = () => {
+	try { localStorage.setItem("dss-settings", JSON.stringify(settings)); }
+	catch { showError("Settings could not be saved.", "Your browser may have local storage disabled or full."); }
+};
+
+function applyAppearance() {
+	const accent = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : DEFAULTS.accent;
+	document.documentElement.style.setProperty("--red", accent);
+	document.documentElement.dataset.theme = settings.theme === "dark" ? "dark" : "light";
+	document.documentElement.classList.toggle("reduce-motion", !!settings.reducedMotion);
+	const bg = String(settings.background || "").trim();
+	if (bg) {
+		try {
+			const u = new URL(bg);
+			if (u.protocol === "https:" || u.protocol === "http:") {
+				document.body.style.backgroundImage = "linear-gradient(rgba(255,246,227,.82), rgba(255,246,227,.82)), url(" + JSON.stringify(u.href) + ")";
+				document.body.style.backgroundSize = "cover";
+				document.body.style.backgroundAttachment = "fixed";
+				document.body.style.backgroundPosition = "center";
+			} else throw new Error("Unsupported image URL");
+		} catch {
+			document.body.style.backgroundImage = "";
+			settings.background = "";
+		}
+	} else {
+		document.body.style.backgroundImage = "";
+		document.body.style.backgroundSize = "";
+		document.body.style.backgroundAttachment = "";
+		document.body.style.backgroundPosition = "";
+	}
+}
 
 /* ---------- Scramjet + bare-mux setup ---------- */
 const { ScramjetController } = $scramjetLoadController();
@@ -118,8 +154,13 @@ async function go(input) {
 	$("browser").hidden = false;
 	$("bar-address").value = url;
 	loader.classList.add("on");
-	frame.go(url);
-	if (location.hash !== "#browse") history.pushState({ browse: true }, "", "#browse");
+	try {
+		frame.go(url);
+		if (location.hash !== "#browse") history.pushState({ browse: true }, "", "#browse");
+	} catch (err) {
+		loader.classList.remove("on");
+		showError("That page couldn't be opened in the proxy.", String(err && err.message || err));
+	}
 }
 
 function goHome() {
@@ -183,6 +224,10 @@ function openSettings() {
 	$("s-engine").value = settings.engine;
 	$("s-transport").value = settings.transport;
 	$("s-wisp").value = settings.wisp;
+	$("s-background").value = settings.background || "";
+	$("s-accent").value = settings.accent || DEFAULTS.accent;
+	$("s-theme").value = settings.theme || "light";
+	$("s-motion").checked = !!settings.reducedMotion;
 	$("s-cloak").checked = settings.cloak;
 	dlg.showModal();
 }
@@ -192,6 +237,10 @@ $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-wisp").value = DEFAULTS.wisp;
+	$("s-background").value = DEFAULTS.background;
+	$("s-accent").value = DEFAULTS.accent;
+	$("s-theme").value = DEFAULTS.theme;
+	$("s-motion").checked = DEFAULTS.reducedMotion;
 	$("s-cloak").checked = DEFAULTS.cloak;
 };
 $("settings-form").addEventListener("submit", async () => {
@@ -201,6 +250,11 @@ $("settings-form").addEventListener("submit", async () => {
 	settings.transport = $("s-transport").value;
 	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
 	settings.cloak = $("s-cloak").checked;
+	settings.background = $("s-background").value.trim();
+	settings.accent = $("s-accent").value || DEFAULTS.accent;
+	settings.theme = $("s-theme").value;
+	settings.reducedMotion = $("s-motion").checked;
+	applyAppearance();
 	save();
 	syncLabel();
 	if (wispChanged || transportChanged) {
@@ -229,7 +283,23 @@ function checkWisp() {
 	}
 }
 
+/* ---------- First-visit guide ---------- */
+const tutorialDialog = $("tutorial");
+function openTutorial() {
+	if (!tutorialDialog.open) tutorialDialog.showModal();
+}
+$("s-tutorial").onclick = () => { dlg.close(); openTutorial(); };
+tutorialDialog.addEventListener("close", () => {
+	if ($("tutorial-again").checked || tutorialDialog.returnValue === "done") {
+		try { localStorage.setItem("dss-tutorial-seen", "1"); } catch {}
+	}
+});
+try {
+	if (localStorage.getItem("dss-tutorial-seen") !== "1") openTutorial();
+} catch { openTutorial(); }
+
 /* ---------- Start ---------- */
+applyAppearance();
 syncLabel();
 checkWisp();
 boot().catch((err) => showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err)));
