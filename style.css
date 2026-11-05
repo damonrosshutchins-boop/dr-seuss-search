@@ -445,3 +445,16 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
   .talk-room-tabs { flex-wrap: nowrap; }
   .talk-tab-item { flex: none; }
 }
+
+/* Seuss Talk sender identity and live voice roster */
+.talk-you-label {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(26,166,160,.16);
+  color: var(--teal);
+  font-size: .72rem;
+  font-weight: 900;
+}
+.talk-voice-members {
+  border: 1px solid rgba(26,166,160,.18);
+}
