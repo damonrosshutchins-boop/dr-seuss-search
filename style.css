@@ -151,3 +151,53 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 	.foot { justify-content: center; text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* VM */
+.top-actions { display: flex; gap: 10px; }
+.chip-vm { background: var(--sun); }
+.vm { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); z-index: 10; }
+.vm[hidden] { display: none; }
+.vm-bar { justify-content: space-between; }
+.vm-title { font: 900 1.15rem var(--display); margin-left: 6px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vm-tools { display: flex; gap: 6px; }
+.vm-tools .ib:disabled { opacity: .35; cursor: not-allowed; background: #fff; }
+.vm-body { flex: 1; overflow: auto; display: flex; justify-content: center; }
+.vm-picker { width: 100%; max-width: 920px; padding: 40px clamp(16px, 4vw, 40px); text-align: center; }
+.vm-picker h2 { margin: 0 0 30px; font: 900 clamp(1.8rem, 4.4vw, 3rem)/1.05 var(--display); letter-spacing: -.02em; text-wrap: balance; }
+.os-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.os-card {
+	width: 100%; height: 100%; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
+	padding: 18px; background: #fff; color: var(--ink); border: 2.5px solid var(--ink); border-radius: 18px;
+	box-shadow: 4px 4px 0 var(--ink); font: 600 .9rem/1.4 var(--body); transition: transform .15s, box-shadow .15s;
+}
+.os-card:hover { transform: translate(-2px,-3px); box-shadow: 6px 7px 0 var(--ink); }
+.os-card .badge { width: 46px; height: 46px; border-radius: 14px; border: 2.5px solid var(--ink); display: grid; place-items: center; font: 900 1.2rem var(--display); color: #fff; }
+.os-card strong { font: 900 1.15rem var(--display); }
+.os-card .meta { margin-top: auto; font-weight: 800; font-size: .78rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; }
+.vm-opts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px; margin-top: 28px; }
+.vm-opts label { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; }
+.vm-opts select { font: 700 .95rem var(--body); padding: 8px 10px; border: 2.5px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+.upload { position: relative; }
+.upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload:focus-within { outline: 3px solid var(--teal); outline-offset: 2px; }
+.vm-note { margin: 22px auto 0; max-width: 560px; color: var(--ink-soft); font-size: .9rem; }
+.vm-note a { color: var(--ink); font-weight: 800; }
+.vm-stage { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 18px; gap: 12px; background: #1d1a17; }
+.vm-stage[hidden] { display: none; }
+.vm-status { display: inline-flex; align-items: center; gap: 10px; color: #fff6e3; font-weight: 700; font-size: .9rem; }
+.vm-status.done .spinner { display: none; }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--pink); border-top-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.vm-screen { position: relative; background: #000; border: 3px solid var(--pink); border-radius: 10px; overflow: hidden; max-width: 100%; line-height: 1; cursor: text; }
+.vm-screen:focus-within, .vm-screen:hover { border-color: var(--sun); }
+.vm-text { white-space: pre; font: 14px monospace; line-height: 14px; color: #fff; }
+.vm-canvas { display: none; max-width: 100%; height: auto; image-rendering: pixelated; }
+.vm-hint { margin: 0; color: #c9bfb2; font-size: .82rem; text-align: center; }
+.vm-stage:fullscreen { justify-content: center; }
+@media (max-width: 600px) {
+	.vm-title { display: none; }
+	.vm-tools { gap: 4px; }
+	.vm-tools .ib { width: 34px; height: 34px; }
+	#vm-shot, #vm-pause { display: none; }
+	.chip { padding: 7px 12px; }
+}

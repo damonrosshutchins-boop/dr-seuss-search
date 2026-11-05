@@ -17,6 +17,10 @@ A whimsical, fully static web proxy built on [Scramjet](https://github.com/Mercu
 - Quick-link tiles
 - Settings: search engine, transport, Wisp server, and an about:blank cloak
 - Live Wisp relay health indicator
+- **Built-in VM ("The Thing-a-ma-VM")**: a full x86 virtual machine that runs in your browser using [v86](https://github.com/copy/v86) (WebAssembly)
+  - Bundled systems: Buildroot Linux, Linux 4 (live CD), KolibriOS, FreeDOS
+  - Boot your own `.iso` or `.img` file from your device (ISO = CD, small images = floppy, larger images = hard disk)
+  - Memory picker, Ctrl+Alt+Del, mouse lock, pause/resume, restart, power off, screenshot, fullscreen
 
 ## Self-hosting a Wisp relay (recommended)
 
@@ -32,6 +36,10 @@ python3 -m http.server 8080
 ## Updating Scramjet
 
 The files in `scram/`, `baremux/`, `libcurl/`, and `epoxy/` are copied from the npm packages `@mercuryworkshop/scramjet@1.1.0`, `@mercuryworkshop/bare-mux@2.1.9`, `@mercuryworkshop/libcurl-transport@1.5.2`, and `@mercuryworkshop/epoxy-transport@2.1.29`.
+
+## VM files
+
+`vm/libv86.js` and `vm/v86.wasm` come from the `v86@0.5.473` npm package (BSD-2-Clause; see `vm/LICENSE-v86`). The BIOS files (SeaBIOS, VGABIOS) are from the v86 repo. The OS images in `vm/images/` are free/open-source images published by the v86 project at copy.sh.
 
 ## License
 
