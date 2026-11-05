@@ -271,7 +271,6 @@ function openSeussTalkTab() {
 	let tab = siteTabs.find(item => item.type === "talk");
 	if (!tab) tab = createSiteTab("talk", "Seuss Talk");
 	else activateSiteTab(tab.id);
-	window.dispatchEvent(new Event("seuss-talk-tab-open"));
 }
 function switchAwayFromSeussTalk() {
 	const other = [...siteTabs].reverse().find(item => item.type !== "talk");
@@ -373,7 +372,7 @@ window.addEventListener("popstate", () => {
 	if (tab && tab.type === "web") goHome();
 });
 
-/* ---------- Wire up UI ---------- *//* ---------- Wire up UI ---------- */
+/* ---------- Wire up UI ---------- */
 $("search-form").addEventListener("submit", (e) => {
 	e.preventDefault();
 	go($("address").value);
