@@ -66,6 +66,53 @@ function applyAppearance() {
 	}
 }
 
+/* ---------- Settings dialog ---------- */
+const dlg = $("settings");
+function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.engine] || "custom engine"; }
+function openSettings() {
+	$("s-engine").value = settings.engine;
+	$("s-transport").value = settings.transport;
+	$("s-wisp").value = settings.wisp;
+	$("s-background").value = settings.background || "";
+	$("s-accent").value = settings.accent || DEFAULTS.accent;
+	$("s-theme").value = settings.theme || "light";
+	$("s-motion").checked = !!settings.reducedMotion;
+	$("s-cloak").checked = settings.cloak;
+	if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
+}
+$("open-settings").onclick = openSettings;
+$("engine-label").onclick = openSettings;
+$("s-reset").onclick = () => {
+	$("s-engine").value = DEFAULTS.engine;
+	$("s-transport").value = DEFAULTS.transport;
+	$("s-wisp").value = DEFAULTS.wisp;
+	$("s-background").value = DEFAULTS.background;
+	$("s-accent").value = DEFAULTS.accent;
+	$("s-theme").value = DEFAULTS.theme;
+	$("s-motion").checked = DEFAULTS.reducedMotion;
+	$("s-cloak").checked = DEFAULTS.cloak;
+};
+$("settings-form").addEventListener("submit", async () => {
+	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
+	const transportChanged = settings.transport !== $("s-transport").value;
+	settings.engine = $("s-engine").value;
+	settings.transport = $("s-transport").value;
+	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
+	settings.cloak = $("s-cloak").checked;
+	settings.background = $("s-background").value.trim();
+	settings.accent = $("s-accent").value || DEFAULTS.accent;
+	settings.theme = $("s-theme").value;
+	settings.reducedMotion = $("s-motion").checked;
+	applyAppearance();
+	save();
+	syncLabel();
+	if (wispChanged || transportChanged) {
+		checkWisp();
+		if (ready) { try { await ready; await applyTransport(true); } catch {} }
+	}
+});
+
+
 /* ---------- Scramjet + bare-mux setup ---------- */
 const { ScramjetController } = $scramjetLoadController();
 const scramjet = new ScramjetController({
@@ -217,52 +264,6 @@ function cloak(input) {
 	w.document.body.style.margin = "0";
 	w.document.body.appendChild(f);
 }
-
-/* ---------- Settings dialog ---------- */
-const dlg = $("settings");
-function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.engine] || "custom engine"; }
-function openSettings() {
-	$("s-engine").value = settings.engine;
-	$("s-transport").value = settings.transport;
-	$("s-wisp").value = settings.wisp;
-	$("s-background").value = settings.background || "";
-	$("s-accent").value = settings.accent || DEFAULTS.accent;
-	$("s-theme").value = settings.theme || "light";
-	$("s-motion").checked = !!settings.reducedMotion;
-	$("s-cloak").checked = settings.cloak;
-	dlg.showModal();
-}
-$("open-settings").onclick = openSettings;
-$("engine-label").onclick = openSettings;
-$("s-reset").onclick = () => {
-	$("s-engine").value = DEFAULTS.engine;
-	$("s-transport").value = DEFAULTS.transport;
-	$("s-wisp").value = DEFAULTS.wisp;
-	$("s-background").value = DEFAULTS.background;
-	$("s-accent").value = DEFAULTS.accent;
-	$("s-theme").value = DEFAULTS.theme;
-	$("s-motion").checked = DEFAULTS.reducedMotion;
-	$("s-cloak").checked = DEFAULTS.cloak;
-};
-$("settings-form").addEventListener("submit", async () => {
-	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
-	const transportChanged = settings.transport !== $("s-transport").value;
-	settings.engine = $("s-engine").value;
-	settings.transport = $("s-transport").value;
-	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
-	settings.cloak = $("s-cloak").checked;
-	settings.background = $("s-background").value.trim();
-	settings.accent = $("s-accent").value || DEFAULTS.accent;
-	settings.theme = $("s-theme").value;
-	settings.reducedMotion = $("s-motion").checked;
-	applyAppearance();
-	save();
-	syncLabel();
-	if (wispChanged || transportChanged) {
-		checkWisp();
-		if (ready) { try { await ready; await applyTransport(true); } catch {} }
-	}
-});
 
 /* ---------- Wisp health check ---------- */
 function setStatus(state, text) {
