@@ -61,6 +61,8 @@
         }
         user = data.user;
       }
+      // Ensure the current guest JWT is available to private Realtime channels.
+      await client.realtime.setAuth();
       await loadProfile();
     } catch (err) {
       status("Could not connect: " + String(err && err.message || err), true);
@@ -71,9 +73,10 @@
   async function loadProfile() {
     const { data, error } = await client.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
     if (error) throw error;
-    if (data) {
+    if (data && typeof data.display_name === "string" && data.display_name.trim().length >= 2) {
       profile = data;
       $("talk-name").value = data.display_name;
+      $("talk-current-name").textContent = data.display_name;
       show("talk-auth", false);
       show("talk-setup", false);
       show("talk-app", true);
@@ -89,9 +92,14 @@
   async function saveName(event) {
     event.preventDefault();
     const name = $("talk-name").value.trim();
+    if (name.length < 2 || name.length > 24) {
+      status("Your username must be between 2 and 24 characters.", true);
+      return;
+    }
     const { error } = await client.rpc("set_display_name", { p_name: name });
     if (error) { status(error.message, true); return; }
     profile = { display_name: name };
+    $("talk-current-name").textContent = name;
     show("talk-auth", false);
     show("talk-app", true);
     status("Welcome to Seuss Talk.");
@@ -217,8 +225,10 @@
 
   function messageCard(message) {
     const card = node("article", "talk-message");
+    if (message.id) card.dataset.messageId = message.id;
     const head = node("div", "talk-message-head");
-    head.append(node("strong", "", message.display_name));
+    head.append(node("strong", "", message.display_name || "Unknown user"));
+    if (message.user_id === user.id) head.append(node("span", "talk-you-label", "You"));
     head.append(node("time", "talk-muted", new Date(message.created_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})));
     card.append(head, node("p", "", message.body));
     if (message.user_id !== user.id) {
@@ -252,7 +262,8 @@
   }
 
   async function loadMessages() {
-    const { data, error } = await client.from("messages").select("*")
+    const { data, error } = await client.from("messages")
+      .select("id,room_id,user_id,display_name,body,created_at")
       .eq("room_id", room.id).order("created_at", { ascending:true }).limit(100);
     if (error) { status(error.message, true); return; }
     const list = $("talk-messages");
@@ -286,11 +297,19 @@
     show("talk-room-view", true);
     await loadMessages();
     await loadMembers();
-    messagesChannel = client.channel("room-messages-" + item.id)
+    // This project accepts private Realtime topics only. Keep chat scoped to
+    // the room and authorize the topic through room_members in realtime.messages.
+    messagesChannel = client.channel("room:" + item.id + ":chat", {
+      config:{ private:true }
+    })
       .on("postgres_changes", {
         event:"INSERT", schema:"public", table:"messages", filter:"room_id=eq." + item.id
       }, async () => { await loadMessages(); })
-      .subscribe();
+      .subscribe((state, error) => {
+        if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") {
+          status("Live chat could not connect: " + String(error && error.message || state), true);
+        }
+      });
     status("In " + item.name + ". Voice is off until you choose Join voice.");
   }
 
@@ -298,12 +317,39 @@
     event.preventDefault();
     const input = $("talk-message-input");
     const body = input.value.trim();
-    if (!body || !room) return;
-    const { error } = await client.from("messages").insert({
-      room_id:room.id, user_id:user.id, display_name:profile.display_name, body
-    });
-    if (error) { status(error.message, true); return; }
-    input.value = "";
+    if (!body) return;
+    if (!client || !user || !profile || !room) {
+      status("Choose a username and join a room before sending a message.", true);
+      return;
+    }
+
+    const button = $("talk-message-form").querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    status("Sending message…");
+    try {
+      const { data, error } = await client.from("messages").insert({
+        room_id:room.id,
+        user_id:user.id,
+        display_name:profile.display_name,
+        body
+      }).select("id,room_id,user_id,display_name,body,created_at").single();
+
+      if (error) throw error;
+      if (!data) throw new Error("The server did not return the saved message.");
+
+      input.value = "";
+      const list = $("talk-messages");
+      const alreadyShown = Array.from(list.children)
+        .some(item => item.dataset.messageId === data.id);
+      if (!alreadyShown) list.append(messageCard(data));
+      list.scrollTop = list.scrollHeight;
+      status("Message sent.");
+    } catch (err) {
+      status("Message not sent: " + String(err && err.message || err), true);
+    } finally {
+      if (button) button.disabled = false;
+      input.focus();
+    }
   }
 
   function sendSignal(to, payload) {
@@ -380,8 +426,27 @@
     return Object.values(state).flat().filter(p => p.user_id && p.user_id !== user.id);
   }
 
+  function renderVoiceMembers() {
+    const output = $("talk-voice-members");
+    if (!output) return;
+    if (!voiceChannel || !voiceActive) {
+      output.textContent = "No one in voice";
+      return;
+    }
+
+    const uniquePeople = new Map();
+    for (const person of Object.values(voiceChannel.presenceState()).flat()) {
+      if (!person || !person.user_id || uniquePeople.has(person.user_id)) continue;
+      uniquePeople.set(person.user_id, person.display_name || "Guest");
+    }
+    output.textContent = Array.from(uniquePeople.entries())
+      .map(([id, name]) => id === user.id ? name + " (you)" : name)
+      .join(" · ") || "No one in voice";
+  }
+
   async function syncVoicePeers() {
     if (!voiceActive || !localStream) return;
+    renderVoiceMembers();
     for (const person of voicePeople()) {
       if (user.id < person.user_id && !voicePeers.has(person.user_id)) {
         try { await makePeer(person.user_id, true); } catch (err) {
@@ -405,10 +470,14 @@
       });
       voiceChannel
         .on("broadcast", { event:"voice-signal" }, ({payload}) => handleSignal(payload))
-        .on("presence", { event:"sync" }, () => syncVoicePeers());
+        .on("presence", { event:"sync" }, () => {
+          renderVoiceMembers();
+          syncVoicePeers();
+        });
       voiceChannel.subscribe(async (state, err) => {
         if (state === "SUBSCRIBED") {
           await voiceChannel.track({ user_id:user.id, display_name:profile.display_name });
+          renderVoiceMembers();
           $("talk-voice-status").textContent = "Voice joined · waiting for others";
           $("talk-join-voice").hidden = true;
           $("talk-leave-voice").hidden = false;
@@ -452,6 +521,7 @@
     $("talk-mute").hidden = true;
     $("talk-mute").textContent = "Mute mic";
     $("talk-voice-status").textContent = "Voice is off";
+    renderVoiceMembers();
   }
 
   $("open-seuss-talk").addEventListener("click", async () => {
