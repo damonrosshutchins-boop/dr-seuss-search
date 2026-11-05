@@ -220,26 +220,29 @@ $("search-form").addEventListener("submit", (e) => {
 	go($("address").value);
 });
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
-async function openGameInProxy(event, url, useLibcurl = false) {
+const gamesDialog = $("games-dialog");
+$("open-games").addEventListener("click", () => gamesDialog.showModal());
+$("games-close").addEventListener("click", () => gamesDialog.close());
+
+function launchLibraryGame(event, url, useLibcurl = false) {
 	event.preventDefault();
 	event.stopPropagation();
+	gamesDialog.close();
 	if (useLibcurl) {
 		settings.transport = "libcurl";
 		save();
-		try {
-			await boot();
-			await applyTransport(true);
-		} catch (err) {
-			showError("The proxy connection could not be prepared.", String(err && err.stack || err));
-			return;
-		}
+		boot().then(() => applyTransport(true)).then(() => go(url)).catch((err) =>
+			showError("The proxy connection could not be prepared.", String(err && err.stack || err)));
+		return;
 	}
 	go(url);
 }
-$("open-geforce-proxy").addEventListener("click", (event) =>
-	openGameInProxy(event, "https://play.geforcenow.com/", true));
-$("open-nowgg-proxy").addEventListener("click", (event) =>
-	openGameInProxy(event, "https://now.gg/"));
+document.querySelectorAll("[data-proxy-url]").forEach((button) => {
+	button.addEventListener("click", (event) => launchLibraryGame(event, button.dataset.proxyUrl));
+});
+$("library-nowgg").addEventListener("click", (event) => launchLibraryGame(event, "https://now.gg/"));
+$("library-geforce").addEventListener("click", (event) =>
+	launchLibraryGame(event, "https://play.geforcenow.com/", true));
 $("b-home").onclick = () => history.back();
 $("b-back").onclick = () => frame && frame.back();
 $("b-fwd").onclick = () => frame && frame.forward();
