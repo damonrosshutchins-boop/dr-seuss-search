@@ -665,3 +665,26 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .home.interactive-bg > .home-particles { display: block; }
 .home > .topbar, .home > .hero, .home > .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .home > .home-particles { display: none !important; } }
+
+
+/* Rammerhead uses its own independent server and session portal. */
+.rammerhead-helper {
+	display: grid;
+	gap: 7px;
+	padding: 10px 14px;
+	background: var(--paper-2);
+	color: var(--ink);
+	border-bottom: 2px solid var(--ink);
+	font: 700 .82rem/1.35 var(--body);
+}
+.rammerhead-helper[hidden] { display: none; }
+.rammerhead-helper strong { font: 900 1rem var(--display); }
+.rammerhead-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rammerhead-tools input {
+	flex: 1 1 270px; min-width: 0; border: 2px solid var(--ink);
+	background: #fff; color: var(--ink); padding: 8px 10px;
+	border-radius: 10px; font: 700 .85rem var(--body);
+}
+.rammerhead-tools .chip { font-size: .82rem; padding: 6px 12px; }
+.rammerhead-tools a { color: var(--ink); font-weight: 900; text-decoration: underline; }
+#rammerhead-message { color: var(--ink-soft); }
