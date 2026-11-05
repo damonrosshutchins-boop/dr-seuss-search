@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Dr. Seuss Search</title>
+	<meta name="description" content="A whimsical web proxy built on Scramjet." />
+	<meta name="robots" content="noindex" />
+	<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="style.css" />
+	<script src="scram/scramjet.all.js"></script>
+	<script src="baremux/index.js"></script>
+</head>
+<body>
+	<div class="stripes" aria-hidden="true"></div>
+
+	<!-- HOME -->
+	<main id="home" class="home">
+		<header class="topbar">
+			<a class="brand" href="./" aria-label="Dr. Seuss Search home">
+				<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><path d="M20 37 C 19 28, 22 22, 18 14" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="3 3"/><circle cx="18" cy="10" r="8" fill="var(--pink)" stroke="currentColor" stroke-width="2.5"/></svg>
+				<span>Dr.&nbsp;Seuss Search</span>
+			</a>
+			<button class="chip" id="open-settings" type="button" aria-haspopup="dialog">
+				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+				Settings
+			</button>
+		</header>
+
+		<section class="hero">
+			<svg class="tree tree-l" viewBox="0 0 120 300" aria-hidden="true">
+				<path d="M62 300 C 58 240, 70 200, 55 150 S 66 90, 58 70" stroke="#1d1a17" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="10 7"/>
+				<path d="M58 72 c-30 4-46-14-38-34 c-14-18 6-38 24-30 c8-14 34-12 38 4 c22-2 30 22 16 34 c8 20-16 34-40 26z" fill="var(--pink)" stroke="#1d1a17" stroke-width="4"/>
+			</svg>
+			<svg class="tree tree-r" viewBox="0 0 120 300" aria-hidden="true">
+				<path d="M60 300 C 66 250, 50 210, 64 160 S 52 110, 62 96" stroke="#1d1a17" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="10 7"/>
+				<path d="M62 98 c-28 6-48-12-40-32 c-12-20 10-38 26-28 c10-14 36-10 38 6 c20 0 28 24 12 34 c6 20-14 30-36 20z" fill="var(--sun)" stroke="#1d1a17" stroke-width="4"/>
+			</svg>
+
+			<p class="kicker">a whimsical web proxy</p>
+			<h1>Search here, search there,<br /><span class="wiggle">search the web from anywhere.</span></h1>
+
+			<form id="search-form" class="search" autocomplete="off">
+				<label class="sr-only" for="address">Search or type a web address</label>
+				<input id="address" type="text" placeholder="Search a thing, or type a URL-a-ling" spellcheck="false" />
+				<button type="submit" class="go">Go<span aria-hidden="true">!</span></button>
+			</form>
+			<p class="hint">Searching with <button type="button" class="link" id="engine-label">Brave</button> &middot; press <kbd>/</kbd> to focus</p>
+
+			<ul class="tiles" id="tiles" aria-label="Quick links"></ul>
+
+			<div id="error" class="error" role="alert" hidden>
+				<strong id="error-title">Oh dear, something went wrong.</strong>
+				<pre id="error-detail"></pre>
+			</div>
+		</section>
+
+		<footer class="foot">
+			<span>Powered by <a href="https://github.com/MercuryWorkshop/scramjet" target="_blank" rel="noopener">Scramjet</a> &amp; Wisp from Mercury Workshop</span>
+			<span id="status" class="status"><i></i> <span>Warming up the whatchamajig&hellip;</span></span>
+		</footer>
+	</main>
+
+	<!-- BROWSER -->
+	<section id="browser" class="browser" hidden>
+		<nav class="bar" aria-label="Browser controls">
+			<button class="ib" id="b-home" title="Home" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg></button>
+			<button class="ib" id="b-back" title="Back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+			<button class="ib" id="b-fwd" title="Forward" aria-label="Forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+			<button class="ib" id="b-reload" title="Reload" aria-label="Reload"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4"/></svg></button>
+			<form id="bar-form" class="bar-url">
+				<label class="sr-only" for="bar-address">Address</label>
+				<input id="bar-address" type="text" spellcheck="false" autocomplete="off" />
+			</form>
+			<button class="ib" id="b-full" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+		</nav>
+		<div class="loader" id="loader" aria-hidden="true"></div>
+		<div id="frame-host" class="frame-host"></div>
+	</section>
+
+	<!-- SETTINGS -->
+	<dialog id="settings" class="settings">
+		<form method="dialog" id="settings-form">
+			<h2>Settings</h2>
+			<label>Search engine
+				<select id="s-engine">
+					<option value="https://search.brave.com/search?q=%s">Brave</option>
+					<option value="https://www.bing.com/search?q=%s">Bing</option>
+					<option value="https://www.google.com/search?q=%s">Google</option>
+					<option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
+				</select>
+			</label>
+			<label>Transport
+				<select id="s-transport">
+					<option value="libcurl">libcurl (recommended)</option>
+					<option value="epoxy">epoxy</option>
+				</select>
+			</label>
+			<label>Wisp server
+				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" />
+				<small>A Wisp relay carries your traffic. GitHub Pages can't run one, so we use a public server by default. You can host your own and paste its address here.</small>
+			</label>
+			<label class="row"><input id="s-cloak" type="checkbox" /> Open in an about:blank tab (hides the URL from history)</label>
+			<div class="actions">
+				<button type="button" class="chip" id="s-reset">Reset</button>
+				<button type="submit" class="go small" value="save">Save</button>
+			</div>
+		</form>
+	</dialog>
+
+	<script src="app.js"></script>
+</body>
+</html>
