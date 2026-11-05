@@ -179,6 +179,21 @@ $("search-form").addEventListener("submit", (e) => {
 });
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
 $("open-geforce-proxy").onclick = () => go("https://play.geforcenow.com/");
+$("open-nowgg-proxy").onclick = () => go("https://now.gg/");
+const stashDialog = $("stash");
+$("open-stash").onclick = () => { $("stash-search").value = ""; filterStash(); stashDialog.showModal(); };
+$("stash-nowgg").onclick = () => { stashDialog.close(); go("https://now.gg/games/browser.html"); };
+function filterStash() {
+	const q = $("stash-search").value.trim().toLowerCase();
+	let shown = 0;
+	$("stash-list").querySelectorAll(".stash-item").forEach((item) => {
+		const match = item.dataset.search.includes(q);
+		item.hidden = !match;
+		if (match) shown++;
+	});
+	$("stash-empty").hidden = shown !== 0;
+}
+$("stash-search").addEventListener("input", filterStash);
 $("b-home").onclick = () => history.back();
 $("b-back").onclick = () => frame && frame.back();
 $("b-fwd").onclick = () => frame && frame.forward();
@@ -290,13 +305,24 @@ function openTutorial() {
 	if (!tutorialDialog.open) tutorialDialog.showModal();
 }
 $("s-tutorial").onclick = () => { dlg.close(); openTutorial(); };
+const creatorDialog = $("creator-popup");
+function showCreatorPopup() {
+	try {
+		if (localStorage.getItem("dss-creator-seen") !== "1") creatorDialog.showModal();
+	} catch { creatorDialog.showModal(); }
+}
+creatorDialog.addEventListener("close", () => {
+	try { localStorage.setItem("dss-creator-seen", "1"); } catch {}
+});
 tutorialDialog.addEventListener("close", () => {
 	if ($("tutorial-again").checked || tutorialDialog.returnValue === "done") {
 		try { localStorage.setItem("dss-tutorial-seen", "1"); } catch {}
 	}
 });
+tutorialDialog.addEventListener("close", showCreatorPopup);
 try {
 	if (localStorage.getItem("dss-tutorial-seen") !== "1") openTutorial();
+	else showCreatorPopup();
 } catch { openTutorial(); }
 
 /* ---------- Start ---------- */
