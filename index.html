@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261104-direct1" />
+	<link rel="stylesheet" href="style.css?v=20261105-webv2-1" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
@@ -33,7 +33,6 @@
 			</a>
 			<div class="top-actions">
 			<button class="chip" id="open-games" type="button">🎮 <span class="chip-label">Games</span></button>
-			<button class="chip" id="open-linkgen" type="button">🔗 <span class="chip-label">Link Gen</span></button>
 			<button class="chip chip-vm" id="open-vm" type="button">
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 				VM
@@ -131,6 +130,9 @@
 						Play your own DOS game (.jsdos / .zip)
 					</label>
 				</div>
+				<h3 class="vm-section">Web Desktops <span>Browser-based operating systems</span></h3>
+				<ul class="os-grid" id="web-os-grid"></ul>
+				<p class="vm-note">Web desktops run as hosted browser apps, not bootable v86 images. Some sites may not allow embedding.</p>
 				<h3 class="vm-section">Full PCs <span>v86 &middot; boot a whole operating system</span></h3>
 				<ul class="os-grid" id="os-grid"></ul>
 				<div class="vm-opts">
@@ -161,8 +163,10 @@
 						</div>
 					</div>
 					<div id="dos-host" class="dos-host" hidden></div>
+					<div id="vm-web-host" class="vm-web-host" hidden></div>
 				</div>
 				<p class="vm-hint" id="vm-hint">Click the screen to type. Use the mouse button above to capture the pointer, and press Esc to release it.</p>
+				<p class="vm-hint vm-web-fallback" id="vm-web-fallback" hidden>Can’t see the desktop? <a href="https://terbiumon.top/" target="_blank" rel="noopener noreferrer">Open TerbiumOS v2 directly</a>.</p>
 			</div>
 		</div>
 		<div id="vm-toast" class="vm-toast" role="status" hidden></div>
@@ -282,28 +286,6 @@
 	</section>
 
 
-	<!-- PROXY LINK GENERATOR -->
-	<dialog id="link-generator" class="settings">
-		<form id="link-generator-form">
-			<h2>Proxy Link Generator</h2>
-			<p>Paste a website address to create a shareable link that opens it inside Dr. Seuss Search.</p>
-			<label>Website URL
-				<input id="linkgen-source" type="url" placeholder="https://example.com" required spellcheck="false" />
-			</label>
-			<div class="actions">
-				<button type="button" class="chip" id="linkgen-close">Close</button>
-				<button type="submit" class="go small">Generate link</button>
-			</div>
-			<label>Generated proxy link
-				<input id="linkgen-result" type="url" readonly placeholder="Your link will appear here" />
-			</label>
-			<div class="actions">
-				<button type="button" class="chip" id="linkgen-copy" disabled>Copy link</button>
-			</div>
-			<small id="linkgen-status" role="status">Links use your GitHub Pages address. A custom .sh short domain needs a separate domain or URL-shortening service.</small>
-		</form>
-	</dialog>
-
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -364,8 +346,8 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-linkgen1"></script>
+	<script src="app.js?v=20261105-webv2-1"></script>
 	<script src="chat.js?v=20261104-tabs1"></script>
-	<script src="vm.js"></script>
+	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
