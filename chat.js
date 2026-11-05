@@ -125,25 +125,34 @@
   }
 
   async function createRoom(event) {
-    event.preventDefault();
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    const button = $("talk-create-button");
+    if (!client || !user) { status("Still connecting. Close Seuss Talk and open it again.", true); return; }
     const name = $("talk-room-name").value.trim();
     const password = $("talk-lock").checked ? $("talk-room-password").value : null;
-    if ($("talk-lock").checked && (!password || password.length < 6)) {
-      status("Use a room password with at least 6 characters.", true); return;
+    if (name.length < 2 || name.length > 48) { status("Room name must be between 2 and 48 characters.", true); return; }
+    if ($("talk-lock").checked && (!password || password.length < 6)) { status("Use a room password with at least 6 characters.", true); return; }
+    if (button) { button.disabled = true; button.textContent = "Creating…"; }
+    status("Creating your room…");
+    try {
+      const { data, error } = await client.rpc("create_room", { p_name: name, p_password: password });
+      if (error) throw error;
+      if (!data) throw new Error("The server did not return a room ID. Please try again.");
+      $("talk-room-name").value = "";
+      $("talk-room-password").value = "";
+      $("talk-lock").checked = false;
+      $("talk-room-password").hidden = true;
+      await listRooms();
+      const { data: created, error: roomError } = await client.from("rooms").select("id,name,is_public,created_by,created_at").eq("id", data).single();
+      if (roomError) throw roomError;
+      await openRoom(created);
+      status("Room created successfully.");
+    } catch (err) {
+      status("Could not create room: " + String(err && err.message || err), true);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = "Create room"; }
     }
-    const { data, error } = await client.rpc("create_room", { p_name: name, p_password: password });
-    if (error) { status(error.message, true); return; }
-    $("talk-room-name").value = "";
-    $("talk-room-password").value = "";
-    $("talk-lock").checked = false;
-    $("talk-room-password").hidden = true;
-    await listRooms();
-    const { data: created, error: roomError } = await client.from("rooms")
-      .select("id,name,is_public,created_by,created_at").eq("id", data).single();
-    if (roomError) { status(roomError.message, true); return; }
-    await openRoom(created);
   }
-
   async function joinRoom(item) {
     let password = null;
     if (!item.is_public) {
@@ -408,6 +417,7 @@
   $("talk-close").addEventListener("click", () => dlg.close());
   $("talk-auth-form").addEventListener("submit", saveName);
   $("talk-create-form").addEventListener("submit", createRoom);
+  $("talk-create-button").addEventListener("click", createRoom);
   $("talk-lock").addEventListener("change", () => { $("talk-room-password").hidden = !$("talk-lock").checked; });
   $("talk-refresh").addEventListener("click", listRooms);
   $("talk-back-rooms").addEventListener("click", leaveRoom);
