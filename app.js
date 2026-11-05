@@ -226,7 +226,7 @@ function activateSiteTab(id) {
 
 	$("site-tabbar").hidden = false;
 	$("home").hidden = tab.type !== "home";
-	$("browser").hidden = tab.type !== "web";
+	$("browser").hidden = tab.type !== "web" && tab.type !== "direct";
 	$("seuss-talk").hidden = tab.type !== "talk";
 	$("vm").hidden = tab.type !== "vm";
 
@@ -234,7 +234,7 @@ function activateSiteTab(id) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
 	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
-	if (tab.type === "web") $("bar-address").value = tab.url || "";
+	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.url || "";
 	if (tab.type === "home") {
 		document.title = "New Tab · Dr. Seuss Search";
 	} else if (tab.type === "web") {
@@ -330,6 +330,50 @@ function createFrameForTab(tab) {
 	});
 	return instance;
 }
+function createDirectFrameForTab(tab) {
+	if (tab.directFrame) return tab.directFrame;
+	const pane = document.createElement("div");
+	pane.className = "site-frame-pane";
+	pane.hidden = true;
+	const iframe = document.createElement("iframe");
+	iframe.id = "direct-frame-" + tab.id;
+	iframe.title = tab.title || "In-site game";
+	iframe.setAttribute("allow", "autoplay; fullscreen; gamepad");
+	iframe.setAttribute("allowfullscreen", "");
+	iframe.referrerPolicy = "strict-origin-when-cross-origin";
+	pane.appendChild(iframe);
+	$("frame-host").appendChild(pane);
+	tab.directFrame = iframe;
+	tab.pane = pane;
+	iframe.addEventListener("load", () => {
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			loader.classList.remove("on");
+			document.title = tab.title + " · Dr. Seuss Search";
+		}
+		renderSiteTabs();
+	});
+	return iframe;
+}
+function openDirectSiteTab(inputUrl, title) {
+	let url;
+	try {
+		url = new URL(inputUrl, location.href);
+		if (url.origin !== location.origin) throw new Error("Direct tabs are only for pages hosted on this site.");
+	} catch (error) {
+		showError("That in-site page could not be opened.", String(error && error.message || error));
+		return;
+	}
+	const tab = createSiteTab("direct", title || siteTabTitle(url.href));
+	tab.url = url.href;
+	tab.title = title || siteTabTitle(url.href);
+	tab.loading = true;
+	const iframe = createDirectFrameForTab(tab);
+	iframe.src = url.href;
+	activateSiteTab(tab.id);
+}
+window.openDirectSiteTab = openDirectSiteTab;
+
 async function go(input) {
 	const url = toUrl(input);
 	if (!url) return;
@@ -365,6 +409,10 @@ function goHome() {
 	tab.title = "New Tab";
 	tab.url = "";
 	tab.loading = false;
+	if (tab.pane) tab.pane.remove();
+	tab.pane = null;
+	tab.frame = null;
+	tab.directFrame = null;
 	activateSiteTab(tab.id);
 	$("address").focus();
 }
@@ -400,6 +448,16 @@ function launchLibraryGame(event, url, useLibcurl = false) {
 document.querySelectorAll("[data-proxy-url]").forEach((button) => {
 	button.addEventListener("click", (event) => launchLibraryGame(event, button.dataset.proxyUrl));
 });
+document.querySelectorAll("[data-local-url]").forEach((button) => {
+	button.addEventListener("click", (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		gamesDialog.close();
+		const title = button.querySelector("strong")?.textContent?.trim() || "Game";
+		openDirectSiteTab(button.dataset.localUrl, title);
+	});
+});
+
 async function launchWithEpoxy(event, url) {
 	event.preventDefault();
 	event.stopPropagation();
@@ -419,9 +477,9 @@ $("library-nowgg").addEventListener("click", (event) =>
 $("library-geforce").addEventListener("click", (event) =>
 	launchWithEpoxy(event, "https://play.geforcenow.com/"));
 $("b-home").onclick = goHome;
-$("b-back").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.back(); };
-$("b-fwd").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.forward(); };
-$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; loader.classList.add("on"); tab.frame.reload(); } };
+$("b-back").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.back(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.back(); };
+$("b-fwd").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.forward(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.forward(); };
+$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; loader.classList.add("on"); tab.frame.reload(); } else if (tab && tab.directFrame) { tab.loading = true; loader.classList.add("on"); tab.directFrame.contentWindow.location.reload(); } };
 $("b-full").onclick = () => { const el = $("frame-host"); (el.requestFullscreen || el.webkitRequestFullscreen).call(el); };
 
 const tiles = $("tiles");
