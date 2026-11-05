@@ -240,9 +240,24 @@ function launchLibraryGame(event, url, useLibcurl = false) {
 document.querySelectorAll("[data-proxy-url]").forEach((button) => {
 	button.addEventListener("click", (event) => launchLibraryGame(event, button.dataset.proxyUrl));
 });
-$("library-nowgg").addEventListener("click", (event) => launchLibraryGame(event, "https://now.gg/"));
+async function launchWithEpoxy(event, url) {
+	event.preventDefault();
+	event.stopPropagation();
+	gamesDialog.close();
+	settings.transport = "epoxy";
+	save();
+	try {
+		await boot();
+		await applyTransport(true);
+		go(url);
+	} catch (err) {
+		showError("The proxy couldn't switch to the alternate connection.", String(err && err.stack || err));
+	}
+}
+$("library-nowgg").addEventListener("click", (event) =>
+	launchWithEpoxy(event, "https://now.gg/"));
 $("library-geforce").addEventListener("click", (event) =>
-	launchLibraryGame(event, "https://play.geforcenow.com/", true));
+	launchWithEpoxy(event, "https://play.geforcenow.com/"));
 $("b-home").onclick = () => history.back();
 $("b-back").onclick = () => frame && frame.back();
 $("b-fwd").onclick = () => frame && frame.forward();
