@@ -237,7 +237,7 @@ function activateSiteTab(id) {
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.url || "";
 	if (tab.type === "home") {
 		document.title = "New Tab · Dr. Seuss Search";
-	} else if (tab.type === "web") {
+	} else if (tab.type === "web" || tab.type === "direct") {
 		document.title = (tab.title || "Browser") + " · Dr. Seuss Search";
 	} else if (tab.type === "talk") {
 		document.title = "Seuss Talk · Dr. Seuss Search";
