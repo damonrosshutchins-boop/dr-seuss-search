@@ -26,18 +26,27 @@
 			opts: { fda: { url: vmAt("images/freedos722.img") } } },
 	];
 
+
+	const WEB_SYSTEMS = [
+		{ name: "TerbiumOS v2", badge: "Tb", color: "#32ae62",
+			desc: "A modern browser desktop with a window manager and app store, hosted by TerbiumOS.",
+			size: "Web app", url: "https://terbiumon.top/" },
+	];
+
 	const $ = (id) => document.getElementById(id);
 	const ui = {
 		view: $("vm"), picker: $("vm-picker"), stage: $("vm-stage"),
 		status: $("vm-status"), statusText: $("vm-status-text"), hint: $("vm-hint"),
 		screen: $("screen_container"), fit: $("vm-fit"), fitInner: $("vm-fit-inner"), dosHost: $("dos-host"),
 		mem: $("vm-mem"), title: document.querySelector(".vm-title"), toast: $("vm-toast"),
+		webHost: $("vm-web-host"), webFallback: $("vm-web-fallback"),
 	};
 	const BTN = { cad: $("vm-cad"), mouse: $("vm-mouse"), shot: $("vm-shot"), pause: $("vm-pause"), restart: $("vm-restart"), power: $("vm-power") };
 
 	let engine = null;   // "v86" | "dos" | null
 	let emulator = null; // v86 instance
 	let dos = null;      // js-dos props
+	let webFrame = null; // hosted browser desktop iframe
 	let current = null;  // last boot request (for restart)
 	let paused = false;
 	let bootGeneration = 0;
@@ -76,6 +85,8 @@
 	}
 	for (const g of GAMES) $("game-grid").appendChild(card(g, () => bootDos({ name: g.name, url: vmAt(g.url), tip: g.tip })));
 	for (const s of SYSTEMS) $("os-grid").appendChild(card(s, () => bootV86({ name: s.name, opts: s.opts, mem: Math.max(s.mem, +ui.mem.value) })));
+	for (const s of WEB_SYSTEMS) $("web-os-grid").appendChild(card(s, () => bootWeb(s)));
+	document.querySelectorAll("#web-os-grid .meta").forEach((m) => (m.textContent = m.textContent.replace("play", "launch")));
 	document.querySelectorAll("#os-grid .meta").forEach((m) => (m.innerHTML = m.innerHTML.replace("play", "boot")));
 
 	$("vm-file").addEventListener("change", (e) => {
@@ -103,7 +114,9 @@
 		if (text) text.textContent = "";
 		if (canvas) { canvas.style.display = "none"; canvas.width = canvas.height = 0; }
 		ui.dosHost.innerHTML = ""; ui.dosHost.hidden = true;
-		ui.stage.classList.remove("dos");
+		if (webFrame) { webFrame.src = "about:blank"; webFrame.remove(); webFrame = null; }
+		ui.webHost.replaceChildren(); ui.webHost.hidden = true; ui.webFallback.hidden = true;
+		ui.stage.classList.remove("dos", "web");
 		setTools({});
 	}
 
@@ -206,6 +219,37 @@
 		}
 	}
 
+	/* ---------- hosted browser desktops ---------- */
+	async function bootWeb(req) {
+		const generation = ++bootGeneration;
+		await shutdown(false);
+		if (generation !== bootGeneration) return;
+		current = { kind: "web", req };
+		enterStage(req.name);
+		engine = "web";
+		ui.stage.classList.add("web");
+		ui.hint.textContent = "This is a hosted browser desktop, not a PC emulator. Some embedded browser features may be limited.";
+		ui.webFallback.hidden = false;
+		ui.webHost.hidden = false;
+		setStatus("Opening TerbiumOS v2…");
+		const frame = document.createElement("iframe");
+		frame.title = req.name;
+		frame.referrerPolicy = "no-referrer";
+		frame.allow = "fullscreen; clipboard-read; clipboard-write";
+		frame.addEventListener("load", () => {
+			if (generation === bootGeneration && engine === "web")
+				setStatus("Desktop frame loaded. If it is blank or blocked, use the direct link below.", true);
+		});
+		frame.addEventListener("error", () => {
+			if (generation === bootGeneration && engine === "web")
+				setStatus("Could not load the embedded desktop. Use the direct link below.", true);
+		});
+		webFrame = frame;
+		ui.webHost.appendChild(frame);
+		setTools({ restart: 1, power: 1 });
+		frame.src = req.url;
+	}
+
 	/* ---------- scaling ---------- */
 	const SCALE_MODES = [
 		{ id: "fit", label: "Fit", cls: "smooth", dosRender: "smooth", dosAspect: "4/3" },
@@ -264,6 +308,7 @@
 	BTN.restart.onclick = () => {
 		if (emulator) { emulator.restart(); setPauseIcon(true); toast("Restarting…"); }
 		else if (current && current.kind === "dos") bootDos(current.req);
+		else if (current && current.kind === "web") bootWeb(current.req);
 	};
 	BTN.power.onclick = backToPicker;
 	BTN.pause.onclick = async () => {
@@ -368,5 +413,5 @@
 		else hideVM();
 	});
 
-	window.DSSVM = { bootDos, bootV86, shutdown, GAMES, SYSTEMS };
+	window.DSSVM = { bootDos, bootV86, bootWeb, shutdown, GAMES, SYSTEMS, WEB_SYSTEMS };
 })();
