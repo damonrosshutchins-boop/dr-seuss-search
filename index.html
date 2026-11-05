@@ -97,6 +97,16 @@
 			</form>
 			<button class="ib" id="b-full" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 		</nav>
+		<div class="rammerhead-helper" id="rammerhead-helper" hidden>
+			<strong>Rammerhead session</strong>
+			<span>Copy this destination, create or select a private session in Rammerhead, and paste it into Rammerhead's URL box. An external server is required.</span>
+			<div class="rammerhead-tools">
+				<input type="text" id="rammerhead-target" readonly aria-label="Destination to enter in Rammerhead" />
+				<button type="button" id="rammerhead-copy" class="chip">Copy address</button>
+				<a id="rammerhead-open" href="#" target="_blank" rel="noopener noreferrer">Open Rammerhead directly</a>
+			</div>
+			<span id="rammerhead-message" role="status">If the embedded portal is blank, use Open Rammerhead directly.</span>
+		</div>
 		<div class="loader" id="loader" aria-hidden="true"></div>
 		<div id="frame-host" class="frame-host"></div>
 	</section>
@@ -302,7 +312,18 @@
 					<option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
 				</select>
 			</label>
-			<label>Transport
+			<label>Proxy engine
+				<select id="s-proxy-engine">
+					<option value="scramjet">Scramjet (built in)</option>
+					<option value="rammerhead">Rammerhead (separate server)</option>
+				</select>
+				<small>Scramjet works on GitHub Pages. Rammerhead requires a separate Node.js server and a private session; the portal opens in your site if embedding is allowed.</small>
+			</label>
+			<label>Rammerhead server URL
+				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
+				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
+			</label>
+			<label>Transport (Scramjet only)
 				<select id="s-transport">
 					<option value="libcurl">libcurl (recommended)</option>
 					<option value="epoxy">epoxy</option>
@@ -363,7 +384,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-webv2-1"></script>
+	<script src="app.js?v=20261105-rhselect1"></script>
 	<script src="ui-extras.js?v=20261105-bgdefault2"></script>
 	<script src="chat.js?v=20261104-tabs1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
