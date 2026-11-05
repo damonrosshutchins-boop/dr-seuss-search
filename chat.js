@@ -10,6 +10,7 @@
   if (!dlg) return;
 
   let client = null, user = null, profile = null, room = null;
+  const openRooms = new Map();
   let messagesChannel = null, voiceChannel = null, localStream = null;
   let voicePeers = new Map(), remoteAudios = new Map(), candidateQueues = new Map();
   let voiceActive = false, muted = false, initialized = false;
@@ -124,6 +125,56 @@
     status((data || []).length + " room(s) available.");
   }
 
+  function renderRoomTabs() {
+    const roomsTab = $("talk-rooms-tab");
+    const tabs = $("talk-room-tabs");
+    tabs.replaceChildren();
+    const roomsActive = !room;
+    roomsTab.classList.toggle("active", roomsActive);
+    roomsTab.setAttribute("aria-selected", String(roomsActive));
+
+    for (const item of openRooms.values()) {
+      const wrapper = node("div", "talk-tab-item");
+      const tab = node("button", "talk-tab", item.name);
+      tab.type = "button";
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(!!room && room.id === item.id));
+      tab.dataset.roomTab = item.id;
+      tab.classList.toggle("active", !!room && room.id === item.id);
+
+      const close = node("button", "talk-tab-close", "×");
+      close.type = "button";
+      close.dataset.closeRoomTab = item.id;
+      close.setAttribute("aria-label", "Close " + item.name + " tab");
+      close.title = "Close tab";
+
+      wrapper.append(tab, close);
+      tabs.append(wrapper);
+    }
+  }
+
+  async function showRoomsTab() {
+    await leaveVoice();
+    if (messagesChannel) {
+      await client.removeChannel(messagesChannel);
+      messagesChannel = null;
+    }
+    room = null;
+    show("talk-room-view", false);
+    show("talk-rooms-view", true);
+    renderRoomTabs();
+    await listRooms();
+  }
+
+  async function closeRoomTab(roomId) {
+    openRooms.delete(roomId);
+    if (room && room.id === roomId) {
+      await showRoomsTab();
+      return;
+    }
+    renderRoomTabs();
+  }
+
   async function createRoom(event) {
     if (event && typeof event.preventDefault === "function") event.preventDefault();
     const button = $("talk-create-button");
@@ -222,8 +273,13 @@
 
   async function openRoom(item) {
     await leaveVoice();
-    if (messagesChannel) { await client.removeChannel(messagesChannel); messagesChannel = null; }
+    if (messagesChannel) {
+      await client.removeChannel(messagesChannel);
+      messagesChannel = null;
+    }
+    openRooms.set(item.id, item);
     room = item;
+    renderRoomTabs();
     $("talk-room-title").textContent = item.name;
     $("talk-room-lock").textContent = item.is_public ? "Open" : "Password protected";
     show("talk-rooms-view", false);
@@ -398,18 +454,6 @@
     $("talk-voice-status").textContent = "Voice is off";
   }
 
-  async function leaveRoom() {
-    await leaveVoice();
-    if (messagesChannel) { await client.removeChannel(messagesChannel); messagesChannel = null; }
-    if (room) {
-      await client.from("room_members").delete().eq("room_id", room.id).eq("user_id", user.id);
-    }
-    room = null;
-    show("talk-room-view", false);
-    show("talk-rooms-view", true);
-    await listRooms();
-  }
-
   $("open-seuss-talk").addEventListener("click", async () => {
     if (!dlg.open) dlg.showModal();
     await boot();
@@ -417,10 +461,22 @@
   $("talk-close").addEventListener("click", () => dlg.close());
   $("talk-auth-form").addEventListener("submit", saveName);
   $("talk-create-form").addEventListener("submit", createRoom);
-  $("talk-create-button").addEventListener("click", createRoom);
   $("talk-lock").addEventListener("change", () => { $("talk-room-password").hidden = !$("talk-lock").checked; });
   $("talk-refresh").addEventListener("click", listRooms);
-  $("talk-back-rooms").addEventListener("click", leaveRoom);
+  $("talk-rooms-tab").addEventListener("click", showRoomsTab);
+  $("talk-room-tabs").addEventListener("click", async (event) => {
+    const closeButton = event.target.closest("[data-close-room-tab]");
+    if (closeButton) {
+      await closeRoomTab(closeButton.dataset.closeRoomTab);
+      return;
+    }
+    const tabButton = event.target.closest("[data-room-tab]");
+    if (tabButton) {
+      const item = openRooms.get(tabButton.dataset.roomTab);
+      if (item) await openRoom(item);
+    }
+  });
+  $("talk-back-rooms").addEventListener("click", showRoomsTab);
   $("talk-message-form").addEventListener("submit", sendMessage);
   $("talk-join-voice").addEventListener("click", joinVoice);
   $("talk-leave-voice").addEventListener("click", leaveVoice);
@@ -431,6 +487,6 @@
     $("talk-mute").textContent = muted ? "Unmute mic" : "Mute mic";
   });
   dlg.addEventListener("close", () => {
-    if (room) leaveRoom().catch(() => {});
+    if (room) showRoomsTab().catch(() => {});
   });
 })();
