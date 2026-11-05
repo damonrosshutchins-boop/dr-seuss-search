@@ -381,3 +381,67 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
   .talk-call-actions { justify-content: flex-start; }
   .talk-send { align-items: stretch; }
 }
+
+/* Seuss Talk in-app room tabs */
+.talk-tabbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 0 9px;
+  border-bottom: 2px solid rgba(29,26,23,.2);
+}
+.talk-room-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+.talk-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1.5px solid rgba(29,26,23,.35);
+  border-radius: 12px;
+  background: rgba(255,255,255,.45);
+}
+.talk-tab {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: 800 .84rem var(--body);
+  cursor: pointer;
+}
+.talk-tab.active {
+  background: var(--sun);
+  color: #1d1a17;
+}
+.talk-tab-close {
+  width: 26px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: 800 1.15rem var(--body);
+  cursor: pointer;
+}
+.talk-tab-close:hover { background: rgba(216,38,47,.14); color: var(--red); }
+.talk-tab:focus-visible, .talk-tab-close:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+:root[data-theme="dark"] .talk-tab-item { background: #202936; border-color: #536071; }
+:root[data-theme="dark"] .talk-tab.active { background: var(--sun); color: #1d1a17; }
+@media (max-width: 600px) {
+  .talk-tabbar { flex-wrap: nowrap; align-items: flex-start; overflow-x: auto; }
+  .talk-room-tabs { flex-wrap: nowrap; }
+  .talk-tab-item { flex: none; }
+}
