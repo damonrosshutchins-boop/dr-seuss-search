@@ -325,3 +325,59 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .library-icon { width: 42px; height: 42px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 12px; color: #fff; font: 900 .95rem var(--display); }
 .library-footnote { margin: 16px 0 0; font-size: .78rem; }
 @media (max-width: 520px) { .library-content { padding: 18px; } .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .library-card { padding: 12px; } }
+
+
+/* SEUSS TALK */
+.top-action-stack { display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
+.talk-launch { justify-content: center; background: var(--sun); padding-top: 7px; padding-bottom: 7px; }
+.talk-dialog { width: min(760px, calc(100vw - 24px)); max-height: min(88vh, 820px); overflow: auto; }
+.talk-shell { padding: clamp(16px, 3vw, 26px); display: grid; gap: 14px; }
+.talk-shell .library-heading h2 { font: 900 1.8rem var(--display); margin: 0; }
+.talk-status { margin: 0; padding: 9px 12px; border-radius: 10px; background: rgba(26,166,160,.13); font-size: .88rem; font-weight: 800; }
+.talk-status.bad { background: rgba(216,38,47,.12); color: var(--red); }
+.talk-setup { border: 2px solid var(--sun); border-radius: 14px; padding: 14px; line-height: 1.45; }
+.talk-setup p { margin: 8px 0; }
+.talk-setup a { color: var(--teal); font-weight: 900; }
+.talk-muted { color: var(--ink-soft); font-size: .82rem; }
+.talk-form, .talk-create { display: grid; gap: 12px; padding: 14px; border: 2px solid var(--ink); border-radius: 14px; }
+.talk-form label, .talk-create label { display: grid; gap: 6px; font-weight: 800; font-size: .9rem; }
+.talk-form input, .talk-create input, .talk-send input {
+  min-width: 0; width: 100%; padding: 10px 12px; border: 2px solid var(--ink);
+  border-radius: 10px; background: #fff; color: #1d1a17; font: 600 .95rem var(--body);
+}
+.talk-check { display: flex !important; flex-direction: row; align-items: center; gap: 8px !important; }
+.talk-check input { width: 18px; height: 18px; }
+.talk-create .go { justify-self: start; }
+.talk-section-heading { display: flex; justify-content: space-between; align-items: center; margin: 18px 0 8px; }
+.talk-room-list { display: grid; gap: 9px; }
+.talk-room-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,.65); border: 2px solid var(--ink); border-radius: 13px; }
+.talk-room-info { display: grid; gap: 2px; min-width: 0; }
+.talk-room-info strong { overflow-wrap: anywhere; }
+.talk-small { font-size: .82rem; padding: 6px 12px; white-space: nowrap; }
+.talk-text-button { border: 0; background: none; color: var(--teal); text-decoration: underline; font: 800 .82rem var(--body); cursor: pointer; padding: 3px; }
+.talk-room-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.talk-room-top h3 { margin: 3px 0; font: 900 1.35rem var(--display); overflow-wrap: anywhere; }
+.talk-call-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.talk-members { padding: 8px 10px; background: rgba(26,166,160,.1); border-radius: 9px; font-size: .82rem; line-height: 1.45; }
+.talk-messages { height: min(38vh, 330px); min-height: 180px; overflow: auto; display: flex; flex-direction: column; gap: 9px; padding: 10px; border: 2px solid var(--ink); border-radius: 14px; background: rgba(255,255,255,.45); }
+.talk-message { background: var(--paper); border: 1.5px solid rgba(29,26,23,.3); border-radius: 11px; padding: 9px 11px; overflow-wrap: anywhere; }
+.talk-message-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.talk-message p { margin: 6px 0 2px; white-space: pre-wrap; line-height: 1.4; }
+.talk-message-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.talk-send { display: flex; gap: 8px; }
+.talk-send input { flex: 1; }
+.talk-send .go { flex: none; }
+.talk-safety { margin: 0; }
+.talk-remote-audio { display: none; }
+:root[data-theme="dark"] .talk-room-card,
+:root[data-theme="dark"] .talk-messages,
+:root[data-theme="dark"] .talk-message { background: #273343; }
+:root[data-theme="dark"] .talk-form input,
+:root[data-theme="dark"] .talk-create input,
+:root[data-theme="dark"] .talk-send input { background: #273343; color: var(--ink); }
+@media (max-width: 600px) {
+  .talk-launch span { display: none; }
+  .talk-room-top { align-items: flex-start; flex-direction: column; }
+  .talk-call-actions { justify-content: flex-start; }
+  .talk-send { align-items: stretch; }
+}
