@@ -13,7 +13,7 @@
 		frameHost: $("frame-host")
 	};
 	if (!controls.bg || !controls.cursor || !controls.canvas || !controls.home) return;
-	if (typeof settings.interactiveNewTab !== "boolean") settings.interactiveNewTab = false;
+	if (typeof settings.interactiveNewTab !== "boolean") settings.interactiveNewTab = true;
 	if (!options.includes(settings.cursorStyle)) settings.cursorStyle = "cartoon";
 
 	/* Tiny SVG cursors with the real pointer hotspot at the top-left arrow tip. */
@@ -176,7 +176,7 @@
 	}
 	$("open-settings").addEventListener("click", populateSettings);
 	$("s-reset").addEventListener("click", () => {
-		controls.bg.checked = false;
+		controls.bg.checked = true;
 		controls.cursor.value = "cartoon";
 	});
 	$("settings-form").addEventListener("submit", () => {
