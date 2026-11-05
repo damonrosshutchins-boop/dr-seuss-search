@@ -752,11 +752,14 @@
     renderVoiceMembers();
   }
 
-  $("open-seuss-talk").addEventListener("click", async () => {
-    if (!dlg.open) dlg.showModal();
-    await boot();
+  window.addEventListener("seuss-talk-tab-open", async () => { await boot(); });
+  window.addEventListener("seuss-talk-tab-close", async () => {
+    if (room) await showRoomsTab();
+    else await leaveVoice();
   });
-  $("talk-close").addEventListener("click", () => dlg.close());
+  $("talk-close").addEventListener("click", () => {
+    if (typeof window.switchAwayFromSeussTalk === "function") window.switchAwayFromSeussTalk();
+  });
   $("talk-auth-form").addEventListener("submit", saveName);
   $("talk-create-form").addEventListener("submit", createRoom);
   $("talk-lock").addEventListener("change", () => { $("talk-room-password").hidden = !$("talk-lock").checked; });
@@ -785,7 +788,4 @@
     updateMicButton();
   });
   $("talk-delete-room").addEventListener("click", deleteCurrentRoom);
-  dlg.addEventListener("close", () => {
-    if (room) showRoomsTab().catch(() => {});
-  });
 })();
