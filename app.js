@@ -436,13 +436,13 @@ $("linkgen-close").addEventListener("click", () => linkGeneratorDialog.close());
 $("link-generator-form").addEventListener("submit", (event) => {
 	event.preventDefault();
 	const raw = $("linkgen-source").value.trim();
-	if (!raw || /\\s/.test(raw)) {
+	if (!raw || /\s/.test(raw)) {
 		$("linkgen-status").textContent = "Enter a valid website address.";
 		return;
 	}
 	let destination;
 	try {
-		destination = new URL(/^https?:\\/\\//i.test(raw) ? raw : "https://" + raw);
+		destination = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
 		if (destination.protocol !== "https:" && destination.protocol !== "http:") throw new Error("Only web addresses are supported.");
 	} catch {
 		$("linkgen-status").textContent = "That address doesn't look valid. Enter a URL such as https://example.com.";
