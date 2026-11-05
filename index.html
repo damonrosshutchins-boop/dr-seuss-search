@@ -10,6 +10,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
 	<link rel="stylesheet" href="style.css" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
@@ -29,9 +30,9 @@
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 				VM
 			</button>
-			<button class="chip" id="open-settings" type="button" aria-haspopup="dialog">
+			<button class="chip" id="open-settings" type="button" aria-haspopup="dialog" aria-label="Settings">
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
-				Settings
+				<span class="chip-label">Settings</span>
 			</button>
 			</div>
 		</header>
@@ -57,6 +58,24 @@
 			<p class="hint">Searching with <button type="button" class="link" id="engine-label">Brave</button> &middot; press <kbd>/</kbd> to focus</p>
 
 			<ul class="tiles" id="tiles" aria-label="Quick links"></ul>
+
+			<section class="games" aria-labelledby="games-h">
+				<h2 id="games-h">Games, games, fun-a-ma-games</h2>
+				<div class="game-row">
+					<a class="game-card" href="https://play.geforcenow.com/" target="_blank" rel="noopener">
+						<span class="gc-badge" style="background:#76b900">G</span>
+						<span class="gc-text"><strong>GeForce NOW</strong><span>Stream the PC and Steam games you own, from NVIDIA's cloud &middot; opens in a new tab</span></span>
+					</a>
+					<a class="game-card" href="https://now.gg/" target="_blank" rel="noopener">
+						<span class="gc-badge" style="background:#1d1a17">n</span>
+						<span class="gc-text"><strong>now.gg</strong><span>Play mobile games in the browser, streamed from the cloud &middot; opens in a new tab</span></span>
+					</a>
+					<button type="button" class="game-card" data-arcade="1">
+						<span class="gc-badge" style="background:var(--red)">D</span>
+						<span class="gc-text"><strong>DOS Arcade</strong><span>DOOM, Quake, Heretic, Tyrian and more, running on your device</span></span>
+					</button>
+				</div>
+			</section>
 
 			<div id="error" class="error" role="alert" hidden>
 				<strong id="error-title">Oh dear, something went wrong.</strong>
@@ -99,6 +118,7 @@
 				<button class="ib" id="vm-pause" title="Pause / resume" aria-label="Pause or resume"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
 				<button class="ib" id="vm-restart" title="Restart" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4"/></svg></button>
 				<button class="ib" id="vm-power" title="Power off" aria-label="Power off"><svg viewBox="0 0 24 24"><path d="M12 3v8M7 6.5a7 7 0 1 0 10 0"/></svg></button>
+				<button class="ib ib-wide" id="vm-scale" title="Scaling: Fit" aria-label="Change scaling">Fit</button>
 				<button class="ib" id="vm-full" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 			</div>
 		</nav>
@@ -107,6 +127,16 @@
 			<div id="vm-picker" class="vm-picker">
 				<p class="kicker">a computer in a computer</p>
 				<h2>Pick a system, any system,<br /><span class="wiggle">it boots right in your browser-ism.</span></h2>
+				<h3 class="vm-section">Game Arcade <span>DOSBox &middot; sound, fast graphics, made for games</span></h3>
+				<ul class="os-grid" id="game-grid"></ul>
+				<div class="vm-opts">
+					<label class="upload chip">
+						<input id="vm-game-file" type="file" accept=".jsdos,.zip" />
+						<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+						Play your own DOS game (.jsdos / .zip)
+					</label>
+				</div>
+				<h3 class="vm-section">Full PCs <span>v86 &middot; boot a whole operating system</span></h3>
 				<ul class="os-grid" id="os-grid"></ul>
 				<div class="vm-opts">
 					<label>Memory
@@ -123,18 +153,24 @@
 						Boot your own .iso / .img
 					</label>
 				</div>
-				<p class="vm-note">Runs on <a href="https://github.com/copy/v86" target="_blank" rel="noopener">v86</a>, an x86 emulator in WebAssembly. Everything stays on your device, and nothing is saved when you close the tab.</p>
+				<p class="vm-note">The Arcade runs on <a href="https://js-dos.com" target="_blank" rel="noopener">js-dos</a> (DOSBox), and the PCs run on <a href="https://github.com/copy/v86" target="_blank" rel="noopener">v86</a>. Both are emulators built on WebAssembly. Everything runs on your device. Bundled games are the free shareware or freeware releases.</p>
 			</div>
 
 			<div id="vm-stage" class="vm-stage" hidden>
 				<div id="vm-status" class="vm-status" role="status"><span class="spinner" aria-hidden="true"></span><span id="vm-status-text">Loading&hellip;</span></div>
-				<div id="screen_container" class="vm-screen">
-					<div class="vm-text"></div>
-					<canvas class="vm-canvas"></canvas>
+				<div id="vm-fit" class="vm-fit">
+					<div id="vm-fit-inner" class="vm-fit-inner">
+						<div id="screen_container" class="vm-screen">
+							<div class="vm-text"></div>
+							<canvas class="vm-canvas"></canvas>
+						</div>
+					</div>
+					<div id="dos-host" class="dos-host" hidden></div>
 				</div>
-				<p class="vm-hint">Click the screen to type. Use the mouse button above to capture the pointer, and press Esc to release it.</p>
+				<p class="vm-hint" id="vm-hint">Click the screen to type. Use the mouse button above to capture the pointer, and press Esc to release it.</p>
 			</div>
 		</div>
+		<div id="vm-toast" class="vm-toast" role="status" hidden></div>
 	</section>
 
 	<!-- SETTINGS -->

@@ -21,6 +21,12 @@ A whimsical, fully static web proxy built on [Scramjet](https://github.com/Mercu
   - Bundled systems: Buildroot Linux, Linux 4 (live CD), KolibriOS, FreeDOS
   - Boot your own `.iso` or `.img` file from your device (ISO = CD, small images = floppy, larger images = hard disk)
   - Memory picker, Ctrl+Alt+Del, mouse lock, pause/resume, restart, power off, screenshot, fullscreen
+- **Game Arcade**: a DOSBox gaming VM powered by [js-dos](https://js-dos.com) with Sound Blaster 16 audio and max CPU cycles
+  - Bundled: DOOM, Heretic and Quake (shareware episodes), Tyrian 2000 (freeware), Digger
+  - Play your own DOS game from a `.jsdos` or `.zip` bundle
+- **Better fullscreen** for both VMs: the whole VM goes fullscreen with an auto-hiding floating toolbar, keyboard lock in Chromium browsers (hold Esc to exit) so game keys are not stolen by the browser, and a soft-fullscreen fallback on iPhone/iPad
+- **Scaling modes**: Fit (smooth), Pixel (crisp integer scaling) and Stretch
+- **Games section** on the home page with links to GeForce NOW and now.gg (these open directly in a new tab, since cloud-gaming streams use WebRTC and cannot run through the proxy)
 
 ## Self-hosting a Wisp relay (recommended)
 
@@ -40,6 +46,10 @@ The files in `scram/`, `baremux/`, `libcurl/`, and `epoxy/` are copied from the 
 ## VM files
 
 `vm/libv86.js` and `vm/v86.wasm` come from the `v86@0.5.473` npm package (BSD-2-Clause; see `vm/LICENSE-v86`). The BIOS files (SeaBIOS, VGABIOS) are from the v86 repo. The OS images in `vm/images/` are free/open-source images published by the v86 project at copy.sh.
+
+## Arcade files
+
+`vm/jsdos/` is js-dos 8.5.3 (GPL-2.0), wrapped in a function so its globals do not clash with the page. The game bundles in `vm/games/` were built from the official shareware releases of DOOM 1.9, Heretic 1.2 and Quake 1.06 (id Software and Raven allow these to be freely distributed), the Tyrian 2000 freeware release, and the js-dos Digger sample bundle.
 
 ## License
 
