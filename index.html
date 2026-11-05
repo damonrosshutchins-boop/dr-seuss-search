@@ -207,13 +207,14 @@
 				<p class="talk-muted">Turn on Anonymous Sign-Ins. In Realtime settings, turn OFF “Allow public access”. No paid features are needed.</p>
 			</section>
 			<section id="talk-auth" hidden>
-				<p>Choose a screen name. Seuss Talk uses a temporary guest account and does not ask for your email.</p>
+				<p>Create a username before joining a room. Your username appears beside every message and in the live voice list. Seuss Talk uses a temporary guest account and does not ask for your email.</p>
 				<form id="talk-auth-form" class="talk-form">
-					<label>Screen name <input id="talk-name" maxlength="24" minlength="2" required placeholder="Choose a nickname" /></label>
+					<label>Username <input id="talk-name" maxlength="24" minlength="2" required autocomplete="nickname" placeholder="Choose a username" /></label>
 					<button class="go small" type="submit">Continue</button>
 				</form>
 			</section>
 			<div id="talk-app" hidden>
+        <div class="talk-members"><strong>Username:</strong> <span id="talk-current-name"></span></div>
 				<nav id="talk-tabbar" class="talk-tabbar" aria-label="Seuss Talk tabs">
 					<button type="button" class="talk-tab active" id="talk-rooms-tab" role="tab" aria-selected="true" aria-controls="talk-rooms-view">Rooms</button>
 					<div id="talk-room-tabs" class="talk-room-tabs"></div>
@@ -239,6 +240,7 @@
 					</div>
 					<p id="talk-voice-status" class="talk-muted">Voice is off</p>
 					<div class="talk-members"><strong>In room:</strong> <span id="talk-members">Loading…</span></div>
+          <div class="talk-members talk-voice-members" aria-live="polite"><strong>In voice:</strong> <span id="talk-voice-members">No one in voice</span></div>
 					<div id="talk-messages" class="talk-messages" aria-live="polite"></div>
 					<form id="talk-message-form" class="talk-send">
 						<input id="talk-message-input" maxlength="1000" required placeholder="Write a message…" autocomplete="off" />
@@ -312,7 +314,7 @@
 	</dialog>
 
 	<script src="app.js?v=20261104-4"></script>
-	<script src="chat.js?v=20261105-3"></script>
+	<script src="chat.js?v=20261105-4"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
