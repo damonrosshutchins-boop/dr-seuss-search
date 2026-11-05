@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Hollow Knight: Silksong · Dr. Seuss Search</title>
-  <base href="https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/">
+  <base href="https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/">
   <link rel="icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
   <style>
@@ -40,7 +40,7 @@
     "use strict";
 
     const ASSET_BASE = new URL(document.querySelector("base").href);
-    const CACHE_NAME = "dss-silksong-assets-v3";
+    const CACHE_NAME = "dss-silksong-assets-v4";
     const CACHE_BASE = new URL("/dr-seuss-search/__silksong_cache__/", location.origin);
     const CACHE_COMPLETE_KEY = new URL("__complete__", CACHE_BASE).href;
     const EXPECTED_MB = 1986.64;
@@ -48,7 +48,12 @@
     const loadingText = document.getElementById("loading-text");
     const progressBar = document.getElementById("unity-progress-bar-full");
 
-    function assetCacheKey(resource) {
+    const ASSET_MIRRORS = [
+      ASSET_BASE,
+      new URL("https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/")
+    ];
+
+    function assetLocation(resource) {
       let url;
       try {
         const raw = resource instanceof Request ? resource.url : String(resource);
@@ -56,20 +61,53 @@
       } catch {
         return null;
       }
-      if (url.origin !== ASSET_BASE.origin || !url.pathname.startsWith(ASSET_BASE.pathname)) return null;
-      const relative = url.pathname.slice(ASSET_BASE.pathname.length);
-      if (!relative || relative.split("/").includes("..")) return null;
+      for (const base of ASSET_MIRRORS) {
+        if (url.origin === base.origin && url.pathname.startsWith(base.pathname)) {
+          const relative = url.pathname.slice(base.pathname.length);
+          if (!relative || relative.split("/").includes("..")) return null;
+          return { relative, search: url.search };
+        }
+      }
+      return null;
+    }
+
+    function assetCacheKey(resource) {
+      const location = assetLocation(resource);
+      if (!location) return null;
       let safePath;
       try {
-        safePath = relative.split("/").map(part => encodeURIComponent(decodeURIComponent(part))).join("/");
+        safePath = location.relative.split("/").map(part =>
+          encodeURIComponent(decodeURIComponent(part))
+        ).join("/");
       } catch {
         return null;
       }
-      return new URL(safePath + url.search, CACHE_BASE).href;
+      return new URL(safePath + location.search, CACHE_BASE).href;
     }
 
-    // The original host page looked up extracted files by basename but stored
-    // them using their full ZIP paths. Keep the full relative path on both sides.
+    async function fetchAssetFromMirrors(resource, options) {
+      const location = assetLocation(resource);
+      if (!location) return originalFetch(resource, options);
+
+      const failures = [];
+      for (const mirror of ASSET_MIRRORS) {
+        const target = new URL(location.relative + location.search, mirror).href;
+        try {
+          const request = resource instanceof Request
+            ? new Request(target, resource)
+            : target;
+          const response = await originalFetch(request, options);
+          if (response.ok) return response;
+          failures.push(mirror.hostname + " returned HTTP " + response.status);
+        } catch (error) {
+          failures.push(mirror.hostname + ": " + String(error && error.message || error));
+        }
+      }
+      throw new Error("Both game asset mirrors failed for " + location.relative + ". " + failures.join(" · "));
+    }
+
+    // Prefer raw GitHub and fall back to jsDelivr if a CDN request fails.
+    // Keep the full ZIP-relative asset path consistent with the cache keys.
     window.fetch = async function(resource, options) {
       const key = assetCacheKey(resource);
       if (key) {
@@ -81,7 +119,7 @@
           console.warn("Silksong cache lookup failed; using the network.", error);
         }
       }
-      return originalFetch(resource, options);
+      return fetchAssetFromMirrors(resource, options);
     };
 
     function setStatus(message) {
@@ -102,10 +140,28 @@
       for (let part = 1; part <= 100; part++) {
         const url = new URL("StreamingAssets/aa/WebGL.zip.part" + part, ASSET_BASE);
         setStatus("Downloading game assets… part " + part + " / 100 · " + formatMB(received) + " MB / " + EXPECTED_MB + " MB");
-        const response = await originalFetch(url.href);
-        if (!response.ok) throw new Error("Could not download asset part " + part + " (HTTP " + response.status + "). Reload the page to retry.");
-        const blob = await response.blob();
-        if (!blob.size) throw new Error("Asset part " + part + " was empty. Reload the page to retry.");
+        let blob = null;
+        let lastError = null;
+        for (let attempt = 1; attempt <= 2 && !blob; attempt++) {
+          try {
+            const response = await fetchAssetFromMirrors(url.href);
+            blob = await response.blob();
+            if (!blob.size) throw new Error("The server returned an empty file.");
+          } catch (error) {
+            lastError = error;
+            if (attempt < 2) {
+              setStatus("Retrying asset part " + part + "…");
+              await new Promise(resolve => setTimeout(resolve, 900));
+            }
+          }
+        }
+        if (!blob) {
+          throw new Error(
+            "Could not download asset part " + part + " of 100. " +
+            String(lastError && lastError.message || lastError || "Unknown network error") +
+            " Check the connection and reload to retry."
+          );
+        }
         blobs.push(blob);
         received += blob.size;
         setStatus("Downloaded " + formatMB(received) + " MB / " + EXPECTED_MB + " MB of game assets…");
@@ -168,7 +224,17 @@
       setStatus("Starting the game engine…");
 
       const loader = document.createElement("script");
-      loader.src = new URL("Build/w-pt.loader.js", ASSET_BASE).href;
+      const loaderUrls = ASSET_MIRRORS.map(base => new URL("Build/w-pt.loader.js", base).href);
+      let loaderAttempt = 0;
+      loader.onerror = () => {
+        loaderAttempt++;
+        if (loaderAttempt < loaderUrls.length) {
+          loader.src = loaderUrls[loaderAttempt];
+        } else {
+          setStatus("The Unity loader could not be downloaded from either game file host. Check the connection and reload.");
+        }
+      };
+      loader.src = loaderUrls[0];
       loader.onload = () => {
         if (typeof createUnityInstance !== "function") {
           setStatus("The game engine did not initialize. Reload the page to retry.");
