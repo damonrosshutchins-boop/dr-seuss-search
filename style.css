@@ -308,3 +308,20 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .tutorial-check input { width: 18px; height: 18px; accent-color: var(--red); }
 :root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 @media (max-width: 520px) { .settings-pair { grid-template-columns: 1fr; } }
+
+
+/* GAMES LIBRARY */
+.game-library { width: min(760px, calc(100vw - 28px)); max-height: min(86vh, 760px); overflow: auto; }
+.library-content { padding: 24px; }
+.library-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.library-heading .kicker { margin-bottom: 4px; }
+.library-heading h2 { margin: 0; font: 900 1.8rem var(--display); }
+.library-note, .library-footnote { color: var(--ink-soft); font-size: .9rem; line-height: 1.45; }
+.library-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 18px; }
+.library-card { min-height: 154px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 16px; border: 2.5px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); box-shadow: 3px 3px 0 var(--ink); cursor: pointer; text-align: left; font: 700 .9rem var(--body); transition: transform .12s, box-shadow .12s; }
+.library-card:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 var(--ink); }
+.library-card strong { font: 900 1.05rem var(--display); }
+.library-card > span:last-child { color: var(--ink-soft); font-size: .8rem; }
+.library-icon { width: 42px; height: 42px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 12px; color: #fff; font: 900 .95rem var(--display); }
+.library-footnote { margin: 16px 0 0; font-size: .78rem; }
+@media (max-width: 520px) { .library-content { padding: 18px; } .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .library-card { padding: 12px; } }
