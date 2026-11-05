@@ -308,20 +308,3 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .tutorial-check input { width: 18px; height: 18px; accent-color: var(--red); }
 :root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 @media (max-width: 520px) { .settings-pair { grid-template-columns: 1fr; } }
-
-
-/* The Stash */
-.stash-dialog { width: min(560px, calc(100vw - 32px)); }
-.stash-intro { margin: -4px 0 0; color: var(--ink-soft); }
-.stash-dialog input[type=search] { font: 600 .95rem var(--body); padding: 10px 12px; border: 2.5px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
-.stash-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.stash-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--ink); border-radius: 14px; background: rgba(255,255,255,.5); }
-.stash-item[hidden] { display: none; }
-.stash-item .gc-text { flex: 1; min-width: 0; text-align: left; }
-.stash-empty { margin: 0; padding: 14px; border: 2px dashed var(--ink-soft); border-radius: 12px; color: var(--ink-soft); text-align: center; }
-:root[data-theme="dark"] .stash-dialog input[type=search],
-:root[data-theme="dark"] .stash-item { background: #273343; color: var(--ink); }
-@media (max-width: 460px) {
-	.stash-item { flex-wrap: wrap; }
-	.stash-item .go { width: auto; }
-}
