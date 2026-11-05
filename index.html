@@ -219,7 +219,7 @@
 						<label>Room name <input id="talk-room-name" maxlength="48" minlength="2" required placeholder="Name your room" /></label>
 					<label class="talk-check"><input id="talk-lock" type="checkbox" /> Password-protect this room</label>
 					<input id="talk-room-password" type="password" minlength="6" maxlength="100" placeholder="Room password (6+ characters)" autocomplete="new-password" hidden />
-					<button class="go small" type="submit">Create room</button>
+					<button class="go small" type="button" id="talk-create-button">Create room</button>
 					</form>
 					<div class="talk-section-heading"><strong>Available rooms</strong><button type="button" class="talk-text-button" id="talk-refresh">Refresh</button></div>
 					<div id="talk-room-list" class="talk-room-list"></div>
@@ -308,7 +308,7 @@
 	</dialog>
 
 	<script src="app.js?v=20261104-4"></script>
-	<script src="chat.js?v=20261105-1"></script>
+	<script src="chat.js?v=20261105-2"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
