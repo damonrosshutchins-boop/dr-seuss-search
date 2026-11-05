@@ -195,10 +195,41 @@
 				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" />
 				<small>A Wisp relay carries your traffic. GitHub Pages can't run one, so we use a public server by default. You can host your own and paste its address here.</small>
 			</label>
+			<label>Page background image URL
+				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
+				<small>Use a direct image URL. Leave blank to use the default background.</small>
+			</label>
+			<div class="settings-pair">
+				<label>Accent color <input id="s-accent" type="color" value="#d8262f" /></label>
+				<label>Color theme
+					<select id="s-theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+				</label>
+			</div>
+			<label class="row"><input id="s-motion" type="checkbox" /> Reduce animations</label>
 			<label class="row"><input id="s-cloak" type="checkbox" /> Open in an about:blank tab (hides the URL from history)</label>
+			<button type="button" class="chip settings-help" id="s-tutorial">Show the getting-started guide</button>
 			<div class="actions">
 				<button type="button" class="chip" id="s-reset">Reset</button>
 				<button type="submit" class="go small" value="save">Save</button>
+			</div>
+		</form>
+	</dialog>
+
+	<!-- FIRST-VISIT GUIDE -->
+	<dialog id="tutorial" class="tutorial">
+		<form method="dialog">
+			<p class="kicker">welcome aboard</p>
+			<h2>How to use Dr. Seuss Search</h2>
+			<ol>
+				<li><strong>Search the web:</strong> type a search or website address in the big box and press Go.</li>
+				<li><strong>Browse:</strong> use the toolbar to go back, forward, reload, change the address, or return home.</li>
+				<li><strong>Try the VM:</strong> open VM to run the included browser-based demo systems and DOS arcade titles on your device.</li>
+				<li><strong>Make it yours:</strong> open Settings to choose a search engine, background image, accent color, theme, and motion preferences.</li>
+			</ol>
+			<p class="tutorial-note">Some websites block embedding or require features that a web proxy cannot provide. GeForce NOW uses its own supported browser streaming flow, so its official launch page opens separately rather than being relayed through this proxy.</p>
+			<div class="actions">
+				<label class="row tutorial-check"><input id="tutorial-again" type="checkbox" /> Don't show this automatically again</label>
+				<button type="submit" class="go small" id="tutorial-done" value="done">Let's go!</button>
 			</div>
 		</form>
 	</dialog>
