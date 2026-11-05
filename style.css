@@ -267,3 +267,44 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 	#open-settings .chip-label { display: none; }
 	.games h2 { font-size: 1.2rem; }
 }
+
+
+/* Personal appearance and first-run guide */
+:root[data-theme="dark"] {
+	--paper: #151a22;
+	--paper-2: #202936;
+	--ink: #f2f5fa;
+	--ink-soft: #b5c0ce;
+	color-scheme: dark;
+}
+:root[data-theme="dark"] body { background-color: var(--paper); }
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .tile,
+:root[data-theme="dark"] .search,
+:root[data-theme="dark"] .game-card,
+:root[data-theme="dark"] .os-card,
+:root[data-theme="dark"] .ib,
+:root[data-theme="dark"] .bar-url input,
+:root[data-theme="dark"] .vm-opts select,
+:root[data-theme="dark"] .settings select,
+:root[data-theme="dark"] .settings input[type=url] {
+	background-color: #273343; color: var(--ink); border-color: #080d14;
+}
+:root[data-theme="dark"] .search input { color: var(--ink); }
+:root[data-theme="dark"] .settings,
+:root[data-theme="dark"] .tutorial { background: #1b2430; color: var(--ink); }
+:root[data-theme="dark"] .error { background: #202936; }
+.settings-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.settings input[type=color] { width: 100%; min-height: 42px; padding: 3px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; }
+.settings-help { justify-content: center; width: 100%; }
+.tutorial { border: 3px solid var(--ink); border-radius: var(--radius); padding: 0; width: min(560px, calc(100vw - 28px)); color: var(--ink); background: var(--paper); box-shadow: 8px 8px 0 var(--ink); }
+.tutorial::backdrop { background: rgba(12,18,28,.62); backdrop-filter: blur(3px); }
+.tutorial form { padding: clamp(20px, 4vw, 30px); display: grid; gap: 12px; }
+.tutorial h2 { margin: 0; font: 900 clamp(1.5rem, 4vw, 2rem) var(--display); }
+.tutorial ol { margin: 4px 0; padding-left: 24px; display: grid; gap: 10px; line-height: 1.5; }
+.tutorial-note { margin: 0; padding: 12px; border-radius: 12px; background: rgba(26,166,160,.12); font-size: .88rem; line-height: 1.45; }
+.tutorial .actions { align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.tutorial-check { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; }
+.tutorial-check input { width: 18px; height: 18px; accent-color: var(--red); }
+:root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+@media (max-width: 520px) { .settings-pair { grid-template-columns: 1fr; } }
