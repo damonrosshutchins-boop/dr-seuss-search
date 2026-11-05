@@ -11,9 +11,11 @@
 
   let client = null, user = null, profile = null, room = null;
   const openRooms = new Map();
-  let messagesChannel = null, voiceChannel = null, localStream = null;
+  let messagesChannel = null, voiceChannel = null, controlChannel = null, localStream = null;
+  let controlReady = false;
   let voicePeers = new Map(), remoteAudios = new Map(), candidateQueues = new Map();
-  let voiceActive = false, muted = false, initialized = false;
+  const mutedUsers = new Set();
+  let voiceActive = false, muted = false, ownerMuted = false, initialized = false;
 
   function status(message, bad = false) {
     const el = $("talk-status");
@@ -21,6 +23,25 @@
     el.classList.toggle("bad", !!bad);
   }
   function show(el, yes) { $(el).hidden = !yes; }
+  function isRoomOwner(userId) { return !!room && room.created_by === userId; }
+  function appendOwnerBadge(parent) {
+    parent.append(node("span", "talk-owner-badge", "OWNER"));
+  }
+  function updateRoomComposer() {
+    const input = $("talk-message-input");
+    const send = $("talk-message-form").querySelector('button[type="submit"]');
+    input.disabled = ownerMuted;
+    send.disabled = ownerMuted;
+    input.placeholder = ownerMuted ? "Muted by the room owner" : "Write a message…";
+    $("talk-join-voice").disabled = ownerMuted;
+    $("talk-join-voice").textContent = ownerMuted ? "Muted by owner" : "Join voice";
+  }
+  function updateMicButton() {
+    const button = $("talk-mute");
+    button.hidden = !voiceActive;
+    button.disabled = ownerMuted;
+    button.textContent = ownerMuted ? "Muted by owner" : (muted ? "Unmute mic" : "Mute mic");
+  }
   function node(tag, cls, value) {
     const el = document.createElement(tag);
     if (cls) el.className = cls;
@@ -167,7 +188,15 @@
       await client.removeChannel(messagesChannel);
       messagesChannel = null;
     }
+    if (controlChannel) {
+      await client.removeChannel(controlChannel);
+      controlChannel = null;
+      controlReady = false;
+    }
     room = null;
+    ownerMuted = false;
+    mutedUsers.clear();
+    updateRoomComposer();
     show("talk-room-view", false);
     show("talk-rooms-view", true);
     renderRoomTabs();
@@ -227,10 +256,12 @@
     const card = node("article", "talk-message");
     if (message.id) card.dataset.messageId = message.id;
     const head = node("div", "talk-message-head");
-    head.append(node("strong", "", message.display_name || "Unknown user"));
+    const messageOwner = isRoomOwner(message.user_id);
+    head.append(node("strong", messageOwner ? "talk-owner-name" : "", message.display_name || "Unknown user"));
+    if (messageOwner) appendOwnerBadge(head);
     if (message.user_id === user.id) head.append(node("span", "talk-you-label", "You"));
     head.append(node("time", "talk-muted", new Date(message.created_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})));
-    card.append(head, node("p", "", message.body));
+    card.append(head, node("p", messageOwner ? "talk-owner-message" : "", message.body));
     if (message.user_id !== user.id) {
       const actions = node("div", "talk-message-actions");
       const block = node("button", "talk-text-button", "Block");
@@ -275,11 +306,181 @@
   async function loadMembers() {
     const { data: members, error } = await client.from("room_members").select("user_id")
       .eq("room_id", room.id);
-    if (error) return;
+    if (error) { status("Could not load room members: " + error.message, true); return; }
+
+    const { data: muteRows, error: muteError } = await client.from("room_mutes")
+      .select("user_id").eq("room_id", room.id);
+    if (muteError) { status("Could not load room mute status: " + muteError.message, true); return; }
+
+    mutedUsers.clear();
+    for (const entry of muteRows || []) mutedUsers.add(entry.user_id);
+    ownerMuted = mutedUsers.has(user.id);
+    updateRoomComposer();
+    updateMicButton();
+
     const ids = (members || []).map(m => m.user_id);
-    if (!ids.length) { $("talk-members").textContent = "No members"; return; }
-    const { data: people } = await client.from("profiles").select("id,display_name").in("id", ids);
-    $("talk-members").textContent = (people || []).map(p => p.display_name).join(" · ");
+    const output = $("talk-members");
+    output.replaceChildren();
+    if (!ids.length) {
+      output.append(node("span", "talk-muted", "No members"));
+      return;
+    }
+
+    const { data: people, error: peopleError } = await client.from("profiles")
+      .select("id,display_name").in("id", ids);
+    if (peopleError) {
+      status("Could not load member usernames: " + peopleError.message, true);
+      return;
+    }
+    const nameById = new Map((people || []).map(p => [p.id, p.display_name]));
+
+    for (const memberId of ids) {
+      const row = node("div", "talk-member-row");
+      row.dataset.userId = memberId;
+      const identity = node("div", "talk-member-identity");
+      const memberName = nameById.get(memberId) || "Guest";
+      const memberIsOwner = isRoomOwner(memberId);
+      identity.append(node("strong", memberIsOwner ? "talk-owner-name" : "", memberName));
+      if (memberIsOwner) appendOwnerBadge(identity);
+      if (memberId === user.id) identity.append(node("span", "talk-muted", "You"));
+      if (mutedUsers.has(memberId)) identity.append(node("span", "talk-muted-label", "MUTED"));
+      row.append(identity);
+
+      if (isRoomOwner(user.id) && memberId !== room.created_by) {
+        const controls = node("div", "talk-member-controls");
+        const muteButton = node("button", "talk-text-button", mutedUsers.has(memberId) ? "Unmute" : "Mute");
+        muteButton.type = "button";
+        muteButton.addEventListener("click", () => setRoomMemberMute(memberId, !mutedUsers.has(memberId)));
+        const kickButton = node("button", "talk-text-button talk-danger", "Kick");
+        kickButton.type = "button";
+        kickButton.addEventListener("click", () => kickRoomMember(memberId));
+        controls.append(muteButton, kickButton);
+        row.append(controls);
+      }
+      output.append(row);
+    }
+  }
+
+  async function setRoomMemberMute(memberId, shouldMute) {
+    if (!room || !isRoomOwner(user.id) || memberId === room.created_by) return;
+    try {
+      const { error } = await client.rpc("set_room_member_mute", {
+        p_room_id:room.id, p_user_id:memberId, p_muted:shouldMute
+      });
+      if (error) throw error;
+      if (shouldMute) mutedUsers.add(memberId);
+      else mutedUsers.delete(memberId);
+      if (memberId === user.id) {
+        ownerMuted = shouldMute;
+        if (localStream) localStream.getAudioTracks().forEach(track => {
+          track.enabled = !ownerMuted && !muted;
+        });
+        updateRoomComposer();
+        updateMicButton();
+      }
+      const remoteAudio = remoteAudios.get(memberId);
+      if (remoteAudio) remoteAudio.muted = shouldMute;
+      await loadMembers();
+      status(shouldMute ? "Member muted in this room." : "Member unmuted.");
+    } catch (err) {
+      status("Could not change member mute: " + String(err && err.message || err), true);
+    }
+  }
+
+  async function kickRoomMember(memberId) {
+    if (!room || !isRoomOwner(user.id) || memberId === room.created_by) return;
+    const row = Array.from($("talk-members").querySelectorAll(".talk-member-row"))
+      .find(item => item.dataset.userId === memberId);
+    const label = row ? row.querySelector("strong")?.textContent || "this member" : "this member";
+    if (!window.confirm("Kick " + label + " from this room? They can join again later if the room is open.")) return;
+    try {
+      const { error } = await client.rpc("kick_room_member", {
+        p_room_id:room.id, p_user_id:memberId
+      });
+      if (error) throw error;
+      removePeer(memberId);
+      mutedUsers.delete(memberId);
+      await loadMembers();
+      status(label + " was kicked from the room.");
+    } catch (err) {
+      status("Could not kick member: " + String(err && err.message || err), true);
+    }
+  }
+
+  async function deleteCurrentRoom() {
+    if (!room || !isRoomOwner(user.id)) return;
+    const roomToDelete = room;
+    if (!window.confirm('Delete "' + roomToDelete.name + '"? This permanently removes the room, its messages, and its member list.')) return;
+    try {
+      const { error } = await client.rpc("delete_room", { p_room_id:roomToDelete.id });
+      if (error) throw error;
+      openRooms.delete(roomToDelete.id);
+      await showRoomsTab();
+      status("Room deleted.");
+    } catch (err) {
+      status("Could not delete room: " + String(err && err.message || err), true);
+    }
+  }
+
+  async function handleRoomModeration({payload}) {
+    if (!payload || !room || payload.room_id !== room.id) return;
+    if (payload.action === "mute") {
+      const targetId = payload.target_id;
+      if (payload.muted) mutedUsers.add(targetId);
+      else mutedUsers.delete(targetId);
+
+      if (targetId === user.id) {
+        ownerMuted = !!payload.muted;
+        if (localStream) localStream.getAudioTracks().forEach(track => {
+          track.enabled = !ownerMuted && !muted;
+        });
+        updateRoomComposer();
+        updateMicButton();
+        status(ownerMuted ? "The room owner muted you." : "The room owner unmuted you.");
+      } else {
+        const audio = remoteAudios.get(targetId);
+        if (audio) audio.muted = !!payload.muted;
+      }
+      renderVoiceMembers();
+      await loadMembers();
+      return;
+    }
+
+    if (payload.action === "kick") {
+      removePeer(payload.target_id);
+      if (payload.target_id === user.id) {
+        openRooms.delete(room.id);
+        await showRoomsTab();
+        status("The room owner kicked you from this room.");
+      } else {
+        await loadMembers();
+      }
+      return;
+    }
+
+    if (payload.action === "delete-room") {
+      const deletedId = payload.room_id;
+      openRooms.delete(deletedId);
+      await showRoomsTab();
+      status("The room owner deleted this room.");
+    }
+  }
+
+  function startRoomControlChannel(item) {
+    if (controlChannel) client.removeChannel(controlChannel);
+    controlReady = false;
+    controlChannel = client.channel("room:" + item.id + ":control", {
+      config:{ private:true }
+    });
+    controlChannel
+      .on("broadcast", { event:"member-moderation" }, handleRoomModeration)
+      .subscribe((state, error) => {
+        if (state === "SUBSCRIBED") controlReady = true;
+        else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") {
+          controlReady = false;
+          status("Room moderation updates could not connect: " + String(error && error.message || state), true);
+        }
+      });
   }
 
   async function openRoom(item) {
@@ -288,6 +489,13 @@
       await client.removeChannel(messagesChannel);
       messagesChannel = null;
     }
+    if (controlChannel) {
+      await client.removeChannel(controlChannel);
+      controlChannel = null;
+      controlReady = false;
+    }
+    ownerMuted = false;
+    mutedUsers.clear();
     openRooms.set(item.id, item);
     room = item;
     renderRoomTabs();
@@ -297,6 +505,9 @@
     show("talk-room-view", true);
     await loadMessages();
     await loadMembers();
+    updateRoomComposer();
+    startRoomControlChannel(item);
+    $("talk-delete-room").hidden = !isRoomOwner(user.id);
     // This project accepts private Realtime topics only. Keep chat scoped to
     // the room and authorize the topic through room_members in realtime.messages.
     messagesChannel = client.channel("room:" + item.id + ":chat", {
@@ -381,6 +592,7 @@
         remoteAudios.set(peerId, audio);
       }
       audio.srcObject = event.streams[0];
+      audio.muted = mutedUsers.has(peerId);
       audio.play().catch(() => {});
     };
     pc.onconnectionstatechange = () => {
@@ -429,8 +641,9 @@
   function renderVoiceMembers() {
     const output = $("talk-voice-members");
     if (!output) return;
+    output.replaceChildren();
     if (!voiceChannel || !voiceActive) {
-      output.textContent = "No one in voice";
+      output.append(node("span", "talk-muted", "No one in voice"));
       return;
     }
 
@@ -439,9 +652,18 @@
       if (!person || !person.user_id || uniquePeople.has(person.user_id)) continue;
       uniquePeople.set(person.user_id, person.display_name || "Guest");
     }
-    output.textContent = Array.from(uniquePeople.entries())
-      .map(([id, name]) => id === user.id ? name + " (you)" : name)
-      .join(" · ") || "No one in voice";
+    if (!uniquePeople.size) {
+      output.append(node("span", "talk-muted", "No one in voice"));
+      return;
+    }
+    for (const [id, name] of uniquePeople.entries()) {
+      const member = node("span", "talk-voice-person");
+      member.append(node("strong", isRoomOwner(id) ? "talk-owner-name" : "", name));
+      if (isRoomOwner(id)) appendOwnerBadge(member);
+      if (id === user.id) member.append(node("span", "talk-muted", "(you)"));
+      if (mutedUsers.has(id)) member.append(node("span", "talk-muted-label", "MUTED"));
+      output.append(member);
+    }
   }
 
   async function syncVoicePeers() {
@@ -459,6 +681,10 @@
 
   async function joinVoice() {
     if (voiceActive) return;
+    if (ownerMuted) {
+      status("The room owner has muted you. You cannot join voice until they unmute you.", true);
+      return;
+    }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       status("Voice calls need a supported browser and microphone permission.", true); return;
     }
@@ -481,7 +707,7 @@
           $("talk-voice-status").textContent = "Voice joined · waiting for others";
           $("talk-join-voice").hidden = true;
           $("talk-leave-voice").hidden = false;
-          $("talk-mute").hidden = false;
+          updateMicButton();
           await syncVoicePeers();
         } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") {
           status("Voice room authorization failed. Check the Realtime settings and room membership.", true);
@@ -519,8 +745,10 @@
     $("talk-join-voice").hidden = !room;
     $("talk-leave-voice").hidden = true;
     $("talk-mute").hidden = true;
+    $("talk-mute").disabled = false;
     $("talk-mute").textContent = "Mute mic";
     $("talk-voice-status").textContent = "Voice is off";
+    updateRoomComposer();
     renderVoiceMembers();
   }
 
@@ -551,11 +779,12 @@
   $("talk-join-voice").addEventListener("click", joinVoice);
   $("talk-leave-voice").addEventListener("click", leaveVoice);
   $("talk-mute").addEventListener("click", () => {
-    if (!localStream) return;
+    if (!localStream || ownerMuted) return;
     muted = !muted;
-    localStream.getAudioTracks().forEach(track => track.enabled = !muted);
-    $("talk-mute").textContent = muted ? "Unmute mic" : "Mute mic";
+    localStream.getAudioTracks().forEach(track => track.enabled = !muted && !ownerMuted);
+    updateMicButton();
   });
+  $("talk-delete-room").addEventListener("click", deleteCurrentRoom);
   dlg.addEventListener("close", () => {
     if (room) showRoomsTab().catch(() => {});
   });
