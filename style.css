@@ -458,3 +458,63 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .talk-voice-members {
   border: 1px solid rgba(26,166,160,.18);
 }
+
+/* Seuss Talk room owner and moderation controls */
+.talk-owner-name,
+.talk-owner-message {
+  color: #c58a00 !important;
+  font-weight: 900;
+}
+.talk-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid #d5a12b;
+  border-radius: 999px;
+  background: #ffedb8;
+  color: #704900;
+  font: 900 .64rem/1.2 var(--body);
+  letter-spacing: .05em;
+}
+.talk-member-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 7px;
+}
+.talk-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(29,26,23,.12);
+}
+.talk-member-identity,
+.talk-member-controls,
+.talk-voice-person {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.talk-member-controls { gap: 10px; }
+.talk-danger { color: #bd2630; }
+.talk-muted-label {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(189,38,48,.12);
+  color: #bd2630;
+  font-size: .65rem;
+  font-weight: 900;
+}
+.talk-voice-person { margin-right: 12px; }
+.talk-danger:hover { color: #8f1720; }
+:root[data-theme="dark"] .talk-owner-badge {
+  background: #574115;
+  color: #ffe6a0;
+  border-color: #bb8a22;
+}
+:root[data-theme="dark"] .talk-owner-name,
+:root[data-theme="dark"] .talk-owner-message { color: #ffd76a !important; }
