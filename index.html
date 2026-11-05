@@ -206,7 +206,6 @@
 				</label>
 			</div>
 			<label class="row"><input id="s-motion" type="checkbox" /> Reduce animations</label>
-			<label class="row"><input id="s-cloak" type="checkbox" /> Open in an about:blank tab (hides the URL from history)</label>
 			<button type="button" class="chip settings-help" id="s-tutorial">Show the getting-started guide</button>
 			<div class="actions">
 				<button type="button" class="chip" id="s-reset">Reset</button>
@@ -226,7 +225,7 @@
 				<li><strong>Try the VM:</strong> open VM to run the included browser-based demo systems and DOS arcade titles on your device.</li>
 				<li><strong>Make it yours:</strong> open Settings to choose a search engine, background image, accent color, theme, and motion preferences.</li>
 			</ol>
-			<p class="tutorial-note">Some websites block embedding or require features that a web proxy cannot provide. GeForce NOW uses its own supported browser streaming flow, so its official launch page opens separately rather than being relayed through this proxy.</p>
+			<p class="tutorial-note">Some websites block embedding or require browser features that a web proxy cannot provide. Loading a page inside the proxy does not guarantee that cloud gameplay or streaming will work.</p>
 			<div class="actions">
 				<label class="row tutorial-check"><input id="tutorial-again" type="checkbox" /> Don't show this automatically again</label>
 				<button type="submit" class="go small" id="tutorial-done" value="done">Let's go!</button>
@@ -234,7 +233,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js"></script>
+	<script src="app.js?v=20261104-2"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
