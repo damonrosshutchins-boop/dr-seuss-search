@@ -234,6 +234,12 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .vm-fit.smooth .vm-canvas { image-rendering: auto; }
 .dos-host { position: absolute; inset: 0; background: #000; }
 .dos-host[hidden] { display: none; }
+.vm-web-host { position: absolute; inset: 0; background: #0e0e0e; overflow: hidden; }
+.vm-web-host[hidden] { display: none; }
+.vm-web-host iframe { display: block; width: 100%; height: 100%; border: 0; background: #0e0e0e; }
+.vm-stage.web .vm-fit-inner { display: none; }
+.vm-web-fallback a { color: #fff; text-decoration: underline; font-weight: 800; }
+
 .vm-stage.dos .vm-fit-inner { display: none; }
 
 /* Fullscreen (real or soft) */
