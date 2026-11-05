@@ -11,12 +11,17 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css" />
+	<link rel="stylesheet" href="style.css?v=20261104-tabs1" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
 <body>
 	<div class="stripes" aria-hidden="true"></div>
+
+	<nav id="site-tabbar" class="site-tabbar" aria-label="Open tabs">
+		<div id="site-tab-list" class="site-tab-list"></div>
+		<button type="button" id="site-new-tab" class="site-new-tab" aria-label="Open a new tab" title="New tab">+</button>
+	</nav>
 
 	<!-- HOME -->
 	<main id="home" class="home">
@@ -196,11 +201,11 @@
 	</dialog>
 
 	<!-- SEUSS TALK -->
-	<dialog id="seuss-talk" class="settings talk-dialog">
+	<section id="seuss-talk" class="talk-page" aria-label="Seuss Talk" hidden>
 		<div class="talk-shell">
 			<header class="library-heading">
 				<div><p class="kicker">rooms · messages · voice</p><h2>Seuss Talk</h2></div>
-				<button type="button" class="chip" id="talk-close">Close</button>
+				<button type="button" class="chip" id="talk-close">Back to browsing</button>
 			</header>
 			<p id="talk-status" class="talk-status" role="status">Ready when you are.</p>
 			<section id="talk-setup" class="talk-setup" hidden>
@@ -256,7 +261,7 @@
 			</div>
 			<div id="talk-audio-host" hidden></div>
 		</div>
-	</dialog>
+	</section>
 
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
@@ -318,8 +323,8 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261104-4"></script>
-	<script src="chat.js?v=20261105-5"></script>
+	<script src="app.js?v=20261104-tabs1"></script>
+	<script src="chat.js?v=20261104-tabs1"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
