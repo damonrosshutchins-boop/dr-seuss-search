@@ -344,25 +344,29 @@
 
 	/* ---------- view routing ---------- */
 	function showVM() {
-		$("home").hidden = true; $("browser").hidden = true; ui.view.hidden = false;
+		ui.view.hidden = false;
 		document.title = "VM · Dr. Seuss Search";
 		requestAnimationFrame(refit);
 	}
-	function hideVM() { if (!ui.stage.hidden) backToPicker(); ui.view.hidden = true; }
+	function hideVM() {
+		ui.view.hidden = true;
+	}
 	function openVM(scrollToArcade) {
-		showVM();
-		if (location.hash !== "#vm") history.pushState({ vm: true }, "", "#vm");
+		if (typeof window.openVMTab === "function") window.openVMTab();
+		else showVM();
 		if (scrollToArcade) $("game-grid").scrollIntoView({ block: "start" });
 	}
 	$("open-vm").onclick = () => openVM(false);
 	document.querySelectorAll("[data-arcade]").forEach((b) => (b.onclick = () => openVM(true)));
 	$("vm-home").onclick = () => {
 		if (!ui.stage.hidden) { backToPicker(); return; }
-		if (location.hash === "#vm") history.back();
-		else { hideVM(); $("home").hidden = false; document.title = "Dr. Seuss Search"; }
+		if (typeof window.closeActiveSiteTab === "function") window.closeActiveSiteTab();
+		else hideVM();
 	};
-	window.addEventListener("popstate", () => { if (location.hash === "#vm") showVM(); else hideVM(); });
-	if (location.hash === "#vm") showVM();
+	window.addEventListener("dss-site-tab-activated", (event) => {
+		if (event.detail && event.detail.type === "vm") showVM();
+		else hideVM();
+	});
 
 	window.DSSVM = { bootDos, bootV86, shutdown, GAMES, SYSTEMS };
 })();
