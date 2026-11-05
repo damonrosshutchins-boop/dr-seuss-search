@@ -658,3 +658,10 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 	box-shadow: 2px 2px 0 var(--ink);
 }
 .site-talk-shortcut:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+/* Interactive New Tab particles are decoration: never intercept mouse or keyboard. */
+.home { position: relative; isolation: isolate; }
+.home > .home-particles { position: absolute; inset: 0; width: 100%; height: 100%; display: none; z-index: 0; pointer-events: none; }
+.home.interactive-bg > .home-particles { display: block; }
+.home > .topbar, .home > .hero, .home > .foot { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .home > .home-particles { display: none !important; } }
