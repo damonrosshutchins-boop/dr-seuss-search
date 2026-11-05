@@ -31,10 +31,13 @@
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 				VM
 			</button>
-			<button class="chip" id="open-settings" type="button" aria-haspopup="dialog" aria-label="Settings">
-				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
-				<span class="chip-label">Settings</span>
-			</button>
+			<div class="top-action-stack">
+				<button class="chip" id="open-settings" type="button" aria-haspopup="dialog" aria-label="Settings">
+					<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+					<span class="chip-label">Settings</span>
+				</button>
+				<button class="chip talk-launch" id="open-seuss-talk" type="button">💬 <span>Seuss Talk</span></button>
+			</div>
 			</div>
 		</header>
 
@@ -188,6 +191,62 @@
 		</div>
 	</dialog>
 
+	<!-- SEUSS TALK -->
+	<dialog id="seuss-talk" class="settings talk-dialog">
+		<div class="talk-shell">
+			<header class="library-heading">
+				<div><p class="kicker">rooms · messages · voice</p><h2>Seuss Talk</h2></div>
+				<button type="button" class="chip" id="talk-close">Close</button>
+			</header>
+			<p id="talk-status" class="talk-status" role="status">Ready when you are.</p>
+			<section id="talk-setup" class="talk-setup" hidden>
+				<strong>One quick setup step</strong>
+				<p id="talk-setup-message">Enable anonymous sign-ins in Supabase to use screen names without collecting email addresses.</p>
+				<p><a id="talk-auth-link" href="https://supabase.com/dashboard/project/cihzaevtdoquseoxxdqf/auth/providers" target="_blank" rel="noopener">Open Authentication settings</a></p>
+				<p><a id="talk-realtime-link" href="https://supabase.com/dashboard/project/cihzaevtdoquseoxxdqf/realtime/settings" target="_blank" rel="noopener">Open Realtime settings</a></p>
+				<p class="talk-muted">Turn on Anonymous Sign-Ins. In Realtime settings, turn OFF “Allow public access”. No paid features are needed.</p>
+			</section>
+			<section id="talk-auth" hidden>
+				<p>Choose a screen name. Seuss Talk uses a temporary guest account and does not ask for your email.</p>
+				<form id="talk-auth-form" class="talk-form">
+					<label>Screen name <input id="talk-name" maxlength="24" minlength="2" required placeholder="Choose a nickname" /></label>
+					<button class="go small" type="submit">Continue</button>
+				</form>
+			</section>
+			<div id="talk-app" hidden>
+				<section id="talk-rooms-view">
+					<form id="talk-create-form" class="talk-create">
+						<label>Room name <input id="talk-room-name" maxlength="48" minlength="2" required placeholder="Name your room" /></label>
+					<label class="talk-check"><input id="talk-lock" type="checkbox" /> Password-protect this room</label>
+					<input id="talk-room-password" type="password" minlength="6" maxlength="100" placeholder="Room password (6+ characters)" autocomplete="new-password" hidden />
+					<button class="go small" type="submit">Create room</button>
+					</form>
+					<div class="talk-section-heading"><strong>Available rooms</strong><button type="button" class="talk-text-button" id="talk-refresh">Refresh</button></div>
+					<div id="talk-room-list" class="talk-room-list"></div>
+				</section>
+				<section id="talk-room-view" hidden>
+					<div class="talk-room-top">
+						<div><button type="button" class="talk-text-button" id="talk-back-rooms">← All rooms</button><h3 id="talk-room-title"></h3><span id="talk-room-lock" class="talk-muted"></span></div>
+						<div class="talk-call-actions">
+							<button type="button" class="chip talk-small" id="talk-join-voice">Join voice</button>
+							<button type="button" class="chip talk-small" id="talk-mute" hidden>Mute mic</button>
+							<button type="button" class="chip talk-small" id="talk-leave-voice" hidden>Leave voice</button>
+						</div>
+					</div>
+					<p id="talk-voice-status" class="talk-muted">Voice is off</p>
+					<div class="talk-members"><strong>In room:</strong> <span id="talk-members">Loading…</span></div>
+					<div id="talk-messages" class="talk-messages" aria-live="polite"></div>
+					<form id="talk-message-form" class="talk-send">
+						<input id="talk-message-input" maxlength="1000" required placeholder="Write a message…" autocomplete="off" />
+						<button class="go small" type="submit">Send</button>
+					</form>
+					<p class="talk-muted talk-safety">Keep personal details private. Use Block or Report if someone makes you uncomfortable.</p>
+				</section>
+			</div>
+			<div id="talk-audio-host" hidden></div>
+		</div>
+	</dialog>
+
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -249,6 +308,7 @@
 	</dialog>
 
 	<script src="app.js?v=20261104-4"></script>
+	<script src="chat.js?v=20261105-1"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
