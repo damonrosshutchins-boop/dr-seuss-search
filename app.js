@@ -430,47 +430,6 @@ $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-
 const gamesDialog = $("games-dialog");
 $("open-games").addEventListener("click", () => gamesDialog.showModal());
 
-const linkGeneratorDialog = $("link-generator");
-$("open-linkgen").addEventListener("click", () => linkGeneratorDialog.showModal());
-$("linkgen-close").addEventListener("click", () => linkGeneratorDialog.close());
-$("link-generator-form").addEventListener("submit", (event) => {
-	event.preventDefault();
-	const raw = $("linkgen-source").value.trim();
-	if (!raw || /\s/.test(raw)) {
-		$("linkgen-status").textContent = "Enter a valid website address.";
-		return;
-	}
-	let destination;
-	try {
-		destination = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
-		if (destination.protocol !== "https:" && destination.protocol !== "http:") throw new Error("Only web addresses are supported.");
-	} catch {
-		$("linkgen-status").textContent = "That address doesn't look valid. Enter a URL such as https://example.com.";
-		$("linkgen-result").value = "";
-		$("linkgen-copy").disabled = true;
-		return;
-	}
-	const share = new URL(BASE.href);
-	share.searchParams.set("goto", destination.href);
-	$("linkgen-result").value = share.href;
-	$("linkgen-copy").disabled = false;
-	$("linkgen-status").textContent = "Link ready. Anyone opening it will load the destination inside your proxy.";
-});
-$("linkgen-copy").addEventListener("click", async () => {
-	const output = $("linkgen-result");
-	if (!output.value) return;
-	try {
-		await navigator.clipboard.writeText(output.value);
-		$("linkgen-status").textContent = "Copied to clipboard.";
-	} catch {
-		output.focus();
-		output.select();
-		let copied = false;
-		try { copied = document.execCommand("copy"); } catch {}
-		$("linkgen-status").textContent = copied ? "Copied to clipboard." : "Select the generated link and copy it manually.";
-	}
-});
-
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
