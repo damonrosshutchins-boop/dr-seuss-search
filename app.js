@@ -98,7 +98,6 @@ $("settings-form").addEventListener("submit", async () => {
 	settings.engine = $("s-engine").value;
 	settings.transport = $("s-transport").value;
 	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
-	settings.cloak = $("s-cloak").checked;
 	settings.background = $("s-background").value.trim();
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
 	settings.theme = $("s-theme").value;
@@ -221,24 +220,29 @@ window.addEventListener("popstate", () => { if (location.hash !== "#browse") goH
 /* ---------- Wire up UI ---------- */
 $("search-form").addEventListener("submit", (e) => {
 	e.preventDefault();
-	if (settings.cloak && window.top === window.self) return cloak($("address").value);
 	go($("address").value);
 });
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
-async function openGeForceNow() {
-	// GeForce NOW uses the libcurl Wisp transport in this proxy.
-	settings.transport = "libcurl";
-	save();
-	try {
-		await boot();
-		await applyTransport(true);
-		await go("https://play.geforcenow.com/");
-	} catch (err) {
-		showError("GeForce NOW could not be opened in the proxy.", String(err && err.stack || err));
+async function openGameInProxy(event, url, useLibcurl = false) {
+	event.preventDefault();
+	event.stopPropagation();
+	if (useLibcurl) {
+		settings.transport = "libcurl";
+		save();
+		try {
+			await boot();
+			await applyTransport(true);
+		} catch (err) {
+			showError("The proxy connection could not be prepared.", String(err && err.stack || err));
+			return;
+		}
 	}
+	go(url);
 }
-$("open-geforce-proxy").onclick = openGeForceNow;
-$("open-nowgg-proxy").onclick = () => go("https://now.gg/");
+$("open-geforce-proxy").addEventListener("click", (event) =>
+	openGameInProxy(event, "https://play.geforcenow.com/", true));
+$("open-nowgg-proxy").addEventListener("click", (event) =>
+	openGameInProxy(event, "https://now.gg/"));
 $("b-home").onclick = () => history.back();
 $("b-back").onclick = () => frame && frame.back();
 $("b-fwd").onclick = () => frame && frame.forward();
@@ -252,7 +256,7 @@ for (const [name, url, color] of TILES) {
 	b.type = "button";
 	b.className = "tile";
 	b.innerHTML = `<span class="dot" style="background:${color}">${name[0]}</span>${name}`;
-	b.onclick = () => (settings.cloak && window.top === window.self ? cloak(url) : go(url));
+	b.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); go(url); });
 	li.appendChild(b);
 	tiles.appendChild(li);
 }
@@ -264,19 +268,6 @@ document.addEventListener("keydown", (e) => {
 	}
 });
 
-/* ---------- about:blank cloak ---------- */
-function cloak(input) {
-	const w = window.open("about:blank", "_blank");
-	if (!w) { go(input); return; }
-	const target = new URL(BASE);
-	if (input) target.searchParams.set("q", input);
-	w.document.title = "Google Docs";
-	const f = w.document.createElement("iframe");
-	f.src = target.href;
-	f.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;margin:0";
-	w.document.body.style.margin = "0";
-	w.document.body.appendChild(f);
-}
 
 /* ---------- Wisp health check ---------- */
 function setStatus(state, text) {
