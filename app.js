@@ -291,6 +291,7 @@ window.closeActiveSiteTab = () => {
 };
 createSiteTab("home", "New Tab");
 $("site-new-tab").addEventListener("click", () => createSiteTab("home", "New Tab"));
+$("site-talk-tab").addEventListener("click", openSeussTalkTab);
 
 function showError(title, detail) {
 	$("error").hidden = false;
