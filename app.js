@@ -160,18 +160,181 @@ function toUrl(input) {
 	return settings.engine.replace("%s", encodeURIComponent(q));
 }
 
-/* ---------- Browser view ---------- */
-let frame = null;
+/* ---------- Multi-tab browser view ---------- */
 const loader = $("loader");
+const siteTabs = [];
+let activeSiteTabId = null;
+let previousSiteTabId = null;
+let siteTabNumber = 0;
+
+function siteTabTitle(url) {
+	try {
+		const host = new URL(url).hostname.replace(/^www\./i, "");
+		return host || "New Tab";
+	} catch { return "New Tab"; }
+}
+function currentSiteTab() {
+	return siteTabs.find(tab => tab.id === activeSiteTabId) || null;
+}
+function renderSiteTabs() {
+	const list = $("site-tab-list");
+	list.replaceChildren();
+	for (const tab of siteTabs) {
+		const item = document.createElement("div");
+		item.className = "site-tab-item" + (tab.id === activeSiteTabId ? " active" : "");
+		const select = document.createElement("button");
+		select.type = "button";
+		select.className = "site-tab-select";
+		select.textContent = (tab.type === "talk" ? "💬 " : tab.type === "vm" ? "🖥 " : "") + tab.title;
+		select.title = tab.title;
+		select.setAttribute("aria-current", tab.id === activeSiteTabId ? "page" : "false");
+		select.addEventListener("click", () => activateSiteTab(tab.id));
+		const close = document.createElement("button");
+		close.type = "button";
+		close.className = "site-tab-close";
+		close.textContent = "×";
+		close.title = "Close " + tab.title;
+		close.setAttribute("aria-label", "Close " + tab.title);
+		close.addEventListener("click", (event) => {
+			event.stopPropagation();
+			closeSiteTab(tab.id);
+		});
+		item.append(select, close);
+		list.append(item);
+	}
+}
+function createSiteTab(type = "home", title = "New Tab") {
+	const tab = {
+		id: "dss-tab-" + (++siteTabNumber),
+		type,
+		title,
+		url: "",
+		frame: null,
+		pane: null,
+		loading: false
+	};
+	siteTabs.push(tab);
+	renderSiteTabs();
+	activateSiteTab(tab.id);
+	return tab;
+}
+function activateSiteTab(id) {
+	const tab = siteTabs.find(item => item.id === id);
+	if (!tab) return;
+	if (activeSiteTabId && activeSiteTabId !== id) previousSiteTabId = activeSiteTabId;
+	activeSiteTabId = id;
+
+	$("site-tabbar").hidden = false;
+	$("home").hidden = tab.type !== "home";
+	$("browser").hidden = tab.type !== "web";
+	$("seuss-talk").hidden = tab.type !== "talk";
+	$("vm").hidden = tab.type !== "vm";
+
+	for (const item of siteTabs) {
+		if (item.pane) item.pane.hidden = item.id !== id;
+	}
+	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
+	if (tab.type === "web") $("bar-address").value = tab.url || "";
+	if (tab.type === "home") {
+		document.title = "New Tab · Dr. Seuss Search";
+	} else if (tab.type === "web") {
+		document.title = (tab.title || "Browser") + " · Dr. Seuss Search";
+	} else if (tab.type === "talk") {
+		document.title = "Seuss Talk · Dr. Seuss Search";
+		window.dispatchEvent(new Event("seuss-talk-tab-open"));
+	} else if (tab.type === "vm") {
+		document.title = "VM · Dr. Seuss Search";
+	}
+	renderSiteTabs();
+	window.dispatchEvent(new CustomEvent("dss-site-tab-activated", { detail: { type: tab.type, id: tab.id } }));
+}
+function closeSiteTab(id) {
+	const index = siteTabs.findIndex(tab => tab.id === id);
+	if (index < 0) return;
+	const tab = siteTabs[index];
+	if (tab.type === "talk") window.dispatchEvent(new Event("seuss-talk-tab-close"));
+	if (tab.pane) tab.pane.remove();
+	const wasActive = activeSiteTabId === id;
+	siteTabs.splice(index, 1);
+	if (!siteTabs.length) {
+		createSiteTab("home", "New Tab");
+		return;
+	}
+	if (wasActive) {
+		const replacement = siteTabs[Math.min(index, siteTabs.length - 1)];
+		activateSiteTab(replacement.id);
+	} else {
+		renderSiteTabs();
+	}
+}
+function openSeussTalkTab() {
+	let tab = siteTabs.find(item => item.type === "talk");
+	if (!tab) tab = createSiteTab("talk", "Seuss Talk");
+	else activateSiteTab(tab.id);
+	window.dispatchEvent(new Event("seuss-talk-tab-open"));
+}
+function switchAwayFromSeussTalk() {
+	const other = [...siteTabs].reverse().find(item => item.type !== "talk");
+	if (other) activateSiteTab(other.id);
+	else createSiteTab("home", "New Tab");
+}
+function openVMTab() {
+	let tab = siteTabs.find(item => item.type === "vm");
+	if (!tab) tab = createSiteTab("vm", "VM");
+	else activateSiteTab(tab.id);
+}
+window.openSeussTalkTab = openSeussTalkTab;
+window.switchAwayFromSeussTalk = switchAwayFromSeussTalk;
+window.openVMTab = openVMTab;
+window.closeActiveSiteTab = () => {
+	const tab = currentSiteTab();
+	if (tab) closeSiteTab(tab.id);
+};
+createSiteTab("home", "New Tab");
+$("site-new-tab").addEventListener("click", () => createSiteTab("home", "New Tab"));
+
 function showError(title, detail) {
 	$("error").hidden = false;
 	$("error-title").textContent = title;
 	$("error-detail").textContent = detail || "";
 }
-
+function createFrameForTab(tab) {
+	if (tab.frame) return tab.frame;
+	const pane = document.createElement("div");
+	pane.className = "site-frame-pane";
+	pane.hidden = true;
+	const instance = scramjet.createFrame();
+	instance.frame.id = "sj-frame-" + tab.id;
+	instance.frame.title = "Proxied page";
+	pane.appendChild(instance.frame);
+	$("frame-host").appendChild(pane);
+	tab.frame = instance;
+	tab.pane = pane;
+	instance.addEventListener("urlchange", (event) => {
+		tab.url = event.url;
+		tab.title = siteTabTitle(event.url);
+		if (activeSiteTabId === tab.id) {
+			$("bar-address").value = event.url;
+			loader.classList.remove("on");
+			tab.loading = false;
+		}
+		renderSiteTabs();
+	});
+	instance.frame.addEventListener("load", () => {
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			loader.classList.remove("on");
+			document.title = tab.title + " · Dr. Seuss Search";
+		}
+		renderSiteTabs();
+	});
+	return instance;
+}
 async function go(input) {
 	const url = toUrl(input);
 	if (!url) return;
+	let tab = currentSiteTab();
+	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
 	try {
 		await boot();
@@ -179,42 +342,38 @@ async function go(input) {
 		showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err));
 		return;
 	}
-	if (!frame) {
-		frame = scramjet.createFrame();
-		frame.frame.id = "sj-frame";
-		frame.frame.title = "Proxied page";
-		$("frame-host").appendChild(frame.frame);
-		frame.addEventListener("urlchange", (e) => {
-			$("bar-address").value = e.url;
-			loader.classList.remove("on");
-		});
-		frame.frame.addEventListener("load", () => {
-			loader.classList.remove("on");
-			document.title = "New Tab";
-		});
-	}
-	$("home").hidden = true;
-	$("browser").hidden = false;
+	tab.type = "web";
+	tab.url = url;
+	tab.title = siteTabTitle(url);
+	tab.loading = true;
+	const instance = createFrameForTab(tab);
+	activateSiteTab(tab.id);
 	$("bar-address").value = url;
 	loader.classList.add("on");
 	try {
-		frame.go(url);
-		if (location.hash !== "#browse") history.pushState({ browse: true }, "", "#browse");
+		instance.go(url);
 	} catch (err) {
+		tab.loading = false;
 		loader.classList.remove("on");
 		showError("That page couldn't be opened in the proxy.", String(err && err.message || err));
 	}
 }
-
 function goHome() {
-	$("browser").hidden = true;
-	$("home").hidden = false;
-	document.title = "New Tab";
+	let tab = currentSiteTab();
+	if (!tab) tab = createSiteTab("home", "New Tab");
+	tab.type = "home";
+	tab.title = "New Tab";
+	tab.url = "";
+	tab.loading = false;
+	activateSiteTab(tab.id);
 	$("address").focus();
 }
-window.addEventListener("popstate", () => { if (location.hash !== "#browse") goHome(); });
+window.addEventListener("popstate", () => {
+	const tab = currentSiteTab();
+	if (tab && tab.type === "web") goHome();
+});
 
-/* ---------- Wire up UI ---------- */
+/* ---------- Wire up UI ---------- *//* ---------- Wire up UI ---------- */
 $("search-form").addEventListener("submit", (e) => {
 	e.preventDefault();
 	go($("address").value);
@@ -223,6 +382,7 @@ $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-
 const gamesDialog = $("games-dialog");
 $("open-games").addEventListener("click", () => gamesDialog.showModal());
 $("games-close").addEventListener("click", () => gamesDialog.close());
+$("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
 function launchLibraryGame(event, url, useLibcurl = false) {
 	event.preventDefault();
@@ -258,10 +418,10 @@ $("library-nowgg").addEventListener("click", (event) =>
 	launchWithEpoxy(event, "https://now.gg/"));
 $("library-geforce").addEventListener("click", (event) =>
 	launchWithEpoxy(event, "https://play.geforcenow.com/"));
-$("b-home").onclick = () => history.back();
-$("b-back").onclick = () => frame && frame.back();
-$("b-fwd").onclick = () => frame && frame.forward();
-$("b-reload").onclick = () => { if (frame) { loader.classList.add("on"); frame.reload(); } };
+$("b-home").onclick = goHome;
+$("b-back").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.back(); };
+$("b-fwd").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.forward(); };
+$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; loader.classList.add("on"); tab.frame.reload(); } };
 $("b-full").onclick = () => { const el = $("frame-host"); (el.requestFullscreen || el.webkitRequestFullscreen).call(el); };
 
 const tiles = $("tiles");
