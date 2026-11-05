@@ -8,7 +8,6 @@ const DEFAULTS = {
 	engine: "https://search.brave.com/search?q=%s",
 	transport: "libcurl",
 	wisp: "wss://wisp.mercurywork.shop/",
-	cloak: false,
 	background: "",
 	accent: "#d8262f",
 	theme: "light",
@@ -77,7 +76,6 @@ function openSettings() {
 	$("s-accent").value = settings.accent || DEFAULTS.accent;
 	$("s-theme").value = settings.theme || "light";
 	$("s-motion").checked = !!settings.reducedMotion;
-	$("s-cloak").checked = settings.cloak;
 	if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
 }
 $("open-settings").onclick = openSettings;
@@ -90,7 +88,6 @@ $("s-reset").onclick = () => {
 	$("s-accent").value = DEFAULTS.accent;
 	$("s-theme").value = DEFAULTS.theme;
 	$("s-motion").checked = DEFAULTS.reducedMotion;
-	$("s-cloak").checked = DEFAULTS.cloak;
 };
 $("settings-form").addEventListener("submit", async () => {
 	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
