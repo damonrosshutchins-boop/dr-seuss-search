@@ -236,10 +236,11 @@
 							<button type="button" class="chip talk-small" id="talk-join-voice">Join voice</button>
 							<button type="button" class="chip talk-small" id="talk-mute" hidden>Mute mic</button>
 							<button type="button" class="chip talk-small" id="talk-leave-voice" hidden>Leave voice</button>
+							<button type="button" class="chip talk-small talk-danger" id="talk-delete-room" hidden>Delete room</button>
 						</div>
 					</div>
 					<p id="talk-voice-status" class="talk-muted">Voice is off</p>
-					<div class="talk-members"><strong>In room:</strong> <span id="talk-members">Loading…</span></div>
+					<div class="talk-members"><strong>In room:</strong><div id="talk-members" class="talk-member-list">Loading…</div></div>
           <div class="talk-members talk-voice-members" aria-live="polite"><strong>In voice:</strong> <span id="talk-voice-members">No one in voice</span></div>
 					<div id="talk-messages" class="talk-messages" aria-live="polite"></div>
 					<form id="talk-message-form" class="talk-send">
@@ -314,7 +315,7 @@
 	</dialog>
 
 	<script src="app.js?v=20261104-4"></script>
-	<script src="chat.js?v=20261105-4"></script>
+	<script src="chat.js?v=20261105-5"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
