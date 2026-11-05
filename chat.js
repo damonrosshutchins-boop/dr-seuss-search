@@ -558,7 +558,7 @@
     } catch (err) {
       status("Message not sent: " + String(err && err.message || err), true);
     } finally {
-      if (button) button.disabled = false;
+      if (button) button.disabled = ownerMuted;
       input.focus();
     }
   }
