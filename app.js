@@ -136,7 +136,10 @@ $("settings-form").addEventListener("submit", async (event) => {
 		setStatus("", "Rammerhead is selected. It uses your separately hosted server.");
 	} else if (wispChanged || transportChanged || proxyEngineChanged) {
 		checkWisp();
-		if (ready) { try { await ready; await applyTransport(true); } catch {} }
+		if (ready) {
+			try { await ready; await applyTransport(true); }
+			catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
+		}
 	}
 });
 
@@ -170,11 +173,17 @@ function boot() {
 	ready.catch(() => { ready = null; });
 	return ready;
 }
+// getTransport() reports only the module path, not the Wisp URL currently in use.
+// Keep the BareMux worker synchronized with the locally saved address on every
+// page startup, even when the transport module is unchanged.
+let appliedTransportSettings = null;
 async function applyTransport(force = false) {
 	const path = TRANSPORTS[settings.transport] || TRANSPORTS.libcurl;
 	const opts = settings.transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
-	if (force || (await connection.getTransport()) !== path) {
+	const signature = JSON.stringify([path, opts]);
+	if (force || signature !== appliedTransportSettings) {
 		await connection.setTransport(path, [opts]);
+		appliedTransportSettings = signature;
 	}
 }
 
@@ -656,7 +665,7 @@ function checkWisp() {
 		// Both Wisp versions use five-byte headers; stream 0 is reserved for the handshake.
 		if (bytes && bytes.length >= 5 && [3, 5].includes(bytes[0]) &&
 			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0) {
-			finish("ok", "Wisp handshake received: " + address.host);
+			finish("ok", "Wisp protocol response received from " + address.host + " (page loading not yet tested)");
 		} else {
 			finish("bad", "WebSocket responded, but not with a Wisp handshake. Check your relay URL.");
 		}
@@ -670,15 +679,32 @@ function checkWisp() {
 		finish("bad", "Wisp closed before replying" + reason + ". Retry or ask your network administrator.");
 	});
 }
+// A standalone WebSocket probe does not reconfigure the transport the proxy
+// actually uses. Retry refreshes that transport first, then checks the relay.
+async function reconnectConfiguredWisp() {
+	if (settings.proxyEngine !== "scramjet") return;
+	const retryButton = $("retry-wisp");
+	retryButton.disabled = true;
+	setStatus("", "Refreshing Scramjet's saved Wisp connection…");
+	try {
+		await boot();
+		await applyTransport(true);
+		checkWisp();
+	} catch (err) {
+		setStatus("bad", "Scramjet connection setup failed: " + (err && err.message || String(err)));
+	} finally {
+		retryButton.disabled = false;
+	}
+}
 $("retry-wisp").addEventListener("click", () => {
-	if (settings.proxyEngine === "rammerhead") {
-		setStatus("", "Rammerhead uses its own server; select Scramjet to test Wisp.");
+	if (settings.proxyEngine !== "scramjet") {
+		setStatus("", "Rammerhead uses a separate server. Select Scramjet to test Wisp.");
 		return;
 	}
-	checkWisp();
+	reconnectConfiguredWisp();
 });
 window.addEventListener("online", () => {
-	if (settings.proxyEngine === "scramjet") checkWisp();
+	if (settings.proxyEngine === "scramjet") reconnectConfiguredWisp();
 });
 
 /* ---------- First-visit guide ---------- */
