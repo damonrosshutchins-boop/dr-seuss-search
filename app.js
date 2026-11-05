@@ -190,7 +190,7 @@ async function go(input) {
 		});
 		frame.frame.addEventListener("load", () => {
 			loader.classList.remove("on");
-			try { const t = frame.frame.contentDocument && frame.frame.contentDocument.title; if (t) document.title = t + " · Dr. Seuss Search"; } catch {}
+			document.title = "New Tab";
 		});
 	}
 	$("home").hidden = true;
@@ -209,7 +209,7 @@ async function go(input) {
 function goHome() {
 	$("browser").hidden = true;
 	$("home").hidden = false;
-	document.title = "Dr. Seuss Search";
+	document.title = "New Tab";
 	$("address").focus();
 }
 window.addEventListener("popstate", () => { if (location.hash !== "#browse") goHome(); });
