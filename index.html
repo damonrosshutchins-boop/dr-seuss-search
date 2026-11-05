@@ -214,17 +214,21 @@
 				</form>
 			</section>
 			<div id="talk-app" hidden>
-				<section id="talk-rooms-view">
+				<nav id="talk-tabbar" class="talk-tabbar" aria-label="Seuss Talk tabs">
+					<button type="button" class="talk-tab active" id="talk-rooms-tab" role="tab" aria-selected="true" aria-controls="talk-rooms-view">Rooms</button>
+					<div id="talk-room-tabs" class="talk-room-tabs"></div>
+				</nav>
+				<section id="talk-rooms-view" role="tabpanel" aria-labelledby="talk-rooms-tab">
 					<form id="talk-create-form" class="talk-create">
 						<label>Room name <input id="talk-room-name" maxlength="48" minlength="2" required placeholder="Name your room" /></label>
 					<label class="talk-check"><input id="talk-lock" type="checkbox" /> Password-protect this room</label>
 					<input id="talk-room-password" type="password" minlength="6" maxlength="100" placeholder="Room password (6+ characters)" autocomplete="new-password" hidden />
-					<button class="go small" type="button" id="talk-create-button">Create room</button>
+					<button class="go small" type="submit" id="talk-create-button">Create room</button>
 					</form>
 					<div class="talk-section-heading"><strong>Available rooms</strong><button type="button" class="talk-text-button" id="talk-refresh">Refresh</button></div>
 					<div id="talk-room-list" class="talk-room-list"></div>
 				</section>
-				<section id="talk-room-view" hidden>
+				<section id="talk-room-view" role="tabpanel" aria-label="Chat room" hidden>
 					<div class="talk-room-top">
 						<div><button type="button" class="talk-text-button" id="talk-back-rooms">← All rooms</button><h3 id="talk-room-title"></h3><span id="talk-room-lock" class="talk-muted"></span></div>
 						<div class="talk-call-actions">
