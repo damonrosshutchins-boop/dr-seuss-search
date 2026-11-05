@@ -12,6 +12,8 @@ const DEFAULTS = {
 	accent: "#d8262f",
 	theme: "light",
 	reducedMotion: false,
+	proxyEngine: "scramjet",
+	rammerheadServer: "",
 };
 const ENGINE_NAMES = {
 	"https://duckduckgo.com/?q=%s": "DuckDuckGo",
@@ -65,11 +67,25 @@ function applyAppearance() {
 	}
 }
 
+/* ---------- Rammerhead server validation ---------- */
+function rammerheadServerURL(raw = settings.rammerheadServer) {
+	try {
+		if (!raw || !String(raw).trim()) return null;
+		const u = new URL(String(raw).trim());
+		// Rammerhead sessions contain browsing cookies. Never submit them over plain HTTP.
+		if (u.protocol !== "https:" || u.username || u.password || u.origin === location.origin) return null;
+		// Standard Rammerhead is hosted at the server root.
+		return u.origin + "/";
+	} catch { return null; }
+}
+
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
 function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.engine] || "custom engine"; }
 function openSettings() {
 	$("s-engine").value = settings.engine;
+	$("s-proxy-engine").value = settings.proxyEngine === "rammerhead" ? "rammerhead" : "scramjet";
+	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-transport").value = settings.transport;
 	$("s-wisp").value = settings.wisp;
 	$("s-background").value = settings.background || "";
@@ -82,6 +98,8 @@ $("open-settings").onclick = openSettings;
 $("engine-label").onclick = openSettings;
 $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
+	$("s-proxy-engine").value = DEFAULTS.proxyEngine;
+	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-wisp").value = DEFAULTS.wisp;
 	$("s-background").value = DEFAULTS.background;
@@ -89,10 +107,21 @@ $("s-reset").onclick = () => {
 	$("s-theme").value = DEFAULTS.theme;
 	$("s-motion").checked = DEFAULTS.reducedMotion;
 };
-$("settings-form").addEventListener("submit", async () => {
+$("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
+$("settings-form").addEventListener("submit", async (event) => {
+	const rawRammerheadServer = $("s-rammerhead-url").value.trim();
+	if (rawRammerheadServer && !rammerheadServerURL(rawRammerheadServer)) {
+		event.preventDefault();
+		$("s-rammerhead-url").setCustomValidity("Use a trusted HTTPS Rammerhead server address.");
+		$("s-rammerhead-url").reportValidity();
+		return;
+	}
+	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
 	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
 	const transportChanged = settings.transport !== $("s-transport").value;
 	settings.engine = $("s-engine").value;
+	settings.proxyEngine = $("s-proxy-engine").value === "rammerhead" ? "rammerhead" : "scramjet";
+	settings.rammerheadServer = rawRammerheadServer;
 	settings.transport = $("s-transport").value;
 	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
 	settings.background = $("s-background").value.trim();
@@ -102,7 +131,9 @@ $("settings-form").addEventListener("submit", async () => {
 	applyAppearance();
 	save();
 	syncLabel();
-	if (wispChanged || transportChanged) {
+	if (settings.proxyEngine === "rammerhead") {
+		setStatus("", "Rammerhead is selected. It uses your separately hosted server.");
+	} else if (wispChanged || transportChanged || proxyEngineChanged) {
 		checkWisp();
 		if (ready) { try { await ready; await applyTransport(true); } catch {} }
 	}
@@ -234,7 +265,13 @@ function activateSiteTab(id) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
 	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
-	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.url || "";
+	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.rammerhead ? (tab.targetUrl || "") : (tab.url || "");
+	const rhHelper = $("rammerhead-helper");
+	rhHelper.hidden = !tab.rammerhead;
+	if (tab.rammerhead) {
+		$("rammerhead-target").value = tab.targetUrl || "";
+		$("rammerhead-open").href = tab.rammerheadHost;
+	}
 	if (tab.type === "home") {
 		document.title = "New Tab · Dr. Seuss Search";
 	} else if (tab.type === "web" || tab.type === "direct") {
@@ -374,9 +411,55 @@ function openDirectSiteTab(inputUrl, title) {
 }
 window.openDirectSiteTab = openDirectSiteTab;
 
+/* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
+function goRammerhead(targetUrl) {
+	const base = rammerheadServerURL();
+	if (!base) {
+		openSettings();
+		$("s-rammerhead-url").focus();
+		return;
+	}
+	let tab = currentSiteTab();
+	if (tab && tab.rammerhead && tab.rammerheadHost === base) {
+		tab.targetUrl = targetUrl;
+		activateSiteTab(tab.id);
+		$("rammerhead-message").textContent = "Address updated. Copy it and paste it into your Rammerhead session.";
+		return;
+	}
+	tab = createSiteTab("direct", "Rammerhead");
+	tab.rammerhead = true;
+	tab.rammerheadHost = base;
+	tab.targetUrl = targetUrl;
+	tab.url = base;
+	tab.loading = true;
+	const iframe = createDirectFrameForTab(tab);
+	iframe.referrerPolicy = "no-referrer";
+	iframe.title = "Rammerhead server — sign in to your private session";
+	iframe.src = base;
+	activateSiteTab(tab.id);
+	$("rammerhead-message").textContent = "If the embedded portal is blank or blocked, click Open Rammerhead directly.";
+}
+
+$("rammerhead-copy").addEventListener("click", async () => {
+	const field = $("rammerhead-target");
+	if (!field.value) return;
+	try {
+		await navigator.clipboard.writeText(field.value);
+		$("rammerhead-message").textContent = "Destination copied. Paste it into Rammerhead's URL box.";
+	} catch {
+		field.focus();
+		field.select();
+		let copied = false;
+		try { copied = document.execCommand("copy"); } catch {}
+		$("rammerhead-message").textContent = copied ?
+			"Destination copied." : "Select the address and copy it manually.";
+	}
+});
+
 async function go(input) {
 	const url = toUrl(input);
 	if (!url) return;
+	if (settings.proxyEngine === "rammerhead") return goRammerhead(url);
 	let tab = currentSiteTab();
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
@@ -437,7 +520,7 @@ function launchLibraryGame(event, url, useLibcurl = false) {
 	event.preventDefault();
 	event.stopPropagation();
 	gamesDialog.close();
-	if (useLibcurl) {
+	if (useLibcurl && settings.proxyEngine !== "rammerhead") {
 		settings.transport = "libcurl";
 		save();
 		boot().then(() => applyTransport(true)).then(() => go(url)).catch((err) =>
@@ -463,6 +546,7 @@ async function launchWithEpoxy(event, url) {
 	event.preventDefault();
 	event.stopPropagation();
 	gamesDialog.close();
+	if (settings.proxyEngine === "rammerhead") return go(url);
 	settings.transport = "epoxy";
 	save();
 	try {
@@ -541,8 +625,12 @@ try {
 /* ---------- Start ---------- */
 applyAppearance();
 syncLabel();
-checkWisp();
-boot().catch((err) => showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err)));
+if (settings.proxyEngine === "rammerhead") {
+	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
+} else {
+	checkWisp();
+	boot().catch((err) => showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err)));
+}
 
 const params = new URLSearchParams(location.search);
 const q = params.get("q") || params.get("goto");
