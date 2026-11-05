@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-webv2-1" />
+	<link rel="stylesheet" href="style.css?v=20261105-ui-extras1" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
@@ -26,6 +26,7 @@
 
 	<!-- HOME -->
 	<main id="home" class="home">
+		<canvas id="home-particles" class="home-particles" aria-hidden="true"></canvas>
 		<header class="topbar">
 			<a class="brand" href="./" aria-label="Dr. Seuss Search home">
 				<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><path d="M20 37 C 19 28, 22 22, 18 14" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="3 3"/><circle cx="18" cy="10" r="8" fill="var(--pink)" stroke="currentColor" stroke-width="2.5"/></svg>
@@ -318,6 +319,19 @@
 					<select id="s-theme"><option value="light">Light</option><option value="dark">Dark</option></select>
 				</label>
 			</div>
+<label class="row"><input id="s-interactive-bg" type="checkbox" /> Interactive New Tab background</label>
+			<small>Floating colorful dots drift and move away from your mouse. Reduce animations turns this effect off.</small>
+			<label>Cursor style
+				<select id="s-cursor">
+					<option value="normal">Normal</option>
+					<option value="cartoon">Cartoon</option>
+					<option value="red-fish">Red Fish (original doodle)</option>
+					<option value="blue-fish">Blue Fish (original doodle)</option>
+					<option value="striped-hat">Striped Hat (original doodle)</option>
+					<option value="green-egg">Green Egg (original doodle)</option>
+				</select>
+				<small>Custom cursors work on this site and in compatible proxied pages. Some sites control their own cursor.</small>
+			</label>
 			<label class="row"><input id="s-motion" type="checkbox" /> Reduce animations</label>
 			<button type="button" class="chip settings-help" id="s-tutorial">Show the getting-started guide</button>
 			<div class="actions">
@@ -347,6 +361,7 @@
 	</dialog>
 
 	<script src="app.js?v=20261105-webv2-1"></script>
+	<script src="ui-extras.js?v=20261105-ui-extras1"></script>
 	<script src="chat.js?v=20261104-tabs1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
