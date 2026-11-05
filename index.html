@@ -26,7 +26,6 @@
 				<span>Dr.&nbsp;Seuss Search</span>
 			</a>
 			<div class="top-actions">
-			<button class="chip" id="open-stash" type="button" aria-haspopup="dialog">Stash</button>
 			<button class="chip chip-vm" id="open-vm" type="button">
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 				VM
@@ -67,10 +66,10 @@
 						<span class="gc-badge" style="background:#76b900">G</span>
 						<span class="gc-text"><strong>GeForce NOW · try in proxy</strong><span>Loads NVIDIA's launch page inside the proxied browser. Game streaming may not be supported here.</span></span>
 					</button>
-					<button type="button" class="game-card" id="open-nowgg-proxy">
+					<a class="game-card" href="https://now.gg/" target="_blank" rel="noopener">
 						<span class="gc-badge" style="background:#1d1a17">n</span>
-						<span class="gc-text"><strong>now.gg · try in proxy</strong><span>Attempts to load now.gg inside this proxied browser. Streaming may require its supported browser or approved embed setup.</span></span>
-					</button>
+						<span class="gc-text"><strong>now.gg</strong><span>Play mobile games in the browser, streamed from the cloud &middot; opens in a new tab</span></span>
+					</a>
 					<button type="button" class="game-card" data-arcade="1">
 						<span class="gc-badge" style="background:var(--red)">D</span>
 						<span class="gc-text"><strong>DOS Arcade</strong><span>DOOM, Quake, Heretic, Tyrian and more, running on your device</span></span>
@@ -174,26 +173,6 @@
 		<div id="vm-toast" class="vm-toast" role="status" hidden></div>
 	</section>
 
-	<!-- GAME STASH -->
-	<dialog id="stash" class="settings stash-dialog">
-		<form method="dialog" id="stash-form">
-			<h2>The Stash</h2>
-			<p class="stash-intro">Search your saved game shortcuts. Pick a game to open it in the proxy.</p>
-			<label>Search games
-				<input id="stash-search" type="search" placeholder="Search your stash…" autocomplete="off" />
-			</label>
-			<ul id="stash-list" class="stash-list">
-				<li class="stash-item" data-search="now.gg game library">
-					<span class="gc-badge" style="background:#1d1a17">n</span>
-					<span class="gc-text"><strong>now.gg Game Library</strong><span>Open the official browser-games collection through the proxy</span></span>
-					<button type="button" class="go small" id="stash-nowgg">Open</button>
-				</li>
-			</ul>
-			<p id="stash-empty" class="stash-empty" hidden>No matching games in your stash.</p>
-			<div class="actions"><button type="submit" class="go small">Close</button></div>
-		</form>
-	</dialog>
-
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -247,21 +226,11 @@
 				<li><strong>Try the VM:</strong> open VM to run the included browser-based demo systems and DOS arcade titles on your device.</li>
 				<li><strong>Make it yours:</strong> open Settings to choose a search engine, background image, accent color, theme, and motion preferences.</li>
 			</ol>
-			<p class="tutorial-note">Some websites block embedding or require features that a web proxy cannot provide. GeForce NOW and now.gg can be tested through the proxy, but cloud streaming may not work because these services depend on browser features and approved embedding support.</p>
+			<p class="tutorial-note">Some websites block embedding or require features that a web proxy cannot provide. GeForce NOW uses its own supported browser streaming flow, so its official launch page opens separately rather than being relayed through this proxy.</p>
 			<div class="actions">
 				<label class="row tutorial-check"><input id="tutorial-again" type="checkbox" /> Don't show this automatically again</label>
 				<button type="submit" class="go small" id="tutorial-done" value="done">Let's go!</button>
 			</div>
-		</form>
-	</dialog>
-
-	<!-- CREATOR POPUP -->
-	<dialog id="creator-popup" class="tutorial creator-popup">
-		<form method="dialog">
-			<p class="kicker">a little note</p>
-			<h2>Made by Damon</h2>
-			<p>This site was created and customized by Damon. Thanks for stopping by!</p>
-			<div class="actions"><button type="submit" class="go small" value="done">Cool!</button></div>
 		</form>
 	</dialog>
 
