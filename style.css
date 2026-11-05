@@ -688,3 +688,8 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .rammerhead-tools .chip { font-size: .82rem; padding: 6px 12px; }
 .rammerhead-tools a { color: var(--ink); font-weight: 900; text-decoration: underline; }
 #rammerhead-message { color: var(--ink-soft); }
+
+
+/* Wisp test can be retried without reloading the app or changing settings. */
+.retry-wisp { font-size: .78rem; padding: 5px 11px; box-shadow: 2px 2px 0 var(--ink); }
+.retry-wisp[hidden] { display: none; }
