@@ -225,7 +225,20 @@ $("search-form").addEventListener("submit", (e) => {
 	go($("address").value);
 });
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
-$("open-geforce-proxy").onclick = () => go("https://play.geforcenow.com/");
+async function openGeForceNow() {
+	// GeForce NOW uses the libcurl Wisp transport in this proxy.
+	settings.transport = "libcurl";
+	save();
+	try {
+		await boot();
+		await applyTransport(true);
+		await go("https://play.geforcenow.com/");
+	} catch (err) {
+		showError("GeForce NOW could not be opened in the proxy.", String(err && err.stack || err));
+	}
+}
+$("open-geforce-proxy").onclick = openGeForceNow;
+$("open-nowgg-proxy").onclick = () => go("https://now.gg/");
 $("b-home").onclick = () => history.back();
 $("b-back").onclick = () => frame && frame.back();
 $("b-fwd").onclick = () => frame && frame.forward();
