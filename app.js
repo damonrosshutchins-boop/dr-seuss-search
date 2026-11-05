@@ -131,6 +131,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	applyAppearance();
 	save();
 	syncLabel();
+	$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
 	if (settings.proxyEngine === "rammerhead") {
 		setStatus("", "Rammerhead is selected. It uses your separately hosted server.");
 	} else if (wispChanged || transportChanged || proxyEngineChanged) {
@@ -587,25 +588,98 @@ document.addEventListener("keydown", (e) => {
 });
 
 
-/* ---------- Wisp health check ---------- */
-function setStatus(state, text) {
-	const s = $("status");
-	s.className = "status " + state;
-	s.lastElementChild.textContent = text;
+/* ---------- Wisp WebSocket and handshake diagnostics ---------- */
+function setStatus(state, message) {
+	const indicator = $("status");
+	indicator.className = "status " + state;
+	indicator.lastElementChild.textContent = message;
 }
+// A Wisp v1 relay begins with CONTINUE (0x03) and v2 begins with INFO (0x05).
+// A WebSocket 'open' event alone does not confirm a working Wisp relay.
+let wispCheckSequence = 0;
+let wispCheckSocket = null;
 function checkWisp() {
-	setStatus("", "Checking the Wisp relay…");
-	let done = false;
-	try {
-		const ws = new WebSocket(settings.wisp);
-		ws.binaryType = "arraybuffer";
-		const t = setTimeout(() => { if (!done) { done = true; ws.close(); setStatus("bad", "Wisp relay isn't answering — try another in Settings"); } }, 6000);
-		ws.onmessage = () => { if (done) return; done = true; clearTimeout(t); ws.close(); setStatus("ok", "Relay ready: " + new URL(settings.wisp).host); };
-		ws.onerror = () => { if (done) return; done = true; clearTimeout(t); setStatus("bad", "Can't reach the Wisp relay — check Settings"); };
-	} catch {
-		setStatus("bad", "That Wisp address doesn't look right");
+	if (settings.proxyEngine === "rammerhead") return;
+	const sequence = ++wispCheckSequence;
+	if (wispCheckSocket) {
+		try { wispCheckSocket.close(); } catch {}
+		wispCheckSocket = null;
 	}
+	$("retry-wisp").disabled = false;
+	let address;
+	try {
+		address = new URL(settings.wisp);
+		if (!["wss:", "ws:"].includes(address.protocol)) throw new Error("Not a WebSocket address");
+		if (location.protocol === "https:" && address.protocol !== "wss:") {
+			throw new Error("An HTTPS website needs a secure wss:// relay");
+		}
+	} catch {
+		setStatus("bad", "Wisp address invalid. Check Settings for a valid wss:// address.");
+		return;
+	}
+
+	setStatus("", "Connecting to the Wisp relay…");
+	let socket;
+	try {
+		socket = new WebSocket(address.href);
+		socket.binaryType = "arraybuffer";
+	} catch {
+		setStatus("bad", "Couldn't start the WebSocket. Check the relay address in Settings.");
+		return;
+	}
+	wispCheckSocket = socket;
+	let opened = false;
+	let finished = false;
+	let timer;
+
+	function finish(state, message) {
+		if (finished || sequence !== wispCheckSequence) return;
+		finished = true;
+		clearTimeout(timer);
+		if (wispCheckSocket === socket) wispCheckSocket = null;
+		try { socket.close(); } catch {}
+		setStatus(state, message);
+	}
+	timer = setTimeout(() => {
+		finish("bad", opened
+			? "Wisp socket opened, but no handshake arrived. Relay may be unhealthy; retry."
+			: "Wisp timed out. Network restrictions or relay downtime may be responsible.");
+	}, 11000);
+	socket.addEventListener("open", () => {
+		if (sequence !== wispCheckSequence || finished) return;
+		opened = true;
+		setStatus("", "WebSocket connected. Checking Wisp handshake…");
+	});
+	socket.addEventListener("message", (event) => {
+		if (sequence !== wispCheckSequence || finished) return;
+		const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
+		// Both Wisp versions use five-byte headers; stream 0 is reserved for the handshake.
+		if (bytes && bytes.length >= 5 && [3, 5].includes(bytes[0]) &&
+			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0) {
+			finish("ok", "Wisp handshake received: " + address.host);
+		} else {
+			finish("bad", "WebSocket responded, but not with a Wisp handshake. Check your relay URL.");
+		}
+	});
+	socket.addEventListener("error", () => {
+		finish("bad", "Wisp WebSocket failed. The relay may be down or restricted by this network.");
+	});
+	socket.addEventListener("close", (event) => {
+		if (sequence !== wispCheckSequence || finished) return;
+		const reason = event.code === 1006 ? "" : " (code " + event.code + ")";
+		finish("bad", "Wisp closed before replying" + reason + ". Retry or ask your network administrator.");
+	});
 }
+$("retry-wisp").addEventListener("click", () => {
+	if (settings.proxyEngine === "rammerhead") {
+		setStatus("", "Rammerhead uses its own server; select Scramjet to test Wisp.");
+		return;
+	}
+	checkWisp();
+});
+window.addEventListener("online", () => {
+	if (settings.proxyEngine === "scramjet") checkWisp();
+});
 
 /* ---------- First-visit guide ---------- */
 const tutorialDialog = $("tutorial");
@@ -625,6 +699,7 @@ try {
 /* ---------- Start ---------- */
 applyAppearance();
 syncLabel();
+$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
 if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else {
