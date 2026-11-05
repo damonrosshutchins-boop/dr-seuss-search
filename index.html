@@ -26,6 +26,7 @@
 				<span>Dr.&nbsp;Seuss Search</span>
 			</a>
 			<div class="top-actions">
+			<button class="chip" id="open-games" type="button">🎮 <span class="chip-label">Games</span></button>
 			<button class="chip chip-vm" id="open-vm" type="button">
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 				VM
@@ -59,23 +60,7 @@
 
 			<ul class="tiles" id="tiles" aria-label="Quick links"></ul>
 
-			<section class="games" aria-labelledby="games-h">
-				<h2 id="games-h">Games, games, fun-a-ma-games</h2>
-				<div class="game-row">
-					<button type="button" class="game-card" id="open-geforce-proxy">
-						<span class="gc-badge" style="background:#76b900">G</span>
-						<span class="gc-text"><strong>GeForce NOW · try in proxy</strong><span>Loads NVIDIA's launch page inside the proxied browser. Game streaming may not be supported here.</span></span>
-					</button>
-					<button type="button" class="game-card" id="open-nowgg-proxy">
-						<span class="gc-badge" style="background:#1d1a17">n</span>
-						<span class="gc-text"><strong>now.gg · try in proxy</strong><span>Opens now.gg inside this proxied browser. Cloud gameplay may require a supported browser or an approved embed.</span></span>
-					</button>
-					<button type="button" class="game-card" data-arcade="1">
-						<span class="gc-badge" style="background:var(--red)">D</span>
-						<span class="gc-text"><strong>DOS Arcade</strong><span>DOOM, Quake, Heretic, Tyrian and more, running on your device</span></span>
-					</button>
-				</div>
-			</section>
+
 
 			<div id="error" class="error" role="alert" hidden>
 				<strong id="error-title">Oh dear, something went wrong.</strong>
@@ -173,6 +158,36 @@
 		<div id="vm-toast" class="vm-toast" role="status" hidden></div>
 	</section>
 
+
+	<!-- GAMES LIBRARY -->
+	<dialog id="games-dialog" class="settings game-library">
+		<div class="library-content">
+			<div class="library-heading">
+				<div><p class="kicker">pick something to play</p><h2>Games Library</h2></div>
+				<button type="button" class="chip" id="games-close">Close</button>
+			</div>
+			<p class="library-note">Choose a title to load it in this tab's proxy view. Some services may block embedding or require an approved integration.</p>
+			<div class="library-grid">
+				<button type="button" class="library-card" data-proxy-url="https://heyitsheart.github.io/sm3das/64/">
+					<span class="library-icon" style="background:#e94b3c">64</span><strong>SM3DAS 64</strong><span>Open in proxy</span>
+				</button>
+				<button type="button" class="library-card" data-proxy-url="https://cyberpunk2077.lol/game?ioShared=1&amp;ioSharedMB=128&amp;ioInflight=4&amp;ioPersist=1&amp;ioPersistMB=6144&amp;binkRecycle=1&amp;psoWarm=0&amp;skipIntro=1&amp;ioLookahead=16&amp;behindLoad=0&amp;floodKeep=1">
+					<span class="library-icon" style="background:#f0d52d;color:#1d1a17">2077</span><strong>Cyberpunk 2077</strong><span>Open in proxy</span>
+				</button>
+				<button type="button" class="library-card" data-proxy-url="https://wasm.rip/files/bpac/index.html">
+					<span class="library-icon" style="background:#2878c8">B</span><strong>BPAC</strong><span>Open in proxy</span>
+				</button>
+				<button type="button" class="library-card" id="library-nowgg">
+					<span class="library-icon" style="background:#1d1a17">n</span><strong>now.gg</strong><span>Try in proxy</span>
+				</button>
+				<button type="button" class="library-card" id="library-geforce">
+					<span class="library-icon" style="background:#76b900">G</span><strong>GeForce NOW</strong><span>Try in proxy</span>
+				</button>
+			</div>
+			<p class="library-footnote">now.gg requires an approved embed setup for cloud gameplay on third-party sites. If it does not load here, the provider may need to allow this site's domain.</p>
+		</div>
+	</dialog>
+
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -233,7 +248,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261104-2"></script>
+	<script src="app.js?v=20261104-3"></script>
 	<script src="vm.js"></script>
 </body>
 </html>
