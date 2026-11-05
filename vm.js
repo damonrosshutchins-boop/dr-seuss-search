@@ -40,6 +40,7 @@
 	let dos = null;      // js-dos props
 	let current = null;  // last boot request (for restart)
 	let paused = false;
+	let bootGeneration = 0;
 
 	/* ---------- helpers ---------- */
 	function loadScript(src) {
@@ -91,7 +92,8 @@
 	});
 
 	/* ---------- shutdown ---------- */
-	async function shutdown() {
+	async function shutdown(invalidate = true) {
+		if (invalidate) bootGeneration++;
 		const e = emulator, d = dos;
 		emulator = null; dos = null; engine = null; paused = false;
 		if (e) { try { await e.destroy(); } catch {} }
@@ -113,15 +115,18 @@
 
 	/* ---------- v86 (Full PCs) ---------- */
 	async function bootV86(req) {
-		await shutdown();
+		const generation = ++bootGeneration;
+		await shutdown(false);
+		if (generation !== bootGeneration) return;
 		current = { kind: "v86", req };
 		enterStage(req.name);
 		engine = "v86";
 		ui.hint.textContent = "Click the screen to type. Use the mouse button to capture the pointer; press Esc to release it.";
 		setStatus("Fetching the emulator…");
-		try { await loadV86(); } catch (err) { setStatus("Oh dear: " + err.message, true); return; }
-		if (engine !== "v86") return;
+		try { await loadV86(); } catch (err) { if (generation === bootGeneration) setStatus("Couldn't load the PC emulator: " + err.message, true); return; }
+		if (generation !== bootGeneration || engine !== "v86") return;
 		setStatus("Loading " + req.name + "…");
+		try {
 		emulator = new window.V86({
 			wasm_path: vmAt("v86.wasm"),
 			bios: { url: vmAt("seabios.bin") },
@@ -134,33 +139,45 @@
 			...req.opts,
 		});
 		emulator.add_listener("download-progress", (e) => {
+			if (generation !== bootGeneration) return;
 			if (e.lengthComputable && e.total) setStatus(`Downloading ${e.file_name ? e.file_name.split("/").pop() : "files"}… ${Math.round((e.loaded / e.total) * 100)}%`);
 		});
-		emulator.add_listener("download-error", () => setStatus("A file failed to download. Try again in a moment.", true));
+		emulator.add_listener("download-error", () => { if (generation === bootGeneration) setStatus("A system file failed to download. Check your connection and retry.", true); });
 		emulator.add_listener("emulator-ready", () => {
+			if (generation !== bootGeneration) return;
 			setStatus(req.name + " is running", true);
 			setTools({ cad: 1, mouse: 1, shot: 1, pause: 1, restart: 1, power: 1 });
-			refit();
+			requestAnimationFrame(refit);
 		});
+		emulator.add_listener("emulator-error", (err) => { if (generation === bootGeneration) setStatus("VM error: " + (err && err.message || "unknown emulator error"), true); });
 		emulator.add_listener("screen-set-size", () => requestAnimationFrame(refit));
+		} catch (err) {
+			if (generation === bootGeneration) {
+				setStatus("Couldn't start " + req.name + ": " + (err && err.message || err), true);
+				setTools({});
+			}
+		}
 	}
 
 	/* ---------- js-dos (Game Arcade) ---------- */
 	async function bootDos(req) {
-		await shutdown();
+		const generation = ++bootGeneration;
+		await shutdown(false);
+		if (generation !== bootGeneration) return;
 		current = { kind: "dos", req };
 		enterStage(req.name);
 		engine = "dos";
 		ui.stage.classList.add("dos");
 		ui.hint.textContent = (req.tip ? req.tip + " " : "") + "Click the game to capture the mouse.";
 		setStatus("Fetching DOSBox…");
-		try { await loadDos(); } catch (err) { setStatus("Oh dear: " + err.message, true); return; }
-		if (engine !== "dos") return;
+		try { await loadDos(); } catch (err) { if (generation === bootGeneration) setStatus("Couldn't load the arcade emulator: " + err.message, true); return; }
+		if (generation !== bootGeneration || engine !== "dos") return;
 		ui.dosHost.hidden = false;
 		const el = document.createElement("div");
 		el.style.cssText = "width:100%;height:100%";
 		ui.dosHost.appendChild(el);
 		const mode = SCALE_MODES[scaleIdx];
+		try {
 		dos = window.Dos(el, {
 			url: req.url,
 			pathPrefix: vmAt("jsdos/emulators/"),
@@ -178,8 +195,15 @@
 			renderAspect: mode.dosAspect,
 			volume: 0.8,
 		});
+		if (generation !== bootGeneration) { try { dos && dos.stop(); } catch {} return; }
 		setStatus(req.name + " is running · click it to play", true);
 		setTools({ pause: 1, restart: 1, power: 1, mouse: 1 });
+		} catch (err) {
+			if (generation === bootGeneration) {
+				setStatus("Couldn't start " + req.name + ": " + (err && err.message || err), true);
+				setTools({});
+			}
+		}
 	}
 
 	/* ---------- scaling ---------- */
@@ -220,8 +244,12 @@
 		ui.fitInner.style.width = sw * sx + "px";
 		ui.fitInner.style.height = sh * sy + "px";
 	}
-	new ResizeObserver(() => refit()).observe(ui.fit);
-	new ResizeObserver(() => refit()).observe(ui.screen);
+	if ("ResizeObserver" in window) {
+		new ResizeObserver(() => requestAnimationFrame(refit)).observe(ui.fit);
+		new ResizeObserver(() => requestAnimationFrame(refit)).observe(ui.screen);
+	} else {
+		window.addEventListener("resize", () => requestAnimationFrame(refit), { passive: true });
+	}
 
 	/* ---------- toolbar ---------- */
 	const PAUSE_SVG = '<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>';
