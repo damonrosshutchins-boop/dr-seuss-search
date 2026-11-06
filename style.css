@@ -986,3 +986,60 @@ a.library-card:focus-visible { outline: 3px solid var(--teal); outline-offset: 3
 #site-guard-status.bad {color:#d42d34}
 #site-policy-notice .site-incoming-content {gap:16px}
 #site-policy-notice .site-incoming-content button {justify-self:end}
+
+
+/* Fail-closed login screen: do not render a usable browsing interface
+   before a saved Supabase profile and verified site session exist. */
+body:not(.site-authenticated) > :not(#site-login):not(script):not(noscript) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body:not(.site-authenticated)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  background: #131b2b;
+}
+body:not(.site-authenticated) #site-login {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+body:not(.site-authenticated) #site-login:not([open]) {
+  display: block !important;
+  position: fixed;
+  z-index: 2147483646;
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+#site-login::backdrop {
+  background: rgba(13, 20, 34, .98);
+}
+.site-email-options {
+  border: 1px solid var(--ink);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(128, 128, 128, .06);
+}
+.site-email-options summary {
+  font-weight: 850;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.site-email-options[open] {
+  display: grid;
+  gap: 12px;
+}
+.site-email-options label {
+  margin-top: 12px;
+}
+.site-email-options .site-account-actions {
+  margin-top: 12px;
+}
+.site-email-options small {
+  display: block;
+  margin-top: 10px;
+}
