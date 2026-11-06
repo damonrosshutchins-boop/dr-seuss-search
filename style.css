@@ -28,12 +28,6 @@ body {
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.stripes {
-	position: fixed; inset: 0 0 auto 0; height: 14px; z-index: 5;
-	background: repeating-linear-gradient(90deg, var(--red) 0 36px, #fff 36px 72px);
-	border-bottom: 3px solid var(--ink);
-}
-
 /* HOME */
 .home { min-height: 100%; display: flex; flex-direction: column; padding: 30px clamp(16px, 4vw, 48px) 20px; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -530,7 +524,7 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .site-tabbar {
 	position: fixed;
 	z-index: 30;
-	top: 14px;
+	top: 0;
 	left: 0;
 	right: 0;
 	height: 48px;
@@ -610,10 +604,10 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 	outline: 3px solid var(--teal);
 	outline-offset: 2px;
 }
-.home { padding-top: 78px; }
-.browser { inset: 62px 0 0; }
+.home { padding-top: 64px; }
+.browser { inset: 48px 0 0; }
 .browser .bar { padding-top: 8px; }
-.vm { inset: 62px 0 0; }
+.vm { inset: 48px 0 0; }
 .vm .vm-bar { padding-top: 8px; }
 .site-frame-pane { position: absolute; inset: 0; }
 .site-frame-pane[hidden] { display: none; }
@@ -621,7 +615,7 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .talk-page {
 	position: fixed;
 	z-index: 12;
-	top: 62px;
+	top: 48px;
 	left: 0;
 	right: 0;
 	bottom: 0;
@@ -641,7 +635,7 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 @media (max-width: 600px) {
 	.site-tabbar { padding-left: 7px; padding-right: 7px; }
 	.site-tab-item { flex-basis: 155px; }
-	.home { padding-top: 72px; }
+	.home { padding-top: 60px; }
 	.talk-page { width: 100%; border-left: 0; border-right: 0; border-radius: 0; }
 }
 
