@@ -153,16 +153,33 @@ $("settings-form").addEventListener("submit", async (event) => {
 
 
 /* ---------- Scramjet + bare-mux setup ---------- */
-const { ScramjetController } = $scramjetLoadController();
-const scramjet = new ScramjetController({
-	prefix: at("scramjet/"),
-	files: {
-		wasm: at("scram/scramjet.wasm.wasm"),
-		all: at("scram/scramjet.all.js"),
-		sync: at("scram/scramjet.sync.js"),
-	},
-});
-const connection = new BareMux.BareMuxConnection(at("baremux/worker.js"));
+let scramjet = null;
+let connection = null;
+let runtimeLoading = null;
+async function loadProxyRuntime() {
+	if (scramjet && connection) return;
+	if (!window.$scramjetLoadController) {
+		if (!runtimeLoading) runtimeLoading = new Promise((resolve, reject) => {
+			const script = document.createElement("script");
+			script.src = at("scram/scramjet.all.js");
+			script.async = true;
+			script.onload = resolve;
+			script.onerror = () => reject(new Error("The Scramjet runtime could not be downloaded."));
+			document.head.appendChild(script);
+		});
+		await runtimeLoading;
+	}
+	const { ScramjetController } = window.$scramjetLoadController();
+	scramjet = new ScramjetController({
+		prefix: at("scramjet/"),
+		files: {
+			wasm: at("scram/scramjet.wasm.wasm"),
+			all: at("scram/scramjet.all.js"),
+			sync: at("scram/scramjet.sync.js"),
+		},
+	});
+	connection = new BareMux.BareMuxConnection(at("baremux/worker.js"));
+}
 
 let ready = null;
 function boot() {
@@ -173,6 +190,7 @@ function boot() {
 				? "Service workers need HTTPS. Open this site over https://."
 				: "Your browser doesn't support service workers.");
 		}
+		await loadProxyRuntime();
 		await scramjet.init();
 		await navigator.serviceWorker.register(at("sw.js"), { scope: BASE.pathname });
 		await navigator.serviceWorker.ready;
