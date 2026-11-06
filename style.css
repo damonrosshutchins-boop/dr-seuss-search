@@ -1385,3 +1385,26 @@ body:not(.site-authenticated) #site-login:not([open]) {
   outline: 3px solid #49a36a;
   outline-offset: 3px;
 }
+
+
+/* External web desktops can forbid embedding (X-Frame-Options/CSP) or be
+   unavailable on a managed network. Offer a local first-party VM instead. */
+.vm-web-fallback {
+  display: grid;
+  gap: 7px;
+  text-align: center;
+  padding: 12px;
+  margin: 0;
+  border-top: 1px solid rgba(255,255,255,.25);
+}
+.vm-web-fallback[hidden] { display: none !important; }
+.vm-web-fallback span { font-size: .83rem; line-height: 1.45; }
+.vm-web-fallback-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.vm-web-fallback-actions .chip { flex: none; }
+.vm-web-fallback-actions a { font-weight: 750; }
