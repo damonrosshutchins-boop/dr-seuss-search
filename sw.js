@@ -102,6 +102,30 @@ function scheduleDssProgress() {
     } catch {}
   }, 360);
 }
+// Confirm that this worker is actually in charge of the encoded game URL
+// BEFORE navigation. Without an active controller GitHub Pages itself sees
+// /dr-seuss-search/scramjet/... as a nonexistent file and returns HTTP 404.
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "dss-scramjet-route-check") return;
+  const reply = event.ports && event.ports[0];
+  if (!reply) return;
+  const check = (async () => {
+    try {
+      await ensureScramjetConfig();
+      const prefix = scramjet.config && scramjet.config.prefix;
+      const testUrl = new URL(
+        SCRAMJET_PATH + encodeURIComponent("https://example.org/"),
+        self.location.origin
+      ).href;
+      const matches = prefix === SCRAMJET_PATH &&
+        scramjet.route({ request: new Request(testUrl) });
+      reply.postMessage({ ok:matches, prefix:prefix || "", expected:SCRAMJET_PATH });
+    } catch (err) {
+      reply.postMessage({ ok:false, error:err && err.message || "Config unavailable" });
+    }
+  })();
+  event.waitUntil(check);
+});
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
