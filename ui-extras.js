@@ -13,7 +13,9 @@
 		frameHost: $("frame-host")
 	};
 	if (!controls.bg || !controls.cursor || !controls.canvas || !controls.home) return;
-	if (typeof settings.interactiveNewTab !== "boolean") settings.interactiveNewTab = true;
+	if (!["dots", "aurora", "off"].includes(settings.interactiveBgStyle)) {
+		settings.interactiveBgStyle = settings.interactiveNewTab === false ? "off" : "dots";
+	}
 	if (!options.includes(settings.cursorStyle)) settings.cursorStyle = "cartoon";
 
 	/* Tiny SVG cursors with the real pointer hotspot at the top-left arrow tip. */
@@ -119,33 +121,62 @@
 	function paint(timestamp) {
 		if (!running) return;
 		ctx.clearRect(0, 0, width, height);
-		for (const d of dots) {
-			d.vx += (d.originX + Math.sin(timestamp * .0006 + d.phase) * 13 - d.x) * .013;
-			d.vy += (d.originY + Math.cos(timestamp * .0005 + d.phase) * 11 - d.y) * .013;
-			const dx = d.x - pointer.x, dy = d.y - pointer.y;
-			const distance = Math.hypot(dx, dy) || 1;
-			if (distance < 145) {
-				const force = (1 - distance / 145) * 3.1;
-				d.vx += dx / distance * force;
-				d.vy += dy / distance * force;
+		if (settings.interactiveBgStyle === "aurora") {
+			const pointerX = pointer.x < 0 ? width * .5 : pointer.x;
+			const pointerY = pointer.y < 0 ? height * .5 : pointer.y;
+			for (let band = 0; band < 6; band++) {
+				const phase = timestamp * (.00016 + band * .000018) + band * 1.35;
+				const baseY = height * (.22 + band * .105);
+				const influence = Math.max(0, 1 - Math.abs(pointerX - width / 2) / Math.max(1, width / 2));
+				const sway = (pointerY - height / 2) * .055 * influence;
+				const gradient = ctx.createLinearGradient(0, baseY - 100, width, baseY + 100);
+				gradient.addColorStop(0, "rgba(65, 224, 190, 0)");
+				gradient.addColorStop(.45, band % 2 ? "rgba(106, 125, 255, .34)" : "rgba(66, 230, 190, .38)");
+				gradient.addColorStop(1, "rgba(196, 103, 255, 0)");
+				ctx.beginPath();
+				ctx.moveTo(0, baseY);
+				for (let x = 0; x <= width + 24; x += 24) {
+					const y = baseY + Math.sin(x * .006 + phase) * (34 + band * 5) +
+						Math.sin(x * .0025 - phase * 1.7) * 25 + sway;
+					ctx.lineTo(x, y);
+				}
+				ctx.strokeStyle = gradient;
+				ctx.lineWidth = 34 + band * 5;
+				ctx.globalAlpha = .8;
+				ctx.shadowBlur = 24;
+				ctx.shadowColor = band % 2 ? "#7d82ff" : "#45e0c0";
+				ctx.stroke();
 			}
-			d.vx *= .88; d.vy *= .88;
-			d.x += d.vx; d.y += d.vy;
-			ctx.beginPath();
-			ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
-			ctx.fillStyle = d.color;
-			ctx.globalAlpha = .7;
-			ctx.fill();
-			ctx.strokeStyle = "#655864";
-			ctx.globalAlpha = .55;
-			ctx.lineWidth = 1.2;
-			ctx.stroke();
+			ctx.shadowBlur = 0;
+		} else {
+			for (const d of dots) {
+				d.vx += (d.originX + Math.sin(timestamp * .0006 + d.phase) * 13 - d.x) * .013;
+				d.vy += (d.originY + Math.cos(timestamp * .0005 + d.phase) * 11 - d.y) * .013;
+				const dx = d.x - pointer.x, dy = d.y - pointer.y;
+				const distance = Math.hypot(dx, dy) || 1;
+				if (distance < 145) {
+					const force = (1 - distance / 145) * 3.1;
+					d.vx += dx / distance * force;
+					d.vy += dy / distance * force;
+				}
+				d.vx *= .88; d.vy *= .88;
+				d.x += d.vx; d.y += d.vy;
+				ctx.beginPath();
+				ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+				ctx.fillStyle = d.color;
+				ctx.globalAlpha = .7;
+				ctx.fill();
+				ctx.strokeStyle = "#655864";
+				ctx.globalAlpha = .55;
+				ctx.lineWidth = 1.2;
+				ctx.stroke();
+			}
 		}
 		ctx.globalAlpha = 1;
 		frameId = requestAnimationFrame(paint);
 	}
 	function refreshBackground() {
-		const active = !!ctx && settings.interactiveNewTab && !settings.reducedMotion &&
+		const active = !!ctx && settings.interactiveBgStyle !== "off" && !settings.reducedMotion &&
 			!reduced.matches && !controls.home.hidden;
 		controls.home.classList.toggle("interactive-bg", !!active);
 		if (active && !running) {
@@ -171,16 +202,17 @@
 	else reduced.addListener(refreshBackground);
 
 	function populateSettings() {
-		controls.bg.checked = !!settings.interactiveNewTab;
+		controls.bg.value = settings.interactiveBgStyle;
 		controls.cursor.value = options.includes(settings.cursorStyle) ? settings.cursorStyle : "cartoon";
 	}
 	$("open-settings").addEventListener("click", populateSettings);
 	$("s-reset").addEventListener("click", () => {
-		controls.bg.checked = true;
+		controls.bg.value = "dots";
 		controls.cursor.value = "cartoon";
 	});
 	$("settings-form").addEventListener("submit", () => {
-		settings.interactiveNewTab = controls.bg.checked;
+		settings.interactiveBgStyle = ["dots", "aurora", "off"].includes(controls.bg.value) ? controls.bg.value : "dots";
+		settings.interactiveNewTab = settings.interactiveBgStyle !== "off";
 		settings.cursorStyle = options.includes(controls.cursor.value) ? controls.cursor.value : "cartoon";
 		save();
 		applyCursors();
