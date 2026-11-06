@@ -1350,3 +1350,38 @@ body:not(.site-authenticated) #site-login:not([open]) {
   .admin-workspace-controls .site-admin-heading { flex-wrap: wrap; }
   #open-admin .chip-label { display: none; }
 }
+
+
+/* Seuss Talk voluntary camera calls: clear active-state warning and controls. */
+.talk-video-join {
+  background: #d9f3e2;
+  color: #153c27;
+  border-color: #34885c;
+}
+.talk-camera-indicator {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  border: 2px solid #a83f2a;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff1dd;
+  color: #8e291e;
+  font-weight: 900;
+  font-size: .87rem;
+  line-height: 1.45;
+}
+.talk-camera-indicator[hidden] { display: none !important; }
+.talk-camera-note {
+  margin: 0;
+  line-height: 1.5;
+}
+#talk-camera[aria-pressed="true"] {
+  background: #a82e37;
+  border-color: #7e222b;
+  color: #fff;
+}
+#talk-camera:focus-visible, #talk-join-camera:focus-visible {
+  outline: 3px solid #49a36a;
+  outline-offset: 3px;
+}
