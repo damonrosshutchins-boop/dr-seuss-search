@@ -47,6 +47,10 @@
     if (error) throw error;
     return data;
   };
+  // The alternate proxy engines cannot enforce the same domain checks on
+  // their internal traffic. Limit the experimental options to verified admins.
+  window.seussCanUseExperimentalProxy = async () =>
+    loggedIn && isAdmin && !!(await server("site_check_admin"));
   function setLock(state) {
     if (state === lastState) return;
     lastState = state;
