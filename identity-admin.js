@@ -198,7 +198,7 @@
     if (!api) return;
     const name = $("site-username").value.trim();
     const password = $("site-account-password").value;
-    const oldEmailLogin = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(name);
+    const oldEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(name);
     if (!validUsername(name) && !oldEmailLogin) {
       loginFeedback("Enter your username, or the email of an older account.", true);
       return;
