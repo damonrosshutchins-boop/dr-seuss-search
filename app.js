@@ -420,6 +420,22 @@ function createFrameForTab(tab) {
 		}
 		renderSiteTabs();
 		if (activeSiteTabId === tab.id) announceActiveSiteView();
+		// Also check internal navigations, e.g. links clicked inside a game
+		// or a redirect from a search result. Stop the proxied frame on match.
+		if (typeof window.dssSitePolicyCheck === "function") {
+			window.dssSitePolicyCheck(event.url).then(allowed => {
+				if (allowed || tab.frame !== instance) return;
+				if (tab.pane) tab.pane.remove();
+				tab.frame = null;
+				tab.pane = null;
+				tab.loading = false;
+				tab.type = "home";
+				tab.url = "";
+				tab.title = "Blocked page";
+				if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+				else renderSiteTabs();
+			}).catch(err => console.warn("Site rule check failed:", err));
+		}
 	});
 	instance.frame.addEventListener("load", () => {
 		tab.loading = false;
@@ -523,6 +539,12 @@ $("rammerhead-copy").addEventListener("click", async () => {
 async function go(input, options = {}) {
 	const url = toUrl(input);
 	if (!url) return;
+	// Check the hostname before any external navigation starts. The rule
+	// service returns a block decision without reading the page contents.
+	if (typeof window.dssSitePolicyCheck === "function") {
+		const allowed = await window.dssSitePolicyCheck(url);
+		if (!allowed) return;
+	}
 	if (settings.proxyEngine === "rammerhead" && !options.forceScramjet) return goRammerhead(url);
 	let tab = currentSiteTab();
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
