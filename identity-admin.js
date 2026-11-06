@@ -67,6 +67,8 @@
     try {
       const state = await server("site_heartbeat");
       setLock(["active","frozen","kicked","banned"].includes(state) ? state : "kicked");
+      if (state === "active" && typeof window.dssRecheckActiveSite === "function")
+        await window.dssRecheckActiveSite();
     } catch (error) {
       feedback("site-login-status", "Connection issue: " + errText(error), true);
     } finally {
