@@ -324,11 +324,12 @@
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
 			</label>
-			<label>Transport (Scramjet only)
+			<label>Scramjet transport
 				<select id="s-transport">
-					<option value="libcurl">libcurl (recommended)</option>
-					<option value="epoxy">epoxy</option>
+					<option value="libcurl">libcurl.js (Wisp transport · recommended)</option>
+					<option value="epoxy">Epoxy (Wisp transport)</option>
 				</select>
+				<small>libcurl.js is already included with Dr. Seuss Search. This option changes the Scramjet network transport; it is not GUST's standalone browser engine.</small>
 			</label>
 			<label>Wisp server
 				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" />
