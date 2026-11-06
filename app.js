@@ -1027,7 +1027,7 @@ function checkWisp() {
 // A standalone WebSocket probe does not reconfigure the transport the proxy
 // actually uses. Retry refreshes that transport first, then checks the relay.
 async function reconnectConfiguredWisp() {
-	if (settings.proxyEngine !== "scramjet") return;
+	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
 	const retryButton = $("retry-wisp");
 	retryButton.disabled = true;
 	setStatus("", "Refreshing Scramjet's saved Wisp connection…");
@@ -1042,14 +1042,14 @@ async function reconnectConfiguredWisp() {
 	}
 }
 $("retry-wisp").addEventListener("click", () => {
-	if (settings.proxyEngine !== "scramjet") {
-		setStatus("", "Rammerhead uses a separate server. Select Scramjet to test Wisp.");
+	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) {
+		setStatus("", "Choose Scramjet or Ultraviolet to test the shared Wisp connection.");
 		return;
 	}
 	reconnectConfiguredWisp();
 });
 window.addEventListener("online", () => {
-	if (settings.proxyEngine === "scramjet") reconnectConfiguredWisp();
+	if (["scramjet","ultraviolet"].includes(settings.proxyEngine)) reconnectConfiguredWisp();
 });
 
 /* ---------- First-visit guide ---------- */
