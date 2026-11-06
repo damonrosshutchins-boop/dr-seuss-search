@@ -21,7 +21,10 @@ jobs:
           python - <<'PY'
           import json, urllib.request
           url = 'https://cihzaevtdoquseoxxdqf.supabase.co/auth/v1/settings'
-          with urllib.request.urlopen(url, timeout=20) as r:
+          # The settings endpoint requires the public project API key.
+public_key = 'sb_publishable_TKOD-qL58VJU9c4R952W_w_Tw7qbqgL'
+request = urllib.request.Request(url, headers={'apikey': public_key})
+with urllib.request.urlopen(request, timeout=20) as r:
               data = json.load(r)
           for key in ['disable_signup','external','mailer_autoconfirm','autoconfirm','email_autoconfirm','anonymous_users']:
               val=data.get(key)
