@@ -298,43 +298,25 @@
     lockLoginForm(true);
     loginFeedback("Creating your username and password account…");
     try {
-      // Send a simple cross-origin POST: unlike functions.invoke(), a
-      // text/plain request needs no OPTIONS preflight. The Auth session
-      // token stays in the encrypted request body and is verified by the
-      // server through Supabase Auth before any account update.
-      const { data: currentSession, error: sessionError } = await api.auth.getSession();
-      if (sessionError || !currentSession?.session?.access_token) {
-        throw new Error("Signup session expired. Refresh the page and try again.");
-      }
-      let response;
-      try {
-        response = await fetch(PROJECT + "/functions/v1/site-username-signup", {
-          method: "POST",
-          mode: "cors",
-          credentials: "omit",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            username, password,
-            access_token: currentSession.session.access_token
-          })
-        });
-      } catch (networkError) {
-        throw new Error("Could not contact the signup service. " +
-          "Please refresh and retry. (" + errText(networkError) + ")");
-      }
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.error || "Signup service returned HTTP " +
-          response.status + ". Please retry.");
-      }
-      // Explicit password login refreshes Auth claims after converting
-      // the anonymous user into a permanent username/password identity.
+      // Built-in Supabase Auth signup avoids the separate Edge Function.
+      // This Supabase project has email auto-confirm enabled, so a generated,
+      // nondeliverable identifier can serve as the Auth login ID. No visitor
+      // email is collected and passwords remain managed by Supabase Auth.
       const email = username.toLowerCase() + "@" + ACCOUNT_DOMAIN;
-      const signedIn = await api.auth.signInWithPassword({ email, password });
-      if (signedIn.error) {
-        throw new Error("Account created. Choose Log In with the same username and password to finish.");
+      const { data, error } = await api.auth.signUp({ email, password });
+      if (error) {
+        if (/already registered|already exists|email exists|user already/i.test(error.message || "")) {
+          throw new Error("That username is already taken. Choose another username or log in.");
+        }
+        throw error;
       }
-      me = signedIn.data.user;
+      if (!data?.session?.access_token || !data?.user || data.user.is_anonymous) {
+        throw new Error(
+          "Your account was created but the server did not sign you in. " +
+          "Choose Log in and enter the same username and password."
+        );
+      }
+      me = data.user;
       await activateProfile(username);
     } catch (error) {
       loginFeedback("Could not create account: " + errText(error), true);
