@@ -117,7 +117,7 @@
     try {
       const ok = await server("site_claim_admin", { p_code:code });
       if (!ok) {
-        feedback("site-admin-status", "Access denied. The code may be incorrect, temporarily locked, or already claimed.", true);
+        feedback("site-admin-status", "Access denied. The code may be incorrect or temporarily locked. Try again later.", true);
         return;
       }
       isAdmin = !!(await server("site_check_admin"));
