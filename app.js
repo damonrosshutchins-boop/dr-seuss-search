@@ -12,6 +12,7 @@ const DEFAULTS = {
 	accent: "#d8262f",
 	theme: "light",
 	reducedMotion: false,
+	performanceMode: false,
 	proxyEngine: "scramjet",
 	rammerheadServer: "",
 };
@@ -44,7 +45,8 @@ function applyAppearance() {
 	const accent = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : DEFAULTS.accent;
 	document.documentElement.style.setProperty("--red", accent);
 	document.documentElement.dataset.theme = settings.theme === "dark" ? "dark" : "light";
-	document.documentElement.classList.toggle("reduce-motion", !!settings.reducedMotion);
+	document.documentElement.classList.toggle("reduce-motion", !!settings.reducedMotion || !!settings.performanceMode);
+	document.documentElement.classList.toggle("performance-mode", !!settings.performanceMode);
 	const bg = String(settings.background || "").trim();
 	if (bg) {
 		try {
@@ -92,6 +94,7 @@ function openSettings() {
 	$("s-accent").value = settings.accent || DEFAULTS.accent;
 	$("s-theme").value = settings.theme || "light";
 	$("s-motion").checked = !!settings.reducedMotion;
+	$("s-performance").checked = !!settings.performanceMode;
 	if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
 }
 $("open-settings").onclick = openSettings;
@@ -106,6 +109,7 @@ $("s-reset").onclick = () => {
 	$("s-accent").value = DEFAULTS.accent;
 	$("s-theme").value = DEFAULTS.theme;
 	$("s-motion").checked = DEFAULTS.reducedMotion;
+	$("s-performance").checked = DEFAULTS.performanceMode;
 };
 $("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
 $("settings-form").addEventListener("submit", async (event) => {
@@ -119,6 +123,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
 	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
 	const transportChanged = settings.transport !== $("s-transport").value;
+	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
 	settings.proxyEngine = $("s-proxy-engine").value === "rammerhead" ? "rammerhead" : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
@@ -128,13 +133,16 @@ $("settings-form").addEventListener("submit", async (event) => {
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
 	settings.theme = $("s-theme").value;
 	settings.reducedMotion = $("s-motion").checked;
+	settings.performanceMode = $("s-performance").checked;
 	applyAppearance();
 	save();
 	syncLabel();
 	$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
 	if (settings.proxyEngine === "rammerhead") {
 		setStatus("", "Rammerhead is selected. It uses your separately hosted server.");
-	} else if (wispChanged || transportChanged || proxyEngineChanged) {
+	} else if (settings.performanceMode && !ready) {
+		setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
+	} else if (wispChanged || transportChanged || proxyEngineChanged || (performanceChanged && !settings.performanceMode)) {
 		checkWisp();
 		if (ready) {
 			try { await ready; await applyTransport(true); }
@@ -728,6 +736,8 @@ syncLabel();
 $("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
 if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
+} else if (settings.performanceMode) {
+	setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 } else {
 	checkWisp();
 	boot().catch((err) => showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err)));
