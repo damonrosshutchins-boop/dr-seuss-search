@@ -87,6 +87,7 @@
     await server("set_display_name", { p_name:name });
     $("site-username-label").textContent = name;
     loggedIn = true;
+    scheduleBackgroundChecks();
     await heartbeat();
     isAdmin = !!(await server("site_check_admin"));
     $("site-admin-unlock").hidden = isAdmin;
@@ -196,6 +197,7 @@
       }
       isAdmin = !!(await server("site_check_admin"));
       if (!isAdmin) throw new Error("The server did not confirm admin permissions.");
+      scheduleBackgroundChecks();
       $("site-admin-code").value = "";
       $("site-admin-unlock").hidden = true;
       $("site-admin-panel").hidden = false;
@@ -497,7 +499,10 @@
   $("site-admin-compose-cancel").addEventListener("click", () => composeDialog.close());
   $("site-incoming-dismiss").addEventListener("click", () => incomingPopup.close());
   incomingPopup.addEventListener("close", showNextIncomingPopup);
-  $("open-settings").addEventListener("click", () => { if (isAdmin) refreshAdmin(); });
+  $("open-settings").addEventListener("click", () => {
+    if (isAdmin) refreshAdmin();
+    scheduleBackgroundChecks();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       heartbeat();
