@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-adminnavigation1" />
+	<link rel="stylesheet" href="style.css?v=20261105-siteguard1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -325,7 +325,7 @@
 				<button id="site-account-signin" class="chip" type="button">Sign in</button>
 			</div>
 			<small class="talk-muted">You can continue as a guest with just a username. To add another permanent account later, use Settings → Account &amp; moderation → Add / switch account, then choose Create account. Never reuse a password from another site.</small>
-			<small class="talk-muted"><strong>Site moderation notice:</strong> Admins may open new tabs inside Seuss Search and see your active website domain (not your full URL, searches, or page contents). You can turn sharing off in Settings and close admin-opened tabs.</small>
+			<small class="talk-muted"><strong>Site moderation and safety:</strong> Current website domains are shared with admins by default; you can switch off routine sharing in Settings. Website safety rules still check domains opened inside Seuss Search, even with sharing off. Blocked visits are reported; visits to recognized adult-content sites can automatically restrict your site account. Admins can review and lift bans. No full URLs, search terms or page contents are recorded.</small>
 			<p id="site-login-status" class="talk-muted" role="status">Connecting securely…</p>
 			<button id="site-login-submit" class="go small" type="submit">Continue to Seuss Search</button>
 			<button id="site-login-retry" class="chip" type="button" hidden>Retry connection</button>
@@ -391,6 +391,16 @@
 		<p id="site-admin-redirect-text"></p>
 		<button type="button" id="site-admin-redirect-dismiss" class="chip talk-small">Dismiss</button>
 	</div>
+
+	<!-- Website rules block an in-proxy page, not a visitor's computer. -->
+	<dialog id="site-policy-notice" class="site-popup-dialog" aria-labelledby="site-policy-title">
+		<div class="site-incoming-content">
+			<p class="kicker">Seuss Search site safety</p>
+			<h2 id="site-policy-title">Website blocked</h2>
+			<p id="site-policy-description">This website is blocked by site rules.</p>
+			<button type="button" class="go small" id="site-policy-dismiss">OK</button>
+		</div>
+	</dialog>
 
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
@@ -464,8 +474,8 @@
 				<h3>Account &amp; moderation</h3>
 				<p class="talk-muted">Current account: <strong id="site-username-label">Loading…</strong></p>
 				<button type="button" class="chip" id="site-account-switch">Add / switch account</button>
-				<label class="row"><input type="checkbox" id="site-share-active-view" checked /> Share my current site domain with admins</label>
-				<small class="talk-muted">Admins see only your active tab's domain, not the full URL, searches, or page contents. Turn this off to show "Not shared". Admins can open a new tab here for you, which you may close.</small>
+				<label class="row"><input type="checkbox" id="site-share-active-view" checked /> Share my current site domain with admins (on by default)</label>
+				<small class="talk-muted">Admins see only the active tab's domain, not the full URL, search terms or page contents. You can turn off routine sharing, but blocked-domain safety checks still apply inside this proxy. Admins can open new in-site tabs, which you may close.</small>
 				<div id="site-admin-unlock">
 					<label for="site-admin-code">Admin access code
 						<input id="site-admin-code" type="password" maxlength="120" autocomplete="off" placeholder="Enter admin code" />
@@ -480,6 +490,25 @@
 					<button type="button" class="chip" id="site-admin-message-everyone">Message everyone online</button>
 					<p class="talk-muted">Use Message for a private popup, or Go to site to open an HTTPS address in a new tab inside that visitor's Seuss Search page. Visitors are notified and can close the tab.</p>
 					<div id="site-admin-users" class="site-admin-list"></div>
+					<div class="site-guard-admin">
+						<h3>Website blocking &amp; reports</h3>
+						<p class="talk-muted">Known adult-content sites are blocked by a built-in filter. Non-admin accounts that trigger the filter are added to the ban list for review. You can block additional domains below; custom rules block and report but do not automatically ban.</p>
+						<form id="site-guard-form" class="site-guard-form">
+							<label for="site-guard-domain">Block an additional website domain
+								<input id="site-guard-domain" type="text" maxlength="120" required spellcheck="false" autocapitalize="none" placeholder="example.com"/>
+							</label>
+							<button id="site-guard-add" class="chip" type="submit">Block &amp; report</button>
+						</form>
+						<p id="site-guard-status" class="talk-muted" role="status"></p>
+						<div class="site-admin-heading"><h4>Custom blocked domains</h4><button id="site-guard-refresh" class="chip talk-small" type="button">Refresh lists</button></div>
+						<div id="site-guard-rules" class="site-admin-list"></div>
+						<h4>Banned accounts</h4>
+						<p class="talk-muted">Review the reason and use Unban to restore access. Account bans affect this site only.</p>
+						<div id="site-guard-bans" class="site-admin-list"></div>
+						<h4>Recent blocked-site reports</h4>
+						<p class="talk-muted">Only blocked domains are logged, without full addresses or page contents.</p>
+						<div id="site-guard-events" class="site-admin-list"></div>
+					</div>
 					<h3>Manage Seuss Talk rooms</h3>
 					<div id="site-admin-rooms" class="site-admin-list"></div>
 					<h4 id="site-admin-selected-room">Choose a room to manage its members</h4>
@@ -513,11 +542,11 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-adminnavigation1"></script>
+	<script src="app.js?v=20261105-siteguard1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-adminnavigation1"></script>
+	<script src="identity-admin.js?v=20261105-siteguard1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
