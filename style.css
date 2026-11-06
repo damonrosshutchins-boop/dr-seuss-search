@@ -959,3 +959,28 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .site-admin-redirect-notice[hidden] {display:none!important}
 .site-admin-redirect-notice p {flex:1 1 230px; margin:0}
 #site-admin-panel .site-admin-person {max-width:100%}
+
+
+/* Account-based, transparent proxy safety controls for moderators. */
+.site-guard-admin {
+  display:grid; gap:10px;
+  border-top:2px solid var(--ink);
+  padding:14px 0;
+}
+.site-guard-admin h3,.site-guard-admin h4 {margin:0}
+.site-guard-form {
+  display:flex; align-items:end; flex-wrap:wrap; gap:9px;
+}
+.site-guard-form label {
+  display:grid; gap:7px; min-width:180px; flex:1 1 200px; font-weight:800;
+}
+.site-guard-form input {
+  box-sizing:border-box; width:100%; min-height:42px;
+  padding:10px 12px; border:2px solid var(--ink);
+  border-radius:12px; background:#fff; color:#191919;
+  font:600 .95rem var(--body);
+}
+.site-guard-form button {min-height:42px}
+#site-guard-status.bad {color:#d42d34}
+#site-policy-notice .site-incoming-content {gap:16px}
+#site-policy-notice .site-incoming-content button {justify-self:end}
