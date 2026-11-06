@@ -85,6 +85,15 @@
 	for (const g of GAMES) $("game-grid").appendChild(card(g, () => bootDos({ name: g.name, url: vmAt(g.url), tip: g.tip })));
 	for (const s of SYSTEMS) $("os-grid").appendChild(card(s, () => bootV86({ name: s.name, opts: s.opts, mem: Math.max(s.mem, +ui.mem.value) })));
 	for (const s of WEB_SYSTEMS) $("web-os-grid").appendChild(card(s, () => bootWeb(s)));
+	const localDesktop = SYSTEMS.find(system => system.name === "KolibriOS");
+	$("vm-try-local-desktop").addEventListener("click", () => {
+		if (!localDesktop) return;
+		bootV86({
+			name:localDesktop.name,
+			opts:localDesktop.opts,
+			mem:Math.max(localDesktop.mem, +ui.mem.value)
+		});
+	});
 	document.querySelectorAll("#web-os-grid .meta").forEach((m) => (m.textContent = m.textContent.replace("play", "launch")));
 	document.querySelectorAll("#os-grid .meta").forEach((m) => (m.innerHTML = m.innerHTML.replace("play", "boot")));
 
@@ -257,11 +266,11 @@
 		frame.allow = "fullscreen; clipboard-read; clipboard-write";
 		frame.addEventListener("load", () => {
 			if (generation === bootGeneration && engine === "web")
-				setStatus("Desktop frame loaded. If it is blank or blocked, use the direct link below.", true);
+				setStatus("TerbiumOS iframe response received. If you see a browser block message, its host or network does not allow embedding. Try the local desktop below.", true);
 		});
 		frame.addEventListener("error", () => {
 			if (generation === bootGeneration && engine === "web")
-				setStatus("Could not load the embedded desktop. Use the direct link below.", true);
+				setStatus("The external TerbiumOS website could not be embedded. Use the built-in KolibriOS desktop instead.", true);
 		});
 		webFrame = frame;
 		ui.webHost.appendChild(frame);
