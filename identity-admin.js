@@ -17,6 +17,11 @@
   const popupQueue = [];
   const incomingPopup = $("site-incoming-popup");
   const composeDialog = $("site-admin-compose");
+  const directDialog = $("site-admin-direct-dialog");
+  let selectedDirectRecipient = null;
+  let navigationChecking = false, lastReportedView = null, viewTimer = 0;
+  const sharingCheckbox = $("site-share-active-view");
+  try { sharingCheckbox.checked = localStorage.getItem("dss-share-domain") !== "no"; } catch { sharingCheckbox.checked = true; }
   const errText = error => String(error && error.message || error);
   const create = (tag, cls, value) => {
     const element = document.createElement(tag);
@@ -94,6 +99,8 @@
     $("site-admin-panel").hidden = !isAdmin;
     login.close();
     pollInbox();
+    pollNavigation();
+    reportCurrentView();
     if (isAdmin) {
       feedback("site-admin-status", "Admin access active on this account.");
       await refreshAdmin();
@@ -290,11 +297,101 @@
     }
   }
 
+  // The only reported browsing detail is the current top-level hostname or
+  // an in-site section label. Visitors can disable reporting in Settings.
+  function currentReportedView() {
+    if (!sharingCheckbox.checked) return "Not shared";
+    return typeof window.getSeussCurrentView === "function"
+      ? window.getSeussCurrentView() : "Home";
+  }
+  function reportCurrentView() {
+    clearTimeout(viewTimer);
+    if (!loggedIn || lastState !== "active") return;
+    viewTimer = setTimeout(async () => {
+      const value = currentReportedView();
+      if (value === lastReportedView) return;
+      try {
+        await server("site_set_active_view", { p_view:value });
+        lastReportedView = value;
+      } catch (error) {
+        console.warn("Could not update current site view:", errText(error));
+      }
+    }, 400);
+  }
+
+  function showDirectedNotice(sender, host) {
+    const note = $("site-admin-redirect-notice");
+    $("site-admin-redirect-text").textContent =
+      (sender || "A site admin") + " opened " + host +
+      " in a new tab inside Seuss Search. You can close this tab.";
+    note.hidden = false;
+  }
+
+  async function pollNavigation() {
+    if (!loggedIn || navigationChecking || document.hidden || lastState !== "active") return;
+    navigationChecking = true;
+    try {
+      const rows = await server("site_fetch_navigation_request");
+      if (!Array.isArray(rows) || !rows.length) return;
+      const item = rows[0], target = new URL(item.target_url);
+      if (target.protocol !== "https:" || target.username || target.password) return;
+      if (typeof window.openAdminDirectedSite !== "function") return;
+      if (settings.open) settings.close();
+      await window.openAdminDirectedSite(target.href);
+      showDirectedNotice(item.sender_name, target.hostname);
+    } catch (error) {
+      console.warn("Admin site navigation failed:", errText(error));
+    } finally {
+      navigationChecking = false;
+    }
+  }
+
+  function openDirectComposer(id, name) {
+    if (!isAdmin) return;
+    selectedDirectRecipient = id;
+    $("site-admin-direct-target").textContent = "Open a proxy tab for " + name;
+    $("site-admin-direct-url").value = "https://";
+    feedback("site-admin-direct-status", "Only HTTPS websites are allowed. The visitor can close the tab.");
+    if (typeof directDialog.showModal === "function") directDialog.showModal();
+    else directDialog.setAttribute("open", "");
+    $("site-admin-direct-url").focus();
+  }
+
+  async function sendAdminNavigation(event) {
+    event.preventDefault();
+    if (!isAdmin || !selectedDirectRecipient) return;
+    let target;
+    try {
+      const raw = $("site-admin-direct-url").value.trim();
+      target = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
+      if (target.protocol !== "https:" || target.username || target.password
+          || !/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(target.hostname)
+          || target.port || target.href.length > 2048) {
+        throw new Error("Enter a normal HTTPS website URL.");
+      }
+    } catch (error) {
+      feedback("site-admin-direct-status", "Invalid URL: " + errText(error), true);
+      return;
+    }
+    const button = $("site-admin-direct-send");
+    button.disabled = true;
+    try {
+      await server("site_admin_send_navigation", {
+        p_user_id:selectedDirectRecipient, p_url:target.href
+      });
+      directDialog.close();
+      feedback("site-admin-status", "Redirect requested to " + target.hostname +
+        ". A new in-site tab will open when the visitor next checks for updates.");
+    } catch (error) {
+      feedback("site-admin-direct-status", "Could not open site for visitor: " + errText(error), true);
+    } finally { button.disabled = false; }
+  }
+
   async function refreshUsers() {
     const output = $("site-admin-users");
     output.replaceChildren(create("p", "talk-muted", "Loading users…"));
     try {
-      const data = await server("site_online_users");
+      const data = await server("site_admin_visitor_views");
       output.replaceChildren();
       if (!data.length) output.append(create("p", "talk-muted", "No recent visitors."));
       for (const person of data) {
@@ -302,8 +399,13 @@
         const name = person.display_name || "Guest";
         const details = create("div", "site-admin-person");
         details.append(create("strong", "", name + (person.user_id === me.id ? " (you)" : "")));
-        const online = new Date(person.last_seen).getTime() > Date.now() - 70000;
-        details.append(create("small", "", person.site_state === "active" ? "Online" : person.site_state + (online ? " · online" : " · offline")));
+        const online = new Date(person.last_seen).getTime() > Date.now() - 150000;
+        details.append(create("small", "", person.site_state === "active"
+          ? (online ? "Recently active" : "Offline")
+          : person.site_state + (online ? " · recently active" : " · offline")));
+        details.append(create("small", "", "Current site: " +
+          (online && person.site_state === "active"
+            ? (person.active_view || "Not reported yet") : "Not available")));
         row.append(details);
         if (person.user_id !== me.id) {
           const controls = create("div", "site-admin-actions");
@@ -320,6 +422,10 @@
             messageButton.type = "button";
             messageButton.addEventListener("click", () => openMessageComposer(person.user_id, name));
             controls.prepend(messageButton);
+            const directButton = create("button", "chip talk-small", "Go to site");
+            directButton.type = "button";
+            directButton.addEventListener("click", () => openDirectComposer(person.user_id, name));
+            controls.prepend(directButton);
           }
           row.append(controls);
         }
@@ -496,6 +602,17 @@
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
   $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
   $("site-admin-message-form").addEventListener("submit", sendAdminMessage);
+  $("site-admin-direct-form").addEventListener("submit", sendAdminNavigation);
+  $("site-admin-direct-cancel").addEventListener("click", () => directDialog.close());
+  $("site-admin-redirect-dismiss").addEventListener("click", () => {
+    $("site-admin-redirect-notice").hidden = true;
+  });
+  sharingCheckbox.addEventListener("change", () => {
+    try { localStorage.setItem("dss-share-domain", sharingCheckbox.checked ? "yes" : "no"); } catch {}
+    lastReportedView = null;
+    reportCurrentView();
+  });
+  window.addEventListener("dss-active-view-change", reportCurrentView);
   $("site-admin-compose-cancel").addEventListener("click", () => composeDialog.close());
   $("site-incoming-dismiss").addEventListener("click", () => incomingPopup.close());
   incomingPopup.addEventListener("close", showNextIncomingPopup);
@@ -507,11 +624,13 @@
     if (document.visibilityState === "visible") {
       heartbeat();
       pollInbox();
+      pollNavigation();
+      reportCurrentView();
     }
   });
   // Keep background network work light. Each check has its own timer so
   // one poll never cancels another; hidden tabs use a slower cadence.
-  let heartbeatTimer = 0, inboxTimer = 0, adminTimer = 0;
+  let heartbeatTimer = 0, inboxTimer = 0, adminTimer = 0, navigationTimer = 0;
   function scheduleHeartbeat() {
     clearTimeout(heartbeatTimer);
     if (!loggedIn) return;
@@ -541,9 +660,20 @@
       scheduleAdminRefresh();
     }, perf ? 120000 : 30000);
   }
+  function scheduleNavigation() {
+    clearTimeout(navigationTimer);
+    if (!loggedIn) return;
+    const perf = !!(window.settings && window.settings.performanceMode);
+    const delay = document.hidden ? 180000 : perf ? 60000 : 12000;
+    navigationTimer = setTimeout(async () => {
+      if (!document.hidden) await pollNavigation();
+      scheduleNavigation();
+    }, delay);
+  }
   function scheduleBackgroundChecks() {
     scheduleHeartbeat();
     scheduleInbox();
+    scheduleNavigation();
     scheduleAdminRefresh();
   }
   document.addEventListener("visibilitychange", scheduleBackgroundChecks);
