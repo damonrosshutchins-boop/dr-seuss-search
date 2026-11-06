@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline HTML Games Pack · Dr. Seuss Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff6e3;--paper2:#ffebc8;--ink:#1d1a17;--red:#d8262f;--teal:#1aa6a0;--sun:#ffb627;--pink:#f06aa8;--display:"Grandstander",system-ui,sans-serif;--body:"Nunito",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 12% 20%,rgba(240,106,168,.16),transparent 35%),radial-gradient(circle at 85% 80%,rgba(26,166,160,.15),transparent 40%),var(--paper);color:var(--ink);font-family:var(--body)}
+button,input{font:inherit}button{cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
+header{background:var(--paper2);border-bottom:3px solid var(--ink);padding:20px clamp(16px,3vw,36px);display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+.title{display:flex;align-items:center;gap:14px}
+.emblem{width:62px;height:62px;flex:none;display:grid;place-items:center;background:var(--sun);border:3px solid var(--ink);border-radius:18px;box-shadow:4px 4px var(--ink);font:900 1.2rem var(--display)}
+h1,h2{font-family:var(--display);margin:0;line-height:1.15}h1{font-size:clamp(1.3rem,3vw,2rem)}header p{margin:5px 0 0;font-size:.91rem}header a{color:var(--ink);font-weight:900}
+main{max-width:1160px;margin:0 auto;padding:22px clamp(14px,3vw,32px) 48px}
+.note{border:2px dashed var(--ink);border-radius:15px;background:#fffdf5;padding:13px 16px;margin:0 0 18px;line-height:1.5}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.controls label{font-weight:900}
+.search{min-width:160px;flex:1;padding:12px 13px;background:#fff;border:2px solid var(--ink);border-radius:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:2px solid var(--ink);background:var(--sun);border-radius:12px;padding:10px 14px;color:var(--ink);font-weight:900;box-shadow:2px 2px var(--ink);text-decoration:none}
+.btn.light{background:#fff}.btn.teal{background:var(--teal);color:white}
+#file-picker{display:none}#count{font-weight:800;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:13px}
+.game{display:flex;flex-direction:column;gap:8px;text-align:left;border:2px solid var(--ink);border-radius:16px;background:white;padding:14px;box-shadow:3px 3px var(--ink);min-height:117px}
+.game:hover{background:#fff3d9;transform:translateY(-1px)}
+.game strong{font:900 1rem/1.2 var(--display);overflow-wrap:anywhere}
+.game small{font-weight:800;color:#61564c}
+.dot{display:grid;place-items:center;width:34px;height:34px;background:var(--pink);border:2px solid var(--ink);border-radius:11px;font:900 1.1rem var(--display)}
+.more{display:block;margin:22px auto}
+.player-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+.player-bar h2{flex:1;min-width:180px;overflow-wrap:anywhere}
+#player-status{font-weight:800;color:#584d42;margin:0 0 12px}
+#game-frame{display:block;width:100%;height:min(72vh,800px);min-height:400px;border:3px solid var(--ink);border-radius:16px;background:white;box-shadow:5px 5px var(--ink)}
+footer{color:#574f46;margin-top:17px;font-size:.87rem;line-height:1.5}footer a{color:var(--ink);font-weight:900}
+[hidden]{display:none!important}
+@media(max-width:620px){.emblem{width:52px;height:52px}#game-frame{height:60vh;min-height:280px}}
+</style>
+</head>
+<body>
+<header>
+<div class="title"><span class="emblem">352</span><div><h1>Offline HTML Games Pack</h1><p>Find a game in the Seuss arcade!</p></div></div>
+<a href="https://github.com/damonrosshutchins-boop/Offline-HTML-Games-Pack" target="_blank" rel="noopener noreferrer">Source repository</a>
+</header>
+<main>
+<section id="catalog">
+<p class="note"><strong>One big box of games!</strong> Pick a game to load its HTML file from GitHub into this site. Online loading needs internet, but you can also choose <strong>Open local HTML</strong> to play a game file you already downloaded. Some games may have browser, size, or sandbox limitations.</p>
+<div class="controls"><label for="search">Search games</label><input class="search" id="search" type="search" placeholder="Find one of 352 games…" autocomplete="off"><button class="btn light" id="import" type="button">Open local HTML</button><input id="file-picker" type="file" accept=".htm,.html,text/html"></div>
+<p id="count" role="status"></p>
+<div class="grid" id="grid"></div>
+<button id="more" class="btn more" type="button" hidden>Show more games</button>
+</section>
+<section id="player" hidden>
+<div class="player-bar"><button id="back" class="btn teal" type="button">← All games</button><h2 id="game-title">Playing</h2><button id="fullscreen" class="btn light" type="button">Fullscreen</button></div>
+<p id="player-status" role="status">Loading game…</p>
+<iframe id="game-frame" title="HTML game" sandbox="allow-scripts allow-forms allow-pointer-lock allow-popups allow-downloads allow-modals" allow="fullscreen; gamepad" allowfullscreen referrerpolicy="no-referrer"></iframe>
+<footer>Games run in a restricted iframe for safety. Some may not support saving, networking, or fullscreen inside it. <a id="source" target="_blank" rel="noopener noreferrer" hidden>View or download the original game file</a></footer>
+</section>
+</main>
+<script>
+"use strict";
+const games=[["1-on-1-soccer.html",7204081],["1-on-1-tennis.html",7670973],["1.12_WASM.html",25065711],["1.12.html",33734289],["1.5.html",16523203],["1.8_WASM.html",15132456],["1.8.html",18459213],["10-minutes-till-dawn.html",33455644],["12-mini-battles.html",11745625],["1v1.lol.html",38600173],["2048-cupcakes.html",2605649],["2048.html",46342],["3D-flight-simulator.html",43867047],["3d-free-kick.html",8390545],["8-ball-classic.html",8815098],["9007199254740992.html",131117],["agar-io-lite.html",107555],["age-of-war-2.html",22024655],["age-of-war.html",11642663],["ages-of-conflict.html",16215246],["Alpha_1.2.6.html",8621988],["among-us.html",7870674],["angry-birds-showdown.html",25879779],["angry-birds-space.html",21412951],["angry-birds.html",14147188],["awesome-tanks-2.html",13004415],["awesome-tanks.html",9825398],["backrooms.html",24724337],["bacon-may-die.html",6131725],["bad-ice-cream-2.html",4313677],["bad-ice-cream-3.html",5069609],["bad-ice-cream.html",9217334],["bad-parenting.html",59294054],["bad-piggies.html",10002011],["bad-time-simulator.html",4283299],["baldis-basics.html",49694490],["bank-robbery-2.html",39360242],["bank-robbery-3.html",41775908],["baseball-bros.html",21473671],["basket-bros.html",10892562],["basket-random.html",5055174],["basketball-legends.html",8134654],["basketball-stars.html",11793563],["Beta_1.3.html",4513066],["big-ice-tower-tiny-square.html",2848224],["big-neon-tower-tiny-square.html",5112619],["big-tower-tiny-square-2.html",6199013],["big-tower-tiny-square.html",4131130],["bit-planes.htm",757322],["bitlife.html",27216225],["blocky-snakes.html",15580416],["bloons-TD-2.html",7852517],["bloons-TD-3.html",8665053],["bloons-TD-4.html",11144029],["bloons-TD-5.html",21674453],["bloons-TD.html",7512645],["bloxorz.html",9824296],["blumgi-racers.html",5060517],["blumgi-rocket.html",3637881],["bob-the-robber-2.html",12403762],["bob-the-robber-5.html",11899747],["bob-the-robber.html",19089263],["bouncy-motors.html",36326027],["bow-masters.html",27568357],["boxel-rebound.html",2381221],["boxing-random.htm",4675009],["breaking-the-bank.html",11042240],["bubble-shooter.html",7076246],["burrito-bison-launcha-libre.html",35918273],["candy-crush.html",4528176],["capybara-clicker.html",13528719],["car-drawing.html",17967878],["car-king-arena.html",16532396],["chaos-faction-2.html",23720180],["chess.html",6914845],["choppy-orc.html",3718607],["circloO-2.html",5841295],["circloO.html",3299500],["clash-of-vikings.html",3788303],["cleanup-io.html",17957174],["cluster-rush.html",16052302],["cookie-clicker.htm",7648852],["coreball.html",62683],["crazy-cars.html",13810085],["crazy-cattle-3D.html",52035023],["crazy-crash-landing.html",32835688],["crazy-motorcycle.html",16699988],["crossy-road.htm",3250987],["cut-the-rope-2.html",27412994],["cut-the-rope-holiday-gift.html",11316954],["cut-the-rope-time-travel.html",29681799],["cut-the-rope.html",29922924],["dadish-2.html",8945907],["dadish-3.html",6197234],["dadish.html",8869262],["deadly-descent.html",26719656],["death-chase.html",33063078],["death-run-3D.html",8436780],["demolition-derby-crash-racing.html",29012667],["doodle-jump.html",422608],["draw-climber.html",1830296],["dreadhead-parkour.htm",8032920],["drift-boss.htm",8989853],["drift-hunters-pro.html",56784308],["drive-mad.htm",4999037],["duck-life-2.html",9415925],["duck-life-3.html",14855224],["duck-life-4.html",18711049],["duck-life-5.html",14093313],["duck-life.html",8590717],["ducklings-io.html",10003334],["eagle-ride.html",14031747],["earn-to-die-2.html",16772153],["earn-to-die.html",12081965],["eggy-car.html",6784286],["elastic-face.htm",655762],["escape-road-2.html",33569947],["escape-road-3.html",41406961],["escape-road.html",37332659],["escaping-the-prison.html",19784328],["eugenes-life.html",35494713],["evil-glitch.html",33033],["fancy-pants-adventure-2.html",21462423],["fancy-pants-adventure.html",9096894],["fireblob.html",1718281],["fireboy-and-watergirl-2.html",9720912],["fireboy-and-watergirl-3.html",9490651],["fireboy-and-watergirl-4.html",9214888],["fireboy-and-watergirl.html",9279226],["flappy-bird.html",4341092],["fleeing-the-complex.html",49326730],["flood-runner-2.html",9256313],["flood-runner-3.html",11490761],["flood-runner-4.html",13896641],["fnaf-2.html",26368271],["fnaf-3.html",26263694],["fnaf-4.html",23273034],["fnaf-sister-location.html",58482639],["fnaf.html",19627678],["football-bros.html",17513036],["football-legends.html",3645415],["free-rider-3.html",8174213],["friday-night-funkin.html",60024665],["fruit-ninja.html",8404819],["funny-battle-2.html",15470320],["funny-battle.html",10725522],["funny-mad-racing.html",55963926],["funny-shooter-2.html",46416958],["geometry-dash-lite.html",56611066],["geometry-dash.html",13389848],["geometry-vibes.html",25800070],["get-on-top.html",1558693],["getaway-shootout.html",8402032],["gladi-hoppers.html",37177723],["google-baseball.html",2951367],["google-dino.html",115940],["granny-2.html",59689855],["granny.html",58315696],["guess-their-answer.html",14087517],["hanger-2.html",3515346],["happy-wheels.html",12677623],["helix-jump.html",10506701],["highway-traffic.html",36836247],["hill-climb-racing-lite.html",8742889],["hole-io.html",24734327],["house-of-hazards.html",17371118],["hover-racer-drive.html",21679173],["ice-dodo.html",11925195],["idle-breakout.html",2052721],["idle-dice.html",8798496],["Indev.html",1140663],["infiltrating-the-airship.html",46585041],["iron-snout.html",5950790],["jacksmith.html",15289277],["jetpack-joyride.html",21990169],["johnny-trigger.html",1427111],["jumping-shell.html",3253052],["karate-bros.html",11327593],["kart-bros.html",31163433],["kittytoy.html",9271991],["learn-to-fly-2.html",14044831],["learn-to-fly-3.html",30094951],["learn-to-fly-idle.html",11034269],["learn-to-fly.html",7994335],["level-devil.html",6800668],["little-alchemy-2.html",27437947],["madalin-stunt-cars-2.html",52469873],["madness-project-nexus.html",26082566],["melon-playground.html",21586797],["merge-round-racers.html",5026792],["minesweeper.html",1230108],["monkey-mart.htm",14041634],["monster-tracks.html",3505235],["motherload.html",11773843],["moto-x3m-2.html",9837708],["moto-x3m-3.html",10593685],["moto-x3m-pool-party.html",5105520],["moto-x3m-spooky-land.html",5945904],["moto-x3m-winter.html",7994311],["moto-x3m.htm",11675580],["murder.html",16620807],["noob-miner.html",2599751],["openTTD.html",42416846],["opposite-day.html",165415],["ovo-2.html",2410032],["ovo-3-dimensions.html",34517196],["ovo.html",7269406],["pac-man.html",3364269],["papas-bakeria.html",26134049],["papas-burgeria.html",11966742],["papas-cheeseria.html",23333745],["papas-cupcakeria.html",18768481],["papas-donuteria.html",23162618],["papas-freezeria.html",14503865],["papas-hot-doggeria.html",18471173],["papas-pancakeria.html",15007781],["papas-pastaria.html",21470849],["papas-pizzeria.html",10594161],["papas-scooperia.html",34498545],["papas-sushiria.html",27658825],["papas-taco-mia.html",13996893],["papas-wingeria.html",17177374],["paper-io-2.htm",648963],["parking-fury-2.html",8566580],["parking-fury-3.html",8825152],["parking-fury.html",6886906],["picos-school.html",9555915],["ping-pong-chaos.html",11189767],["pixel-speedrun.html",1101368],["plants-vs-zombies.html",21035113],["plonky.html",5380850],["polytrack.html",10101883],["poor-bunny.html",5969971],["pou.html",11540151],["ragdoll-archers.htm",10074984],["ragdoll-hit.html",19654523],["ragdoll-soccer.html",22469887],["red-ball-4-vol-1.html",19171782],["red-ball-4-vol-2.html",15233386],["red-ball-4-vol-3.html",14189317],["retro-bowl-college.html",8215975],["retro-bowl.html",7253470],["retro-highway.html",4962847],["retro-ping-pong.html",3520774],["riddle-school-2.html",8799087],["riddle-school-3.html",17073847],["riddle-school-4.html",15028503],["riddle-school-5.html",26190663],["riddle-school.html",7641687],["riddle-transfer-2.html",31275743],["riddle-transfer.html",27665039],["rocket-soccer-derby.html",37769861],["rooftop-run.html",29317306],["rooftop-snipers-2.html",13579108],["rooftop-snipers.htm",15178876],["run-2.html",8097620],["run-3.html",22339104],["run.html",8895652],["sand-game.html",60215],["sandbox-city.html",59809137],["short-life.html",21868929],["six-cats-under.html",19298286],["slope-2-player.html",10274649],["slope-3.html",33821420],["slope.html",25985716],["slow-roads.html",16960668],["sm-63.html",27208114],["sm-64.html",8376747],["snail-bob-2.html",14855884],["snail-bob-3.html",17257440],["snail-bob-4.html",15314076],["snail-bob-5.html",20188865],["snail-bob-6.html",20122513],["snail-bob-7.html",18413568],["snail-bob-8.html",23072697],["snail-bob.html",12933676],["snow-rider.htm",19841418],["snow-road.htm",22877945],["snowball-io.html",20721296],["soccer-bros.html",13094977],["soccer-random.htm",2675207],["space-is-key-2.html",10156649],["space-is-key.html",8247101],["space-waves.html",14644555],["spacebar-clicker.html",108678],["speed-stars.html",20209582],["sprunki.html",18156899],["stack.html",628576],["stacktris.html",3746707],["state-io.html",4692450],["stealing-the-diamond.html",26361403],["stick-archers-battle.html",4459162],["stick-fighter.html",6044320],["stick-merge.html",8285402],["stickman-hook.html",4602862],["subway-surfers-beijing.html",36793693],["subway-surfers-havana.html",35386314],["subway-surfers-san-francisco.html",35307036],["super-bike-the-champion.html",50189109],["super-liquid-soccer.html",14432253],["super-star-car.html",58692918],["superhot.html",26512163],["table-tennis-world-tour.html",3918995],["tag.html",4199014],["tanuki-sunset.html",34902735],["tap-road.html",41732990],["temple-of-boom.html",6338884],["temple-run-2.htm",18769641],["territorial-io.html",1407570],["tetrominoes.html",3021075],["the-impossible-quiz-2.html",19966329],["the-impossible-quiz.html",18040905],["there-is-no-g.html",6763354],["they-are-coming.html",27738745],["this-is-the-only-level-too.html",9374061],["this-is-the-only-level.html",8650025],["time-shooter-2.html",13148205],["time-shooter-3.htm",11750551],["tiny-fishing.html",2451912],["tomb-of-the-mask.htm",28058221],["trap-the-cat.html",76414],["trivia-crack.html",2648550],["tube-jumpers.html",10988583],["tunnel-rush.html",17360488],["unicycle-hero.html",2573448],["vex-4.html",13885419],["vex-5.html",15661199],["vex-6.htm",10042324],["vex-7.htm",14780477],["vex-8.htm",16785655],["vex-x3m-2.html",12721259],["vex-x3m.html",10255000],["volley-random.html",3853392],["war-the-knights.html",30675072],["we-become-what-we-behold.html",8045029],["wheelie-bike.html",2135099],["wheely-2.html",18309829],["wheely-3.html",19852481],["wheely-4.html",25180921],["wheely-5.html",26122385],["wheely-6.html",22524929],["wheely-7.html",28625049],["wheely-8.html",16752313],["wheely.html",13461485],["wordle-unlimited.html",184510],["worlds-hardest-game-2.html",9974414],["worlds-hardest-game-3.html",8672453],["worlds-hardest-game.html",7796770],["wrestle-bros.html",12364650],["yohoho-io.html",8480771],["zombie-rush.html",2826740],["zrist.html",1368514]];
+const raw="https://raw.githubusercontent.com/damonrosshutchins-boop/Offline-HTML-Games-Pack/master/offline/";
+const browser="https://github.com/damonrosshutchins-boop/Offline-HTML-Games-Pack/blob/master/offline/";
+const $=id=>document.getElementById(id);
+const grid=$("grid"),search=$("search"),counter=$("count"),more=$("more");
+const catalog=$("catalog"),player=$("player"),frame=$("game-frame"),status=$("player-status");
+let filtered=games,shown=0,controller=null,objectURL=null,token=0;
+const title=file=>file.replace(/\.html?$/i,"").replace(/[-_]/g," ").replace(/\s+/g," ").trim().replace(/\b[a-z]/g,c=>c.toUpperCase());
+const size=n=>n>1048576?(n/1048576).toFixed(1)+" MB":Math.round(n/1024)+" KB";
+function render(reset){
+ if(reset){shown=0;grid.replaceChildren()}
+ const next=filtered.slice(shown,shown+48);
+ for(const [file,bytes] of next){
+  const button=document.createElement("button");button.type="button";button.className="game";
+  const logo=document.createElement("span");logo.className="dot";logo.textContent=title(file).slice(0,1);
+  const heading=document.createElement("strong");heading.textContent=title(file);
+  const detail=document.createElement("small");detail.textContent=size(bytes)+" · HTML game";
+  button.append(logo,heading,detail);
+  button.addEventListener("click",()=>openRemote(file,bytes));
+  grid.append(button);
+ }
+ shown+=next.length;
+ more.hidden=shown>=filtered.length;
+ counter.textContent=filtered.length+" games found"+(shown<filtered.length?" · Showing "+shown:"");
+}
+search.addEventListener("input",()=>{
+ const q=search.value.trim().toLowerCase();
+ filtered=games.filter(([file])=>file.toLowerCase().includes(q)||title(file).toLowerCase().includes(q));
+ render(true);
+});
+more.addEventListener("click",()=>render(false));
+function cancel(){
+ token++;
+ if(controller){controller.abort();controller=null}
+ frame.removeAttribute("src");
+ if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null}
+}
+function start(name){
+ cancel();
+ $("game-title").textContent=name;
+ status.textContent="Loading game…";
+ $("source").hidden=true;
+ catalog.hidden=true;player.hidden=false;
+ window.scrollTo(0,0);
+ return token;
+}
+function display(blob,number){
+ if(number!==token)return;
+ objectURL=URL.createObjectURL(new Blob([blob],{type:"text/html"}));
+ frame.onload=()=>{if(number===token)status.textContent="Game opened! Click inside to play. Some games need features restricted by this frame."};
+ frame.src=objectURL;
+}
+async function openRemote(file,bytes){
+ const number=start(title(file));
+ const link=$("source");
+ link.href=browser+encodeURIComponent(file);link.textContent="View or download "+file;link.hidden=false;
+ status.textContent="Downloading "+size(bytes)+" from GitHub…";
+ controller=new AbortController();
+ try{
+  const response=await fetch(raw+encodeURIComponent(file),{credentials:"omit",signal:controller.signal});
+  if(!response.ok)throw new Error("HTTP "+response.status);
+  const blob=await response.blob();
+  if(number!==token)return;
+  controller=null;
+  status.textContent="Starting game…";
+  display(blob,number);
+ }catch(error){
+  if(number!==token||error.name==="AbortError")return;
+  controller=null;
+  status.textContent="Online load failed ("+(error.message||"network error")+"). Download the HTML from its source and use Open local HTML.";
+ }
+}
+$("back").addEventListener("click",()=>{
+ cancel();frame.onload=null;player.hidden=true;catalog.hidden=false;window.scrollTo(0,0);
+});
+$("fullscreen").addEventListener("click",async()=>{
+ try{await frame.requestFullscreen()}catch{status.textContent="Fullscreen is not available here."}
+});
+$("import").addEventListener("click",()=>$("file-picker").click());
+$("file-picker").addEventListener("change",event=>{
+ const file=event.target.files&&event.target.files[0];
+ if(!file)return;
+ if(!/\.html?$/i.test(file.name)&&file.type!=="text/html"){counter.textContent="Please choose an HTML game file.";return}
+ const number=start(file.name);
+ status.textContent="Opening local HTML…";
+ display(file,number);
+ event.target.value="";
+});
+render(true);
+</script>
+</body>
+</html>
