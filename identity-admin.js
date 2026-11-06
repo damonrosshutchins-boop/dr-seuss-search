@@ -95,19 +95,31 @@
     $("site-username").disabled = false;
     $("site-login-submit").disabled = false;
     feedback("site-login-status", person
-      ? (me.email ? "Signed-in account detected. Confirm your username or choose a new one." : "Welcome back as a guest. Confirm your username or choose a new one.")
-      : "Continue as a guest, create a permanent account, or sign in.");
+      ? (me.email
+          ? "Your email account is signed in. Confirm your username to enter."
+          : "Your username account is saved in this browser. Confirm your name to enter.")
+      : "Choose a username to create your account. No email or password is required.");
   }
   async function activateProfile(name) {
+    // Fail closed: a valid stored Supabase identity alone is not enough.
+    // Require a saved username profile AND a successful server heartbeat.
     await server("set_display_name", { p_name:name });
+    const state = await server("site_heartbeat");
+    if (!["active", "frozen", "kicked", "banned"].includes(state)) {
+      throw new Error("Could not verify your account's site access.");
+    }
+    const admin = !!(await server("site_check_admin"));
     $("site-username-label").textContent = name;
-    loggedIn = true;
-    scheduleBackgroundChecks();
-    await heartbeat();
-    isAdmin = !!(await server("site_check_admin"));
+    setLock(state);
+    isAdmin = admin;
     $("site-admin-unlock").hidden = isAdmin;
     $("site-admin-panel").hidden = !isAdmin;
-    login.close();
+    loggedIn = true;
+    window.seussAccountReady = true;
+    document.body.classList.add("site-authenticated");
+    if (login.open) login.close();
+    window.dispatchEvent(new Event("seuss-site-unlocked"));
+    scheduleBackgroundChecks();
     pollInbox();
     pollNavigation();
     reportCurrentView();
@@ -143,24 +155,29 @@
   }
   async function createAccount() {
     if (!api || !me) return;
-    if (me.email) {
-      feedback("site-login-status", "You're already signed in to a permanent account. Use Settings → Account & moderation → Add / switch account first, then create another account.", true);
-      return;
-    }
     const {email,password,name} = accountFields();
-    if (!email || !$("site-account-email").checkValidity()) {
-      feedback("site-login-status", "Enter a valid email address.", true); return;
-    }
-    if (password.length < 8 || password.length > 128) {
-      feedback("site-login-status", "Use a password between 8 and 128 characters.", true); return;
-    }
     if (name.length < 2 || name.length > 24) {
-      feedback("site-login-status", "Choose a username between 2 and 24 characters first.", true); return;
+      feedback("site-login-status", "Choose a username between 2 and 24 characters first.", true);
+      return;
     }
     const button = $("site-account-create");
     button.disabled = true;
     try {
-      // Upgrade the current guest identity so its profile and room memberships keep the same user ID.
+      if (!email && !password) {
+        // A real Supabase anonymous identity with a server-stored profile:
+        // no email is needed, but it is bound to this browser's saved session.
+        await activateProfile(name);
+        return;
+      }
+      if (me.email) {
+        throw new Error("Already signed in to an email account. Use the main Enter button.");
+      }
+      if (!email || !$("site-account-email").checkValidity()) {
+        throw new Error("For an account without email, leave the optional password empty too.");
+      }
+      if (password.length < 8 || password.length > 128) {
+        throw new Error("Email accounts need a password between 8 and 128 characters.");
+      }
       const { data, error } = await api.auth.updateUser({ email, password });
       if (error) throw error;
       if (data && data.user) me = data.user;
@@ -168,7 +185,7 @@
       const accountEmail = me.email || (data.user && data.user.new_email) || email;
       $("site-username-label").textContent = name + " · " + accountEmail + " (verify email if prompted)";
     } catch (error) {
-      feedback("site-login-status", "Could not create the account: " + errText(error), true);
+      feedback("site-login-status", "Could not create account: " + errText(error), true);
     } finally {
       button.disabled = false;
     }
@@ -722,10 +739,22 @@
     });
   });
   login.addEventListener("cancel", event => event.preventDefault());
+  // The account screen cannot be dismissed to expose the site.
+  login.addEventListener("close", () => {
+    if (window.seussAccountReady === true) return;
+    try {
+      if (typeof login.showModal === "function") login.showModal();
+      else login.setAttribute("open", "");
+    } catch { login.setAttribute("open", ""); }
+  });
   $("site-login-form").addEventListener("submit", finishLogin);
   $("site-account-create").addEventListener("click", createAccount);
   $("site-account-signin").addEventListener("click", signInAccount);
   $("site-account-switch").addEventListener("click", async () => {
+    // Hide the entire site as soon as a session switch starts.
+    window.seussAccountReady = false;
+    document.body.classList.remove("site-authenticated");
+    loggedIn = false;
     try {
       if (api) {
         const { error:signOutError } = await api.auth.signOut();
@@ -736,17 +765,23 @@
       }
       loggedIn = false;
       isAdmin = false;
+      lastReportedView = null;
+      $("site-admin-redirect-notice").hidden = true;
       $("site-admin-unlock").hidden = false;
       $("site-admin-panel").hidden = true;
       $("site-account-email").value = "";
       $("site-account-password").value = "";
       $("site-username").value = "";
-      $("site-login-submit").textContent = "Continue to Seuss Search";
-      feedback("site-login-status", "Signed out. Continue as a guest or sign in to another account.");
+      $("site-login-submit").textContent = "Create account / Enter site";
+      feedback("site-login-status", "Signed out. Create a username account (no email) or sign in.");
       if (typeof login.showModal === "function") login.showModal();
       else login.setAttribute("open", "");
     } catch (error) {
-      feedback("site-admin-status", "Could not switch accounts: " + errText(error), true);
+      if (!login.open) {
+        if (typeof login.showModal === "function") login.showModal();
+        else login.setAttribute("open", "");
+      }
+      feedback("site-login-status", "Could not switch accounts: " + errText(error), true);
     }
   });
   $("site-admin-activate").addEventListener("click", claimAdmin);
