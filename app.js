@@ -21,6 +21,7 @@ const DEFAULTS = {
 	performanceMode: false,
 	proxyEngine: "scramjet",
 	rammerheadServer: "",
+	adriftServer: "https://adrift-6c1f6.web.app/",
 };
 const ENGINE_NAMES = {
 	"https://duckduckgo.com/?q=%s": "DuckDuckGo",
@@ -88,13 +89,26 @@ function rammerheadServerURL(raw = settings.rammerheadServer) {
 	} catch { return null; }
 }
 
+function adriftPortalURL(raw = settings.adriftServer) {
+	try {
+		const u = new URL(String(raw || "").trim());
+		if (u.protocol !== "https:" || u.username || u.password ||
+			u.origin === location.origin) return null;
+		// Remote proxy portals are third-party websites; do not forward account
+		// tokens, internal state, or arbitrary user-entered query parameters.
+		return u.origin + u.pathname;
+	} catch { return null; }
+}
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
 function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.engine] || "custom engine"; }
 function openSettings() {
 	$("s-engine").value = settings.engine;
-	$("s-proxy-engine").value = settings.proxyEngine === "rammerhead" ? "rammerhead" : "scramjet";
+	$("s-proxy-engine").value =
+		["scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
+			? settings.proxyEngine : "scramjet";
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
+	$("s-adrift-url").value = settings.adriftServer || "";
 	$("s-transport").value = settings.transport;
 	$("s-wisp").value = settings.wisp;
 	$("s-background").value = settings.background || "";
@@ -110,6 +124,7 @@ $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
 	$("s-proxy-engine").value = DEFAULTS.proxyEngine;
 	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
+	$("s-adrift-url").value = DEFAULTS.adriftServer;
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-wisp").value = DEFAULTS.wisp;
 	$("s-background").value = DEFAULTS.background;
@@ -119,6 +134,7 @@ $("s-reset").onclick = () => {
 	$("s-performance").checked = DEFAULTS.performanceMode;
 };
 $("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
+$("s-adrift-url").addEventListener("input", () => $("s-adrift-url").setCustomValidity(""));
 $("settings-form").addEventListener("submit", async (event) => {
 	const rawRammerheadServer = $("s-rammerhead-url").value.trim();
 	if (rawRammerheadServer && !rammerheadServerURL(rawRammerheadServer)) {
@@ -127,13 +143,22 @@ $("settings-form").addEventListener("submit", async (event) => {
 		$("s-rammerhead-url").reportValidity();
 		return;
 	}
+	const rawAdriftServer = $("s-adrift-url").value.trim();
+	if (!adriftPortalURL(rawAdriftServer)) {
+		event.preventDefault();
+		$("s-adrift-url").setCustomValidity("Use a trusted HTTPS Adrift portal (not this site's URL).");
+		$("s-adrift-url").reportValidity();
+		return;
+	}
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
 	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
-	settings.proxyEngine = $("s-proxy-engine").value === "rammerhead" ? "rammerhead" : "scramjet";
+	settings.proxyEngine = ["scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
+		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
+	settings.adriftServer = rawAdriftServer;
 	settings.transport = $("s-transport").value;
 	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
 	settings.background = $("s-background").value.trim();
@@ -145,9 +170,13 @@ $("settings-form").addEventListener("submit", async (event) => {
 	window.dispatchEvent(new Event("dss-performance-mode-change"));
 	save();
 	syncLabel();
-	$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
+	$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 	if (settings.proxyEngine === "rammerhead") {
-		setStatus("", "Rammerhead is selected. It uses your separately hosted server.");
+		setStatus("", "Rammerhead uses your separately hosted server.");
+	} else if (settings.proxyEngine === "adrift") {
+		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
+	} else if (settings.proxyEngine === "ultraviolet") {
+		setStatus("", "Ultraviolet is an experimental built-in engine for moderators. Compatibility depends on browser service workers.");
 	} else if (settings.performanceMode && !ready) {
 		setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 	} else if (wispChanged || transportChanged || proxyEngineChanged || (performanceChanged && !settings.performanceMode)) {
@@ -305,6 +334,11 @@ function publicActiveSiteView(tab = currentSiteTab()) {
 	if (tab.type === "talk") return "Seuss Talk";
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
+	if (tab.adrift) return "Other site page";
+	if (tab.ultraviolet) {
+		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
+		catch { return "Other site page"; }
+	}
 	if (tab.type === "direct") {
 		return tab.url && /\/offline-pack\.html(?:[?#]|$)/i.test(tab.url) ?
 			"Offline Games Pack" : "Other site page";
@@ -382,12 +416,20 @@ function activateSiteTab(id) {
 	}
 	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
 	updateProxyLoadStats();
-	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.rammerhead ? (tab.targetUrl || "") : (tab.url || "");
+	if (tab.type === "web" || tab.type === "direct") $("bar-address").value =
+		tab.rammerhead || tab.adrift ? (tab.targetUrl || "") : (tab.url || "");
 	const rhHelper = $("rammerhead-helper");
-	rhHelper.hidden = !tab.rammerhead;
-	if (tab.rammerhead) {
+	const isPortal = !!(tab.rammerhead || tab.adrift);
+	rhHelper.hidden = !isPortal;
+	if (isPortal) {
+		const name = tab.adrift ? "Adrift" : "Rammerhead";
+		$("proxy-portal-title").textContent = name + " portal";
+		$("proxy-portal-description").textContent = tab.adrift
+			? "Adrift runs as a third-party WebRTC portal. Copy this destination into its search box. It cannot share Seuss Search's internal blocked-site reporting."
+			: "Copy the destination, create or select a private Rammerhead session, and paste it into its address field.";
 		$("rammerhead-target").value = tab.targetUrl || "";
-		$("rammerhead-open").href = tab.rammerheadHost;
+		$("rammerhead-open").href = tab.adrift ? tab.adriftHost : tab.rammerheadHost;
+		$("rammerhead-open").textContent = "Open " + name + " directly";
 	}
 	if (tab.type === "home") {
 		document.title = "New Tab · Dr. Seuss Search";
@@ -576,6 +618,93 @@ function goRammerhead(targetUrl) {
 	$("rammerhead-message").textContent = "If the embedded portal is blank or blocked, click Open Rammerhead directly.";
 }
 
+// Ultraviolet is run under a dedicated service-worker scope and opaque
+// sandbox to prevent proxied scripts from accessing this site's login tokens.
+// Its URL-rewriting and CORS behaviour may be limited by that isolation.
+let uvReady = null;
+function loadUvScript(path) {
+	return new Promise((resolve, reject) => {
+		const script = document.createElement("script");
+		script.src = at(path);
+		script.onload = resolve;
+		script.onerror = () => reject(new Error("Ultraviolet runtime asset could not be loaded: " + path));
+		document.head.appendChild(script);
+	});
+}
+async function bootUltraviolet() {
+	if (uvReady) return uvReady;
+	uvReady = (async () => {
+		await boot(); // shares the existing BareMux Wisp transport
+		if (!window.Ultraviolet) await loadUvScript("uv/uv.bundle.js");
+		if (!window.__uv$config) await loadUvScript("uv/uv.config.js");
+		if (!window.__uv$config || !window.__uv$config.encodeUrl) {
+			throw new Error("Ultraviolet URL codec is unavailable.");
+		}
+		const registration = await navigator.serviceWorker.register(at("uv/sw.js"), {
+			scope: at("uv/")
+		});
+		if (!registration.active) {
+			await new Promise((resolve, reject) => {
+				const worker = registration.installing || registration.waiting;
+				if (!worker) { reject(new Error("Ultraviolet worker is not available.")); return; }
+				const timeout = setTimeout(() => reject(new Error("Ultraviolet worker activation timed out.")), 12000);
+				worker.addEventListener("statechange", () => {
+					if (worker.state === "activated") {
+						clearTimeout(timeout);
+						resolve();
+					}
+				});
+			});
+		}
+	})();
+	uvReady.catch(() => {uvReady = null;});
+	return uvReady;
+}
+async function goUltraviolet(targetUrl) {
+	try {
+		await bootUltraviolet();
+		const tab = createSiteTab("direct", "Ultraviolet · " + siteTabTitle(targetUrl));
+		tab.ultraviolet = true;
+		tab.url = targetUrl;
+		tab.loading = true;
+		const iframe = createDirectFrameForTab(tab);
+		iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock");
+		iframe.referrerPolicy = "no-referrer";
+		iframe.src = window.__uv$config.prefix + window.__uv$config.encodeUrl(targetUrl);
+		activateSiteTab(tab.id);
+	} catch(error) {
+		showError("Ultraviolet could not start safely.", String(error && error.message || error));
+	}
+}
+function goAdrift(targetUrl) {
+	const base = adriftPortalURL();
+	if (!base) {
+		openSettings();
+		$("s-adrift-url").focus();
+		return;
+	}
+	let tab = currentSiteTab();
+	if (tab && tab.adrift && tab.adriftHost === base) {
+		tab.targetUrl = targetUrl;
+		activateSiteTab(tab.id);
+		$("rammerhead-message").textContent = "Destination updated. Copy and paste it into the Adrift portal.";
+		return;
+	}
+	tab = createSiteTab("direct", "Adrift");
+	tab.adrift = true;
+	tab.adriftHost = base;
+	tab.targetUrl = targetUrl;
+	tab.url = base;
+	tab.loading = true;
+	const iframe = createDirectFrameForTab(tab);
+	// A remote origin is isolated from the Seuss Search origin by the browser.
+	iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals");
+	iframe.referrerPolicy = "no-referrer";
+	iframe.src = base;
+	activateSiteTab(tab.id);
+	$("rammerhead-message").textContent = "Adrift may block embedded portals. Use the direct link if it does.";
+}
+
 $("rammerhead-copy").addEventListener("click", async () => {
 	const field = $("rammerhead-target");
 	if (!field.value) return;
@@ -602,7 +731,26 @@ async function go(input, options = {}) {
 		const allowed = await window.dssSitePolicyCheck(url);
 		if (!allowed) return;
 	}
-	if (settings.proxyEngine === "rammerhead" && !options.forceScramjet) return goRammerhead(url);
+	if (!options.forceScramjet) {
+		if (settings.proxyEngine === "rammerhead") return goRammerhead(url);
+		if (["ultraviolet","adrift"].includes(settings.proxyEngine)) {
+			// Remote/opaque frames cannot consistently report internal domains;
+			// require a fresh server-authorized moderator check for use.
+			try {
+				if (typeof window.seussCanUseExperimentalProxy !== "function" ||
+					!(await window.seussCanUseExperimentalProxy())) {
+					showError("This proxy option requires a site moderator.",
+						"Use Scramjet for regular accounts. Experimental proxy modes cannot reliably enforce the site's per-domain content reporting.");
+					return;
+				}
+			} catch (error) {
+				showError("Could not verify moderator permission.", String(error && error.message || error));
+				return;
+			}
+			return settings.proxyEngine === "ultraviolet"
+				? goUltraviolet(url) : goAdrift(url);
+		}
+	}
 	let tab = currentSiteTab();
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
@@ -922,9 +1070,13 @@ try {
 /* ---------- Start ---------- */
 applyAppearance();
 syncLabel();
-$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
+$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
+} else if (settings.proxyEngine === "adrift") {
+	setStatus("", "Adrift selected. Its remote portal must allow framing; moderator authorization is required.");
+} else if (settings.proxyEngine === "ultraviolet") {
+	setStatus("", "Ultraviolet selected (experimental, moderator-only). The engine loads when you browse.");
 } else if (settings.performanceMode) {
 	setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 } else {
