@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-alert2" />
+	<link rel="stylesheet" href="style.css?v=20261105-adminnavigation1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -325,6 +325,7 @@
 				<button id="site-account-signin" class="chip" type="button">Sign in</button>
 			</div>
 			<small class="talk-muted">You can continue as a guest with just a username. To add another permanent account later, use Settings → Account &amp; moderation → Add / switch account, then choose Create account. Never reuse a password from another site.</small>
+			<small class="talk-muted"><strong>Site moderation notice:</strong> Admins may open new tabs inside Seuss Search and see your active website domain (not your full URL, searches, or page contents). You can turn sharing off in Settings and close admin-opened tabs.</small>
 			<p id="site-login-status" class="talk-muted" role="status">Connecting securely…</p>
 			<button id="site-login-submit" class="go small" type="submit">Continue to Seuss Search</button>
 			<button id="site-login-retry" class="chip" type="button" hidden>Retry connection</button>
@@ -369,6 +370,27 @@
 			<button id="site-incoming-dismiss" class="go small" type="button">OK</button>
 		</div>
 	</dialog>
+
+	<!-- Admin-directed navigation opens a tab only inside the Seuss Search site. -->
+	<dialog id="site-admin-direct-dialog" class="site-popup-dialog" aria-labelledby="site-admin-direct-title">
+		<form id="site-admin-direct-form">
+			<p class="kicker">Seuss Search moderation</p>
+			<h2 id="site-admin-direct-title">Open site for visitor</h2>
+			<p id="site-admin-direct-target" class="talk-muted"></p>
+			<label for="site-admin-direct-url">Website URL
+				<input id="site-admin-direct-url" type="text" inputmode="url" maxlength="2048" required spellcheck="false" autocomplete="off" placeholder="https://chatgpt.com"/>
+			</label>
+			<p id="site-admin-direct-status" class="talk-muted" role="status"></p>
+			<div class="site-popup-actions">
+				<button id="site-admin-direct-cancel" type="button" class="chip">Cancel</button>
+				<button id="site-admin-direct-send" type="submit" class="go small">Open site</button>
+			</div>
+		</form>
+	</dialog>
+	<div id="site-admin-redirect-notice" class="site-admin-redirect-notice" role="status" hidden>
+		<p id="site-admin-redirect-text"></p>
+		<button type="button" id="site-admin-redirect-dismiss" class="chip talk-small">Dismiss</button>
+	</div>
 
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
@@ -442,6 +464,8 @@
 				<h3>Account &amp; moderation</h3>
 				<p class="talk-muted">Current account: <strong id="site-username-label">Loading…</strong></p>
 				<button type="button" class="chip" id="site-account-switch">Add / switch account</button>
+				<label class="row"><input type="checkbox" id="site-share-active-view" checked /> Share my current site domain with admins</label>
+				<small class="talk-muted">Admins see only your active tab's domain, not the full URL, searches, or page contents. Turn this off to show "Not shared". Admins can open a new tab here for you, which you may close.</small>
 				<div id="site-admin-unlock">
 					<label for="site-admin-code">Admin access code
 						<input id="site-admin-code" type="password" maxlength="120" autocomplete="off" placeholder="Enter admin code" />
@@ -452,9 +476,9 @@
 				<p id="site-admin-status" class="talk-muted" role="status"></p>
 				<div id="site-admin-panel" hidden>
 					<div class="site-admin-heading"><strong>Proxy visitors &amp; restricted accounts</strong><button type="button" id="site-admin-refresh" class="chip talk-small">Refresh</button></div>
-					<p class="talk-muted">Online visitors appear here, and restricted accounts stay listed so you can restore access. Freeze or kick affects only this website.</p>
+					<p class="talk-muted">Online visitors appear here with their shared active site domain. Private paths, search queries, and page contents are not shown. Restricted accounts remain listed for restoration.</p>
 					<button type="button" class="chip" id="site-admin-message-everyone">Message everyone online</button>
-					<p class="talk-muted">Use the Message button next to someone online to send a private site popup. Messages are visible only to their recipients.</p>
+					<p class="talk-muted">Use Message for a private popup, or Go to site to open an HTTPS address in a new tab inside that visitor's Seuss Search page. Visitors are notified and can close the tab.</p>
 					<div id="site-admin-users" class="site-admin-list"></div>
 					<h3>Manage Seuss Talk rooms</h3>
 					<div id="site-admin-rooms" class="site-admin-list"></div>
@@ -489,11 +513,11 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-performance1"></script>
+	<script src="app.js?v=20261105-adminnavigation1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-accounts1"></script>
+	<script src="identity-admin.js?v=20261105-adminnavigation1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
