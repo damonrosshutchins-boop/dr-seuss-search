@@ -158,7 +158,8 @@
         const name = person.display_name || "Guest";
         const details = create("div", "site-admin-person");
         details.append(create("strong", "", name + (person.user_id === me.id ? " (you)" : "")));
-        details.append(create("small", "", person.site_state === "active" ? "Online" : person.site_state));
+        const online = new Date(person.last_seen).getTime() > Date.now() - 70000;
+        details.append(create("small", "", person.site_state === "active" ? "Online" : person.site_state + (online ? " · online" : " · offline")));
         row.append(details);
         if (person.user_id !== me.id) {
           const controls = create("div", "site-admin-actions");
