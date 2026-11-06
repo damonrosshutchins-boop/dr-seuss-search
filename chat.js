@@ -318,6 +318,7 @@
     mutedUsers.clear();
     for (const entry of muteRows || []) mutedUsers.add(entry.user_id);
     ownerMuted = mutedUsers.has(user.id);
+    if (ownerMuted && cameraStream) await stopCamera();
     updateRoomComposer();
     updateMicButton();
 
@@ -437,9 +438,10 @@
         if (localStream) localStream.getAudioTracks().forEach(track => {
           track.enabled = !ownerMuted && !muted;
         });
+        if (ownerMuted && cameraStream) await stopCamera();
         updateRoomComposer();
         updateMicButton();
-        status(ownerMuted ? "The room owner muted you." : "The room owner unmuted you.");
+        status(ownerMuted ? "The room owner muted you and turned off your webcam." : "The room owner unmuted you.");
       } else {
         const audio = remoteAudios.get(targetId);
         if (audio) audio.muted = !!payload.muted;
