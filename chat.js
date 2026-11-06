@@ -131,7 +131,7 @@
     status("Loading rooms…");
     const { data, error } = await client.from("rooms")
       .select("id,name,is_public,created_at,created_by")
-      .order("created_at", { ascending: false }).limit(60);
+      .order("created_at", { ascending: false }).limit(window.settings && window.settings.performanceMode ? 30 : 60);
     if (error) { status(error.message, true); return; }
     const { data: memberships, error: memberError } = await client.from("room_members")
       .select("room_id").eq("user_id", user.id);
@@ -295,7 +295,7 @@
   async function loadMessages() {
     const { data, error } = await client.from("messages")
       .select("id,room_id,user_id,display_name,body,created_at")
-      .eq("room_id", room.id).order("created_at", { ascending:true }).limit(100);
+      .eq("room_id", room.id).order("created_at", { ascending:true }).limit(window.settings && window.settings.performanceMode ? 40 : 100);
     if (error) { status(error.message, true); return; }
     const list = $("talk-messages");
     list.replaceChildren();
