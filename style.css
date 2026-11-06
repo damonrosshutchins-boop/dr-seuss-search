@@ -750,3 +750,81 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .site-moderation-notice h2 { font: 900 1.8rem var(--display); }
 .site-moderation-notice p { line-height: 1.5; }
 :root[data-theme="dark"] .site-login { background: var(--paper); color: var(--ink); }
+
+
+/* Private admin-to-visitor messages (site popups only). */
+.site-popup-dialog {
+  width: min(470px, calc(100vw - 30px));
+  max-height: calc(100dvh - 30px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+  padding: 0;
+}
+.site-popup-dialog::backdrop {
+  background: rgba(10, 15, 30, .72);
+}
+.site-popup-dialog form, .site-incoming-content {
+  display: grid;
+  gap: 14px;
+  padding: 26px;
+}
+.site-popup-dialog h2 {
+  margin: 0;
+  font: 900 1.4rem var(--display);
+  overflow-wrap: anywhere;
+}
+.site-popup-dialog p {
+  margin: 0;
+}
+.site-popup-dialog label {
+  display: grid;
+  gap: 8px;
+  font-weight: 800;
+}
+.site-popup-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 110px;
+  max-height: 300px;
+  resize: vertical;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: #1b1b1b;
+  padding: 12px;
+  font: 600 .95rem var(--body);
+  line-height: 1.5;
+}
+.site-popup-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: end;
+  flex-wrap: wrap;
+}
+.site-incoming-content .site-incoming-body {
+  font-size: 1rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 2px solid var(--ink);
+  background: rgba(255,255,255,.7);
+  padding: 13px;
+  border-radius: 12px;
+}
+#site-admin-compose-status.bad {
+  color: #d42d34;
+}
+.site-incoming-content button {
+  justify-self: end;
+}
+@media (max-width:520px) {
+  .site-popup-dialog form,
+  .site-incoming-content {
+    padding: 18px;
+  }
+}
