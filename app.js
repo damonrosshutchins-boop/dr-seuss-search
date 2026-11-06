@@ -2,6 +2,12 @@
 /* Dr. Seuss Search — a Scramjet-powered web proxy that runs on static hosting (GitHub Pages). */
 
 const BASE = new URL("./", location.href); // works at / or /repo-name/
+// The site UI stays locked until the signed-in account saves its profile.
+window.seussAccountReady = false;
+function requireSeussAccount() {
+	return window.seussAccountReady === true &&
+		document.body.classList.contains("site-authenticated");
+}
 const at = (p) => new URL(p, BASE).pathname;
 
 const DEFAULTS = {
@@ -390,6 +396,7 @@ function closeSiteTab(id) {
 	}
 }
 function openSeussTalkTab() {
+	if (!requireSeussAccount()) return;
 	let tab = siteTabs.find(item => item.type === "talk");
 	if (!tab) tab = createSiteTab("talk", "Seuss Talk");
 	else activateSiteTab(tab.id);
@@ -400,6 +407,7 @@ function switchAwayFromSeussTalk() {
 	else createSiteTab("home", "New Tab");
 }
 function openVMTab() {
+	if (!requireSeussAccount()) return;
 	let tab = siteTabs.find(item => item.type === "vm");
 	if (!tab) tab = createSiteTab("vm", "VM");
 	else activateSiteTab(tab.id);
@@ -487,6 +495,7 @@ function createDirectFrameForTab(tab) {
 	return iframe;
 }
 function openDirectSiteTab(inputUrl, title) {
+	if (!requireSeussAccount()) return;
 	let url;
 	try {
 		url = new URL(inputUrl, location.href);
@@ -551,6 +560,7 @@ $("rammerhead-copy").addEventListener("click", async () => {
 });
 
 async function go(input, options = {}) {
+	if (!requireSeussAccount()) return;
 	const url = toUrl(input);
 	if (!url) return;
 	// Check the hostname before any external navigation starts. The rule
@@ -627,21 +637,23 @@ $("open-games").addEventListener("click", () => gamesDialog.showModal());
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
-function launchLibraryGame(event, url, useLibcurl = false) {
+function launchLibraryGame(event, url, useLibcurl = false, forceScramjet = false) {
 	event.preventDefault();
 	event.stopPropagation();
+	if (!requireSeussAccount()) return;
 	gamesDialog.close();
 	if (useLibcurl && settings.proxyEngine !== "rammerhead") {
 		settings.transport = "libcurl";
 		save();
-		boot().then(() => applyTransport(true)).then(() => go(url)).catch((err) =>
+		boot().then(() => applyTransport(true)).then(() => go(url, { forceScramjet })).catch((err) =>
 			showError("The proxy connection could not be prepared.", String(err && err.stack || err)));
 		return;
 	}
-	go(url);
+	go(url, { forceScramjet });
 }
 document.querySelectorAll("[data-proxy-url]").forEach((button) => {
-	button.addEventListener("click", (event) => launchLibraryGame(event, button.dataset.proxyUrl));
+	button.addEventListener("click", (event) =>
+		launchLibraryGame(event, button.dataset.proxyUrl, false, button.dataset.forceSeussProxy === "true"));
 });
 document.querySelectorAll("[data-local-url]").forEach((button) => {
 	button.addEventListener("click", (event) => {
@@ -841,7 +853,8 @@ const q = params.get("q") || params.get("goto");
 if (q) {
 	history.replaceState(null, "", BASE.pathname);
 	$("address").value = q;
-	go(q);
+	// Don't load deep-link destinations before username account verification.
+	window.addEventListener("seuss-site-unlocked", () => go(q), { once:true });
 } else if (location.hash === "#browse") {
 	history.replaceState(null, "", BASE.pathname);
 }
