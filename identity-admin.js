@@ -278,6 +278,7 @@
       $("site-login-retry").hidden = false;
     });
   });
+  login.addEventListener("cancel", event => event.preventDefault());
   $("site-login-form").addEventListener("submit", finishLogin);
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
