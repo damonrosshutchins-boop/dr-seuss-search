@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-usernamepassword1" />
+	<link rel="stylesheet" href="style.css?v=20261105-gateprogress1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -106,6 +106,14 @@
 			<span id="rammerhead-message" role="status">If the embedded portal is blank, use Open Rammerhead directly.</span>
 		</div>
 		<div class="loader" id="loader" aria-hidden="true"></div>
+		<div id="proxy-load-stats" class="proxy-load-stats" role="status" aria-live="off" hidden>
+			<span class="proxy-load-dot" aria-hidden="true"></span>
+			<strong id="proxy-load-phase">Connecting to page…</strong>
+			<span id="proxy-load-inflight">Requests still loading: 0</span>
+			<span id="proxy-load-finished">Responses handled: 0</span>
+			<span id="proxy-load-elapsed">Elapsed: 0s</span>
+			<small>Exact network packets remaining and the finishing time cannot be measured by a web proxy.</small>
+		</div>
 		<div id="frame-host" class="frame-host"></div>
 	</section>
 
@@ -424,7 +432,8 @@
 		<form id="site-login-form">
 			<p class="kicker">welcome to dr. seuss search</p>
 			<h2 id="site-login-title">Sign up or log in</h2>
-			<p>Create an account with a <strong>username and password</strong>. No email is needed. Existing accounts can log in from another device.</p>
+			<div id="site-credentials-fields">
+				<p>Create an account with a <strong>username and password</strong>. No email is needed. Existing accounts can log in from another device.</p>
 			<label for="site-username">Username
 				<input id="site-username" type="text" minlength="3" maxlength="254" autocomplete="username" placeholder="Your username" required />
 			</label>
@@ -436,7 +445,21 @@
 				<button id="site-login-submit" class="go small" type="submit">Create account</button>
 				<button id="site-account-signin" class="chip" type="button">Log in</button>
 			</div>
-			<small class="talk-muted">Passwords are verified by Supabase Auth. Because no email is collected, there is no automatic password-reset email. Keep your password somewhere safe. Older accounts created with an email can still log in using that email in the username field.</small>
+				<small class="talk-muted">Passwords are verified by Supabase Auth. Because no email is collected, there is no automatic password-reset email. Keep your password somewhere safe. Older accounts created with an email can still log in using that email in the username field.</small>
+			</div>
+			<section id="site-access-step" class="site-access-step" aria-label="Site access approval" hidden>
+				<h3>One more step: site access</h3>
+				<p>Your account is created, but this website requires an invitation code or moderator approval before you can enter.</p>
+				<label for="site-access-code">Invitation code
+					<input id="site-access-code" type="password" maxlength="80" autocomplete="off" placeholder="Enter your access code" />
+				</label>
+				<button id="site-access-redeem" class="go small" type="button">Unlock with code</button>
+				<div class="site-access-divider"><span>or</span></div>
+				<button id="site-access-request" class="chip" type="button">Request access from a moderator</button>
+				<p id="site-access-status" class="talk-muted" role="status"></p>
+				<button id="site-access-check" class="chip" type="button">Check approval</button>
+				<button id="site-access-switch" class="chip" type="button">Use a different account</button>
+			</section>
 			<small class="talk-muted"><strong>Site moderation and safety:</strong> Current website domains are shared with admins by default; you can switch off routine sharing in Settings. Website safety rules still check domains opened inside Seuss Search, even with sharing off. Blocked visits are reported; visits to recognized adult-content sites can automatically restrict your site account. Admins can review and lift bans. No full URLs, search terms or page contents are recorded.</small>
 			<p id="site-login-status" class="talk-muted" role="status">Connecting securely…</p>
 			<button id="site-login-retry" class="chip" type="button" hidden>Retry connection</button>
@@ -596,6 +619,12 @@
 				</div>
 				<p id="site-admin-status" class="talk-muted" role="status"></p>
 				<div id="site-admin-panel" hidden>
+					<section class="site-access-admin">
+						<div class="site-admin-heading"><h3>Website access requests</h3><button id="site-access-admin-refresh" class="chip talk-small" type="button">Refresh requests</button></div>
+						<p class="talk-muted">New accounts can request access instead of entering the invitation code. Review each username before approving or denying.</p>
+						<div id="site-access-admin-list" class="site-admin-list"></div>
+						<p id="site-access-admin-status" class="talk-muted" role="status"></p>
+					</section>
 					<div class="site-admin-heading"><strong>Proxy visitors &amp; restricted accounts</strong><button type="button" id="site-admin-refresh" class="chip talk-small">Refresh</button></div>
 					<p class="talk-muted">Online visitors appear here with their shared active site domain. Private paths, search queries, and page contents are not shown. Restricted accounts remain listed for restoration.</p>
 					<button type="button" class="chip" id="site-admin-message-everyone">Message everyone online</button>
@@ -653,11 +682,11 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-greeneggs1"></script>
+	<script src="app.js?v=20261105-gateprogress1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-usernamepassword1"></script>
+	<script src="identity-admin.js?v=20261105-gateprogress1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
