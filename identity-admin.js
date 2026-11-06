@@ -12,6 +12,11 @@
 
   let api = null, me = null, isAdmin = false, selectedRoom = null;
   let checking = false, loggedIn = false, lastState = null;
+  let selectedMessageRecipient = null;
+  let popupChecking = false;
+  const popupQueue = [];
+  const incomingPopup = $("site-incoming-popup");
+  const composeDialog = $("site-admin-compose");
   const errText = error => String(error && error.message || error);
   const create = (tag, cls, value) => {
     const element = document.createElement(tag);
@@ -97,6 +102,7 @@
       $("site-admin-unlock").hidden = isAdmin;
       $("site-admin-panel").hidden = !isAdmin;
       login.close();
+      pollInbox();
       if (isAdmin) {
         feedback("site-admin-status", "Admin access active on this account.");
         await refreshAdmin();
@@ -146,6 +152,73 @@
       feedback("site-admin-status", "Could not moderate user: " + errText(error), true);
     }
   }
+  // All text in messages is shown as plain text, never inserted as HTML.
+  function showNextIncomingPopup() {
+    if (!loggedIn || incomingPopup.open || !popupQueue.length) return;
+    const note = popupQueue.shift();
+    $("site-incoming-sender").textContent = "Message from " + (note.sender_name || "a site admin");
+    $("site-incoming-body").textContent = note.message;
+    $("site-incoming-time").textContent = note.sent_at
+      ? new Date(note.sent_at).toLocaleString() : "";
+    if (typeof incomingPopup.showModal === "function") incomingPopup.showModal();
+    else incomingPopup.setAttribute("open", "");
+  }
+
+  async function pollInbox() {
+    if (!loggedIn || popupChecking || document.visibilityState === "hidden") return;
+    popupChecking = true;
+    try {
+      const notices = await server("site_fetch_admin_popups");
+      if (Array.isArray(notices) && notices.length) {
+        popupQueue.push(...notices);
+        showNextIncomingPopup();
+      }
+    } catch (error) {
+      console.warn("Could not retrieve site announcements:", errText(error));
+    } finally {
+      popupChecking = false;
+    }
+  }
+
+  function openMessageComposer(id, name) {
+    if (!isAdmin) return;
+    selectedMessageRecipient = id;
+    $("site-admin-message-target").textContent = id
+      ? "To: " + name
+      : "To: everyone online (except you)";
+    $("site-admin-message-body").value = "";
+    feedback("site-admin-compose-status", "Messages appear as dismissible popups on the recipient's site.");
+    if (typeof composeDialog.showModal === "function") composeDialog.showModal();
+    else composeDialog.setAttribute("open", "");
+    $("site-admin-message-body").focus();
+  }
+
+  async function sendAdminMessage(event) {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const message = $("site-admin-message-body").value.trim();
+    if (!message || message.length > 400) {
+      feedback("site-admin-compose-status", "Enter 1–400 characters.", true);
+      return;
+    }
+    const send = $("site-admin-compose-send");
+    send.disabled = true;
+    try {
+      const count = await server("site_send_admin_popup", {
+        p_recipient_id:selectedMessageRecipient,
+        p_message:message
+      });
+      composeDialog.close();
+      feedback("site-admin-status", count
+        ? "Popup sent to " + count + (count === 1 ? " person." : " people.")
+        : "Nobody else is currently online to receive a message.");
+    } catch (error) {
+      feedback("site-admin-compose-status", "Couldn't send popup: " + errText(error), true);
+    } finally {
+      send.disabled = false;
+    }
+  }
+
   async function refreshUsers() {
     const output = $("site-admin-users");
     output.replaceChildren(create("p", "talk-muted", "Loading users…"));
@@ -170,6 +243,12 @@
             button.type = "button";
             button.addEventListener("click", () => changeUser(person.user_id, action, name));
             controls.append(button);
+          }
+          if (online && person.site_state === "active") {
+            const messageButton = create("button", "chip talk-small", "Message");
+            messageButton.type = "button";
+            messageButton.addEventListener("click", () => openMessageComposer(person.user_id, name));
+            controls.prepend(messageButton);
           }
           row.append(controls);
         }
@@ -283,8 +362,19 @@
   $("site-login-form").addEventListener("submit", finishLogin);
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
+  $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
+  $("site-admin-message-form").addEventListener("submit", sendAdminMessage);
+  $("site-admin-compose-cancel").addEventListener("click", () => composeDialog.close());
+  $("site-incoming-dismiss").addEventListener("click", () => incomingPopup.close());
+  incomingPopup.addEventListener("close", showNextIncomingPopup);
   $("open-settings").addEventListener("click", () => { if (isAdmin) refreshAdmin(); });
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") heartbeat(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      heartbeat();
+      pollInbox();
+    }
+  });
   setInterval(heartbeat, 10000);
+  setInterval(pollInbox, 5000);
   setInterval(() => { if (isAdmin && settings.open) refreshUsers(); }, 20000);
 })();
