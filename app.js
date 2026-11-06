@@ -245,6 +245,28 @@ function siteTabTitle(url) {
 function currentSiteTab() {
 	return siteTabs.find(tab => tab.id === activeSiteTabId) || null;
 }
+function stopBlockedProxyTab(tab) {
+	if (!tab || tab.type !== "web") return;
+	if (tab.pane) tab.pane.remove();
+	tab.frame = null;
+	tab.pane = null;
+	tab.loading = false;
+	tab.type = "home";
+	tab.url = "";
+	tab.title = "Blocked page";
+	if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+	else renderSiteTabs();
+}
+// Recheck the active site periodically so newly added admin rules apply
+// without a refresh or another click inside the frame.
+window.dssRecheckActiveSite = async () => {
+	const tab = currentSiteTab();
+	if (!tab || tab.type !== "web" || !tab.url ||
+		typeof window.dssSitePolicyCheck !== "function") return;
+	const url = tab.url;
+	const allowed = await window.dssSitePolicyCheck(url);
+	if (!allowed && tab.url === url) stopBlockedProxyTab(tab);
+};
 // Report only the active site's domain/section, never a full URL or search query.
 function publicActiveSiteView(tab = currentSiteTab()) {
 	if (!tab || tab.type === "home") return "Home";
@@ -425,15 +447,7 @@ function createFrameForTab(tab) {
 		if (typeof window.dssSitePolicyCheck === "function") {
 			window.dssSitePolicyCheck(event.url).then(allowed => {
 				if (allowed || tab.frame !== instance) return;
-				if (tab.pane) tab.pane.remove();
-				tab.frame = null;
-				tab.pane = null;
-				tab.loading = false;
-				tab.type = "home";
-				tab.url = "";
-				tab.title = "Blocked page";
-				if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
-				else renderSiteTabs();
+				stopBlockedProxyTab(tab);
 			}).catch(err => console.warn("Site rule check failed:", err));
 		}
 	});
