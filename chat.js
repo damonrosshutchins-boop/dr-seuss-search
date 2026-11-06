@@ -752,6 +752,12 @@
     renderVoiceMembers();
   }
 
+  window.addEventListener("seuss-site-access-change", async (event) => {
+    if (event.detail && event.detail.state !== "active") {
+      // A moderator's site-only pause also stops any active microphone stream.
+      await leaveVoice();
+    }
+  });
   window.addEventListener("seuss-talk-tab-open", async () => { await boot(); });
   window.addEventListener("seuss-talk-tab-close", async () => {
     if (room) await showRoomsTab();
