@@ -504,32 +504,42 @@
       pollInbox();
     }
   });
-  // Keep background network work light. Performance Mode stretches polling
-  // intervals and all checks remain paused while the page is hidden.
+  // Keep background network work light. Each check has its own timer so
+  // one poll never cancels another; hidden tabs use a slower cadence.
   let heartbeatTimer = 0, inboxTimer = 0, adminTimer = 0;
-  function scheduleBackgroundChecks() {
+  function scheduleHeartbeat() {
     clearTimeout(heartbeatTimer);
-    clearTimeout(inboxTimer);
-    clearTimeout(adminTimer);
     if (!loggedIn) return;
-    const performanceMode = !!(window.settings && window.settings.performanceMode);
-    const hidden = document.visibilityState === "hidden";
-    const heartbeatDelay = hidden ? 180000 : performanceMode ? 120000 : 30000;
-    const inboxDelay = hidden ? 180000 : performanceMode ? 90000 : 20000;
+    const perf = !!(window.settings && window.settings.performanceMode);
+    const delay = document.hidden ? 180000 : perf ? 120000 : 30000;
     heartbeatTimer = setTimeout(async () => {
       if (!document.hidden) await heartbeat();
-      scheduleBackgroundChecks();
-    }, heartbeatDelay);
+      scheduleHeartbeat();
+    }, delay);
+  }
+  function scheduleInbox() {
+    clearTimeout(inboxTimer);
+    if (!loggedIn) return;
+    const perf = !!(window.settings && window.settings.performanceMode);
+    const delay = document.hidden ? 180000 : perf ? 90000 : 20000;
     inboxTimer = setTimeout(async () => {
       if (!document.hidden) await pollInbox();
-      scheduleBackgroundChecks();
-    }, inboxDelay);
-    if (isAdmin && settings.open) {
-      adminTimer = setTimeout(async () => {
-        if (!document.hidden && settings.open) await refreshUsers();
-        scheduleBackgroundChecks();
-      }, performanceMode ? 120000 : 30000);
-    }
+      scheduleInbox();
+    }, delay);
+  }
+  function scheduleAdminRefresh() {
+    clearTimeout(adminTimer);
+    if (!loggedIn || !isAdmin || !settings.open) return;
+    const perf = !!(window.settings && window.settings.performanceMode);
+    adminTimer = setTimeout(async () => {
+      if (!document.hidden && settings.open) await refreshUsers();
+      scheduleAdminRefresh();
+    }, perf ? 120000 : 30000);
+  }
+  function scheduleBackgroundChecks() {
+    scheduleHeartbeat();
+    scheduleInbox();
+    scheduleAdminRefresh();
   }
   document.addEventListener("visibilitychange", scheduleBackgroundChecks);
   window.addEventListener("dss-performance-mode-change", scheduleBackgroundChecks);
