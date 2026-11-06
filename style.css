@@ -937,3 +937,25 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
   font-weight: 800;
 }
 .talk-local-video-tile:has(video[hidden]) { display: none; }
+
+
+/* Admin-controlled navigation: clear and dismissible in-site notice. */
+#site-admin-direct-dialog input[type=text] {
+  box-sizing:border-box; width:100%; padding:12px;
+  border:2px solid var(--ink); border-radius:12px;
+  background:#fff; color:#191919; font:600 1rem var(--body);
+}
+#site-admin-direct-status.bad {color:#d42d34}
+.site-admin-redirect-notice {
+  position:fixed; top:14px; right:14px; z-index:2147483600;
+  width:min(410px, calc(100vw - 28px)); box-sizing:border-box;
+  border:3px solid #242424; border-radius:16px;
+  background:#fff7e6; color:#242424;
+  box-shadow:5px 5px 0 #d8262f;
+  padding:14px; display:flex; flex-wrap:wrap;
+  align-items:center; justify-content:space-between; gap:10px;
+  font-weight:750; line-height:1.45;
+}
+.site-admin-redirect-notice[hidden] {display:none!important}
+.site-admin-redirect-notice p {flex:1 1 230px; margin:0}
+#site-admin-panel .site-admin-person {max-width:100%}
