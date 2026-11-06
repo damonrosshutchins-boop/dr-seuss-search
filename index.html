@@ -12,7 +12,6 @@
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
 	<link rel="stylesheet" href="style.css?v=20261105-alert2" />
-	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -437,7 +436,8 @@
 			<small>Delays loading the proxy engine until you browse, disables animated backgrounds and reduces visual effects. Some background account checks run less often.</small>
 			<section class="site-admin-settings">
 				<h3>Account &amp; moderation</h3>
-				<p class="talk-muted">Current username: <strong id="site-username-label">Loading…</strong></p>
+				<p class="talk-muted">Current account: <strong id="site-username-label">Loading…</strong></p>
+				<button type="button" class="chip" id="site-account-switch">Switch account / sign out</button>
 				<div id="site-admin-unlock">
 					<label for="site-admin-code">Admin access code
 						<input id="site-admin-code" type="password" maxlength="120" autocomplete="off" placeholder="Enter admin code" />
