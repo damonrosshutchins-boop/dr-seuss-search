@@ -12,7 +12,6 @@
 		{ name: "Quake", badge: "Q", color: "#6b4f2a", desc: "id Software's 1996 3D shooter, shareware episode. Heavier, so it may run choppy.", size: "9 MB", url: "games/quake.jsdos", tip: "Press Esc for the menu. Arrows move, Ctrl fires." },
 		{ name: "Heretic", badge: "H", color: "#3d6b2a", desc: "Dark-fantasy shooter on the DOOM engine, shareware episode.", size: "2.9 MB", url: "games/heretic.jsdos", tip: "Arrows move, Ctrl fires, Space opens doors." },
 		{ name: "Tyrian 2000", badge: "T", color: "#1aa6a0", desc: "A full vertical space shooter, released free by its makers.", size: "5 MB", url: "games/tyrian.jsdos", tip: "Arrows fly, Space fires, Enter selects." },
-		{ name: "Digger", badge: "G", color: "#ffb627", desc: "The classic 1983 tunnel-digging arcade game.", size: "27 KB", url: "games/digger.jsdos", tip: "Arrows dig, F1 fires." },
 	];
 
 	const SYSTEMS = [
