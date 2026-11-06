@@ -582,6 +582,9 @@
     // Negotiate a video channel up front so camera toggles do not require a
     // second offer/answer exchange after participants are already connected.
     const videoTransceiver = pc.addTransceiver("video", { direction:"sendrecv" });
+    if (cameraStream && cameraStream.getVideoTracks()[0]) {
+      await videoTransceiver.sender.replaceTrack(cameraStream.getVideoTracks()[0]);
+    }
     pc.onicecandidate = (event) => {
       if (event.candidate) sendSignal(peerId, { candidate:event.candidate });
     };
