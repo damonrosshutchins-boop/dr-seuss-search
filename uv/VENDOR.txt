@@ -1,3 +1,8 @@
-Ultraviolet runtime files are from MercuryWorkshop/adrift's bundled UV frontend (which includes the Titanium Network Ultraviolet implementation). Source: https://github.com/MercuryWorkshop/adrift/tree/main/frontend/public/uv .
-Ultraviolet project: https://github.com/titaniumnetwork-dev/Ultraviolet — MIT licensed.
-Only use the bundled runtime inside a restricted, sandboxed iframe so it cannot access the Seuss Search account UI or local storage. These assets are provided for an optional experimental engine. Real web-proxy functionality and compatibility depend on browser service workers, Wisp and transport availability.
+Ultraviolet runtime — pinned upstream version 3.2.10
+Source: https://github.com/titaniumnetwork-dev/Ultraviolet
+Package: https://www.npmjs.com/package/@titaniumnetwork-dev/ultraviolet/v/3.2.10
+License: see uv/LICENSE (MIT license). Included dist assets: uv.bundle.js, uv.sw.js, uv.client.js, uv.handler.js.
+
+The pinned distribution is copied from npm by the .github/workflows/vendor-ultraviolet.yml workflow and checked into this public repo. The local uv.config.js and sw.js are customized for the site's GitHub Pages subpath and isolated ultraviolet service-worker scope.
+
+Ultraviolet is optional/experimental. The parent interface uses a sandboxed iframe without allow-same-origin to protect its Supabase sessions. This isolation can limit compatibility with some proxied sites, and the site's normal safety reporting cannot observe every internal navigation.
