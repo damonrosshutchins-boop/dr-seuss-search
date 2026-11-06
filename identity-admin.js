@@ -12,6 +12,7 @@
 
   let api = null, me = null, isAdmin = false, selectedRoom = null;
   let checking = false, loggedIn = false, lastState = null;
+  let adminTabActive = false;
   let selectedMessageRecipient = null;
   let popupChecking = false;
   const popupQueue = [];
@@ -274,8 +275,8 @@
     pollNavigation();
     reportCurrentView();
     if (isAdmin) {
-      feedback("site-admin-status", "Admin access active on this account.");
-      await refreshAdmin();
+      feedback("site-admin-status", "Admin access active on this account. Open the Admin tab to manage the site.");
+      if (adminTabActive) await refreshAdmin();
     }
   }
   async function createAccount(event) {
@@ -375,7 +376,8 @@
       $("site-admin-unlock").hidden = true;
       $("site-admin-panel").hidden = false;
       feedback("site-admin-status", "Admin access activated for this account.");
-      await refreshAdmin();
+      if (adminTabActive) await refreshAdmin();
+      scheduleBackgroundChecks();
     } catch (error) {
       feedback("site-admin-status", "Admin unlock failed: " + errText(error), true);
     } finally {
@@ -956,6 +958,7 @@
       loggedIn = false;
       isAdmin = false;
       lastReportedView = null;
+      adminTabActive = false;
       $("site-admin-redirect-notice").hidden = true;
       $("site-admin-unlock").hidden = false;
       $("site-admin-panel").hidden = true;
@@ -1002,8 +1005,13 @@
   $("site-admin-compose-cancel").addEventListener("click", () => composeDialog.close());
   $("site-incoming-dismiss").addEventListener("click", () => incomingPopup.close());
   incomingPopup.addEventListener("close", showNextIncomingPopup);
-  $("open-settings").addEventListener("click", () => {
+  $("admin-workspace-refresh").addEventListener("click", () => {
     if (isAdmin) refreshAdmin();
+    else feedback("site-admin-status", "Enter the moderator code above to unlock these controls.", true);
+  });
+  window.addEventListener("dss-site-tab-activated", event => {
+    adminTabActive = event.detail?.type === "admin";
+    if (adminTabActive && isAdmin) refreshAdmin();
     scheduleBackgroundChecks();
   });
   document.addEventListener("visibilitychange", () => {
@@ -1040,10 +1048,10 @@
   }
   function scheduleAdminRefresh() {
     clearTimeout(adminTimer);
-    if (!loggedIn || !isAdmin || !settings.open) return;
+    if (!loggedIn || !isAdmin || !adminTabActive) return;
     const perf = !!(window.settings && window.settings.performanceMode);
     adminTimer = setTimeout(async () => {
-      if (!document.hidden && settings.open) {
+      if (!document.hidden && adminTabActive) {
         await Promise.all([refreshUsers(), refreshAccessRequests()]);
       }
       scheduleAdminRefresh();
