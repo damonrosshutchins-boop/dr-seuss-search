@@ -637,11 +637,58 @@ $("open-games").addEventListener("click", () => gamesDialog.showModal());
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
+// Green Eggs and Ham lives inside the Games dialog, with instant filtering.
+// Every game tile is also a regular data-proxy-url button, so the common
+// launch handler below opens a Scramjet tab without leaving Seuss Search.
+const greenEggsMain = $("games-main-view");
+const greenEggsView = $("green-eggs-view");
+const greenEggsSearch = $("green-eggs-search");
+const greenEggsCards = [...$("green-eggs-grid").querySelectorAll("[data-proxy-url]")];
+const greenEggsLauncher = $("open-green-eggs");
+function filterGreenEggs() {
+	const words = greenEggsSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	let visible = 0;
+	for (const card of greenEggsCards) {
+		const haystack = (card.textContent + " " + (card.dataset.search || "")).toLowerCase();
+		const matches = words.every(word => haystack.includes(word));
+		card.hidden = !matches;
+		if (matches) visible++;
+	}
+	$("green-eggs-count").textContent = visible + " of " + greenEggsCards.length +
+		(visible === 1 ? " game" : " games");
+	$("green-eggs-empty").hidden = visible !== 0;
+}
+function showGreenEggs() {
+	if (!requireSeussAccount()) return;
+	greenEggsMain.hidden = true;
+	greenEggsView.hidden = false;
+	gamesDialog.classList.add("green-eggs-open");
+	greenEggsLauncher.setAttribute("aria-expanded", "true");
+	greenEggsSearch.value = "";
+	filterGreenEggs();
+	greenEggsSearch.focus();
+}
+function showRegularGames(restoreFocus = true) {
+	greenEggsView.hidden = true;
+	greenEggsMain.hidden = false;
+	gamesDialog.classList.remove("green-eggs-open");
+	greenEggsLauncher.setAttribute("aria-expanded", "false");
+	if (restoreFocus && gamesDialog.open) greenEggsLauncher.focus();
+}
+greenEggsLauncher.addEventListener("click", showGreenEggs);
+$("green-eggs-back").addEventListener("click", () => showRegularGames());
+greenEggsSearch.addEventListener("input", filterGreenEggs);
+gamesDialog.addEventListener("close", () => showRegularGames(false));
+filterGreenEggs();
+
 function launchLibraryGame(event, url, useLibcurl = false, forceScramjet = false) {
 	event.preventDefault();
 	event.stopPropagation();
 	if (!requireSeussAccount()) return;
 	gamesDialog.close();
+	if (event.currentTarget && event.currentTarget.closest("#green-eggs-grid")) {
+		createSiteTab("home", "Green Eggs and Ham game");
+	}
 	if (useLibcurl && settings.proxyEngine !== "rammerhead") {
 		settings.transport = "libcurl";
 		save();
