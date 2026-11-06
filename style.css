@@ -828,3 +828,52 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
     padding: 18px;
   }
 }
+
+
+/* Admin alert: show the same full-screen notice style as a frozen session,
+   but keep a visible OK button so a notification can be dismissed. */
+.site-incoming-overlay {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 20px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: rgba(11, 18, 28, .97);
+  color: #242424;
+}
+.site-incoming-overlay[open] {
+  display: grid;
+  place-items: center;
+}
+.site-incoming-overlay::backdrop {
+  background: rgba(11, 18, 28, .97);
+}
+.site-incoming-overlay .site-incoming-content {
+  width: min(520px, 100%);
+  box-sizing: border-box;
+  padding: 28px;
+  display: grid;
+  gap: 14px;
+}
+.site-incoming-overlay .site-incoming-body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.site-incoming-overlay .site-incoming-content button {
+  justify-self: end;
+}
