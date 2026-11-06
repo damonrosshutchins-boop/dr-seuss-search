@@ -751,7 +751,13 @@
   });
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
-  $("site-guard-form").addEventListener("submit", editGuardRule);
+  $("site-guard-add").addEventListener("click", editGuardRule);
+  $("site-guard-domain").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      editGuardRule(event);
+    }
+  });
   $("site-guard-refresh").addEventListener("click", refreshGuard);
   $("site-policy-dismiss").addEventListener("click", () => policyNotice.close());
   $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
