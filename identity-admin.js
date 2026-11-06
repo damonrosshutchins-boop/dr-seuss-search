@@ -11,7 +11,7 @@
   if (!login || !settings) return;
 
   let api = null, me = null, isAdmin = false, selectedRoom = null;
-  let checking = false, loggedIn = false;
+  let checking = false, loggedIn = false, lastState = null;
   const errText = error => String(error && error.message || error);
   const create = (tag, cls, value) => {
     const element = document.createElement(tag);
@@ -32,6 +32,9 @@
     return data;
   };
   function setLock(state) {
+    if (state === lastState) return;
+    lastState = state;
+    window.dispatchEvent(new CustomEvent("seuss-site-access-change", { detail:{ state } }));
     const overlay = $("site-moderation-overlay");
     overlay.hidden = state === "active";
     $("site-moderation-title").textContent = state === "frozen" ? "Your Seuss session is paused" : "Your Seuss session has been removed";
