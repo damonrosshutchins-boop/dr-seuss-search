@@ -459,13 +459,16 @@
 						<div><button type="button" class="talk-text-button" id="talk-back-rooms">← All rooms</button><h3 id="talk-room-title"></h3><span id="talk-room-lock" class="talk-muted"></span></div>
 						<div class="talk-call-actions">
 							<button type="button" class="chip talk-small" id="talk-join-voice">Join voice</button>
+							<button type="button" class="chip talk-small talk-video-join" id="talk-join-camera">📷 Join with webcam</button>
 							<button type="button" class="chip talk-small" id="talk-mute" hidden>Mute mic</button>
 							<button type="button" class="chip talk-small" id="talk-camera" hidden>Turn camera on</button>
 							<button type="button" class="chip talk-small" id="talk-leave-voice" hidden>Leave voice</button>
 							<button type="button" class="chip talk-small talk-danger" id="talk-delete-room" hidden>Delete room</button>
 						</div>
 					</div>
-					<p id="talk-voice-status" class="talk-muted">Voice is off</p>
+					<p id="talk-voice-status" class="talk-muted">Voice and camera are off</p>
+					<p id="talk-camera-indicator" class="talk-camera-indicator" role="status" hidden>● Your webcam is ON and visible to members of this voice room. Use “Turn camera off” or “Leave voice” to stop it.</p>
+					<p class="talk-muted talk-camera-note">Webcam sharing is optional. Your browser will ask permission before using your camera. Other room members can see your video while it is on. No recording feature is included.</p>
 					<div id="talk-video-grid" class="talk-video-grid" aria-label="Video call participants">
 						<div class="talk-video-tile talk-local-video-tile"><video id="talk-local-video" autoplay playsinline muted hidden></video><span class="talk-video-label">You</span></div>
 					</div>
@@ -705,7 +708,7 @@
 	<script src="app.js?v=20261106-adminspeed1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
-	<script src="chat.js?v=20261105-identity1"></script>
+	<script src="chat.js?v=20261106-cameraonly1"></script>
 	<script src="identity-admin.js?v=20261106-adminspeed1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
