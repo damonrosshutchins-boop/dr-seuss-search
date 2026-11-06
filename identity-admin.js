@@ -306,6 +306,31 @@
       feedback("site-admin-status", "Could not delete room: " + errText(error), true);
     }
   }
+  async function revealRoomPassword(item, button, valueNode) {
+    if (!isAdmin) return;
+    if (button.dataset.revealed === "true") {
+      valueNode.textContent = "";
+      valueNode.hidden = true;
+      button.dataset.revealed = "false";
+      button.textContent = "Reveal password";
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Loading…";
+    try {
+      const password = await server("site_admin_reveal_room_password", { p_room_id:item.id });
+      valueNode.textContent = "Password: " + password;
+      valueNode.hidden = false;
+      button.dataset.revealed = "true";
+      button.textContent = "Hide password";
+    } catch (error) {
+      feedback("site-admin-status", "Could not reveal password: " + errText(error), true);
+      button.textContent = "Reveal password";
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   async function refreshRooms() {
     const output = $("site-admin-rooms");
     output.replaceChildren(create("p", "talk-muted", "Loading rooms…"));
@@ -325,6 +350,16 @@
           $("site-admin-selected-room").textContent = "Members in " + item.name;
           loadRoomMembers(item.id);
         });
+        if (!item.is_public) {
+          const reveal = create("button", "chip talk-small", "Reveal password");
+          reveal.type = "button";
+          reveal.dataset.revealed = "false";
+          const passwordValue = create("small", "talk-muted", "");
+          passwordValue.hidden = true;
+          reveal.addEventListener("click", () => revealRoomPassword(item, reveal, passwordValue));
+          actions.append(reveal);
+          row.append(passwordValue);
+        }
         const remove = create("button", "chip talk-small talk-danger", "Delete");
         remove.type = "button";
         remove.addEventListener("click", () => deleteRoom(item));
