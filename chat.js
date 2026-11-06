@@ -36,10 +36,12 @@
     input.placeholder = ownerMuted ? "Muted by the room owner" : "Write a message…";
     $("talk-join-voice").disabled = ownerMuted;
     $("talk-join-voice").textContent = ownerMuted ? "Muted by owner" : "Join voice";
+    $("talk-join-camera").disabled = ownerMuted;
+    $("talk-join-camera").textContent = ownerMuted ? "Camera unavailable (muted)" : "📷 Join with webcam";
   }
   function updateMicButton() {
     const button = $("talk-mute");
-    button.hidden = !voiceActive;
+    button.hidden = !voiceActive || !localStream?.getAudioTracks().length;
     button.disabled = ownerMuted;
     button.textContent = ownerMuted ? "Muted by owner" : (muted ? "Unmute mic" : "Mute mic");
   }
@@ -579,6 +581,9 @@
     voicePeers.set(peerId, pc);
     candidateQueues.set(peerId, []);
     for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+    // Camera-only participants receive others' audio without opening their mic.
+    if (!localStream.getAudioTracks().length)
+      pc.addTransceiver("audio", { direction:"recvonly" });
     // Negotiate a video channel up front so camera toggles do not require a
     // second offer/answer exchange after participants are already connected.
     const videoTransceiver = pc.addTransceiver("video", { direction:"sendrecv" });
@@ -598,12 +603,13 @@
           video.autoplay = true;
           video.playsInline = true;
           video.muted = true;
-          tile.hidden = true;
+          tile.hidden = event.track.muted;
           tile.append(video, label);
           $("talk-video-grid").append(tile);
           remoteVideos.set(peerId, video);
           event.track.addEventListener("unmute", () => { tile.hidden = false; });
           event.track.addEventListener("mute", () => { tile.hidden = true; });
+          event.track.addEventListener("ended", () => { tile.remove(); remoteVideos.delete(peerId); }, { once:true });
         }
         video.srcObject = event.streams[0] || new MediaStream([event.track]);
         video.play().catch(() => {});
@@ -712,35 +718,57 @@
   }
 
   async function startCamera() {
-    if (!voiceActive || cameraStream) return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!voiceActive || cameraStream || !room) return !!cameraStream;
+    if (!navigator.mediaDevices?.getUserMedia) {
       status("Camera video needs a supported browser and camera permission.", true);
-      return;
+      return false;
     }
+    const roomId = room.id;
     const button = $("talk-camera");
     button.disabled = true;
+    let captured = null;
     try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({ audio:false, video:true });
-      const track = cameraStream.getVideoTracks()[0];
+      // Camera capture happens ONLY after the visitor presses a camera button.
+      // Audio is explicitly excluded from a video-only request.
+      captured = await navigator.mediaDevices.getUserMedia({
+        audio:false,
+        video:{ width:{ ideal:640 }, height:{ ideal:360 }, frameRate:{ ideal:15, max:20 } }
+      });
+      if (!voiceActive || !room || room.id !== roomId || ownerMuted) {
+        captured.getTracks().forEach(track => track.stop());
+        status("Camera was not started because the room or call changed.", true);
+        return false;
+      }
+      const track = captured.getVideoTracks()[0];
       if (!track) throw new Error("No camera track was provided.");
-      track.addEventListener("ended", () => { if (cameraStream) stopCamera(); }, { once:true });
+      cameraStream = captured;
+      track.addEventListener("ended", () => {
+        if (cameraStream === captured) stopCamera();
+      }, { once:true });
       const preview = $("talk-local-video");
       preview.srcObject = cameraStream;
       preview.hidden = false;
       await preview.play().catch(() => {});
       for (const pc of voicePeers.values()) {
-        const sender = pc.getSenders().find(item => item.track && item.track.kind === "video") ||
-          pc.getTransceivers().find(item => item.receiver.track.kind === "video")?.sender;
-        if (sender) await sender.replaceTrack(track);
+        const sender = pc.getTransceivers().find(item =>
+          item.receiver.track.kind === "video")?.sender;
+        if (sender) await sender.replaceTrack(track).catch(() => {});
       }
       button.textContent = "Turn camera off";
-      status("Your camera is on. Other people in voice can see your video.");
+      button.setAttribute("aria-pressed", "true");
+      $("talk-camera-indicator").hidden = false;
+      status("Your webcam is on. Room participants can see your video.");
+      return true;
     } catch (err) {
-      if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+      if (captured) captured.getTracks().forEach(track => track.stop());
       cameraStream = null;
-      $("talk-local-video").srcObject = null;
-      $("talk-local-video").hidden = true;
+      const preview = $("talk-local-video");
+      preview.srcObject = null;
+      preview.hidden = true;
+      $("talk-camera-indicator").hidden = true;
+      button.setAttribute("aria-pressed", "false");
       status("Camera unavailable: " + String(err && err.message || err), true);
+      return false;
     } finally {
       button.disabled = false;
     }
@@ -750,33 +778,47 @@
     const stream = cameraStream;
     cameraStream = null;
     if (stream) {
-      const track = stream.getVideoTracks()[0];
       for (const pc of voicePeers.values()) {
-        const sender = pc.getTransceivers().find(item => item.receiver.track.kind === "video")?.sender;
+        const sender = pc.getTransceivers().find(item =>
+          item.receiver.track.kind === "video")?.sender;
         if (sender) await sender.replaceTrack(null).catch(() => {});
       }
       stream.getTracks().forEach(item => item.stop());
-      if (track) track.onended = null;
     }
     const preview = $("talk-local-video");
     if (preview) { preview.pause(); preview.srcObject = null; preview.hidden = true; }
+    $("talk-camera-indicator").hidden = true;
     const button = $("talk-camera");
-    if (button) { button.textContent = "Turn camera on"; button.disabled = false; }
+    if (button) {
+      button.textContent = "Turn camera on";
+      button.setAttribute("aria-pressed", "false");
+      button.disabled = false;
+    }
   }
 
-  async function joinVoice() {
-    if (voiceActive) return;
+  async function joinVoice(cameraOnly = false) {
+    if (voiceActive || !room) return;
     if (ownerMuted) {
-      status("The room owner has muted you. You cannot join voice until they unmute you.", true);
+      status("The room owner has muted you. You cannot join the call until they unmute you.", true);
       return;
     }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      status("Voice calls need a supported browser and microphone permission.", true); return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      status("Calls need HTTPS and a browser that supports media permission.", true);
+      return;
     }
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+      // A webcam-only call does not request or activate the microphone.
+      localStream = cameraOnly
+        ? new MediaStream()
+        : await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+      if (!room || ownerMuted) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+        return;
+      }
       voiceActive = true;
-      voiceChannel = client.channel("room:" + room.id + ":voice", {
+      const voiceRoomId = room.id;
+      voiceChannel = client.channel("room:" + voiceRoomId + ":voice", {
         config:{ private:true, presence:{ key:user.id } }
       });
       voiceChannel
@@ -786,25 +828,31 @@
           syncVoicePeers();
         });
       voiceChannel.subscribe(async (state, err) => {
+        if (!room || room.id !== voiceRoomId || !voiceActive) return;
         if (state === "SUBSCRIBED") {
           await voiceChannel.track({ user_id:user.id, display_name:profile.display_name });
           renderVoiceMembers();
-          $("talk-voice-status").textContent = "Voice joined · waiting for others";
+          $("talk-voice-status").textContent = cameraOnly
+            ? "Camera-only call joined · microphone off"
+            : "Voice joined · camera off until you enable it";
           $("talk-join-voice").hidden = true;
+          $("talk-join-camera").hidden = true;
           $("talk-leave-voice").hidden = false;
           $("talk-camera").hidden = false;
           updateMicButton();
+          if (cameraOnly && !(await startCamera())) {
+            await leaveVoice();
+            return;
+          }
           await syncVoicePeers();
         } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") {
-          status("Voice room authorization failed. Check the Realtime settings and room membership.", true);
+          status("Call authorization failed. Check Realtime settings and room membership.", true);
           await leaveVoice();
         }
       });
     } catch (err) {
-      voiceActive = false;
-      if (localStream) localStream.getTracks().forEach(t => t.stop());
-      localStream = null;
-      status("Microphone unavailable: " + String(err && err.message || err), true);
+      await leaveVoice();
+      status("Could not start call: " + String(err && err.message || err), true);
     }
   }
 
@@ -832,13 +880,17 @@
     localStream = null;
     muted = false;
     $("talk-join-voice").hidden = !room;
+    $("talk-join-camera").hidden = !room;
     $("talk-leave-voice").hidden = true;
     $("talk-camera").hidden = true;
-    $("talk-video-grid").replaceChildren();
+    // Keep the permanent local-preview element across multiple calls.
+    // Removing it here would break camera toggles after the first hangup.
+    $("talk-video-grid").querySelectorAll(".talk-video-tile:not(.talk-local-video-tile)")
+      .forEach(tile => tile.remove());
     $("talk-mute").hidden = true;
     $("talk-mute").disabled = false;
     $("talk-mute").textContent = "Mute mic";
-    $("talk-voice-status").textContent = "Voice is off";
+    $("talk-voice-status").textContent = "Voice and camera are off";
     updateRoomComposer();
     renderVoiceMembers();
   }
@@ -876,7 +928,8 @@
   });
   $("talk-back-rooms").addEventListener("click", showRoomsTab);
   $("talk-message-form").addEventListener("submit", sendMessage);
-  $("talk-join-voice").addEventListener("click", joinVoice);
+  $("talk-join-voice").addEventListener("click", () => joinVoice(false));
+  $("talk-join-camera").addEventListener("click", () => joinVoice(true));
   $("talk-leave-voice").addEventListener("click", leaveVoice);
   $("talk-camera").addEventListener("click", () => cameraStream ? stopCamera() : startCamera());
   $("talk-mute").addEventListener("click", () => {
