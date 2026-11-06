@@ -75,6 +75,21 @@
       checking = false;
     }
   }
+  const ACCOUNT_DOMAIN = "login.seuss.invalid";
+  const validUsername = name => /^[A-Za-z][A-Za-z0-9_]{2,23}$/.test(name);
+  const nameFromAccount = user => {
+    const email = String(user && user.email || "").toLowerCase();
+    return email.endsWith("@" + ACCOUNT_DOMAIN)
+      ? email.slice(0, -(ACCOUNT_DOMAIN.length + 1))
+      : null;
+  };
+  const lockLoginForm = disabled => {
+    $("site-username").disabled = disabled;
+    $("site-account-password").disabled = disabled;
+    $("site-login-submit").disabled = disabled;
+    $("site-account-signin").disabled = disabled;
+  };
+  const loginFeedback = (message, error = false) => feedback("site-login-status", message, error);
   async function startup() {
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.0");
     if (!api) api = createClient(PROJECT, KEY, {
@@ -91,18 +106,19 @@
     const { data: person, error: profileError } = await api
       .from("profiles").select("display_name").eq("id", me.id).maybeSingle();
     if (profileError) throw profileError;
-    $("site-username").value = person ? person.display_name : "";
-    $("site-username").disabled = false;
-    $("site-login-submit").disabled = false;
-    feedback("site-login-status", person
-      ? (me.email
-          ? "Your email account is signed in. Confirm your username to enter."
-          : "Your username account is saved in this browser. Confirm your name to enter.")
-      : "Choose a username to create your account. No email or password is required.");
+    const accountHandle = nameFromAccount(me);
+    $("site-username").value = accountHandle || (person ? person.display_name : "");
+    lockLoginForm(false);
+    if (me.is_anonymous === false && person && person.display_name) {
+      // A returning account with a valid persisted Supabase Auth session.
+      await activateProfile(person.display_name);
+      return;
+    }
+    loginFeedback(me.is_anonymous === false
+      ? "Account signed in. Enter your username and password to log in again."
+      : "Create a username and password. No email required.");
   }
   async function activateProfile(name) {
-    // Fail closed: a valid stored Supabase identity alone is not enough.
-    // Require a saved username profile AND a successful server heartbeat.
     await server("set_display_name", { p_name:name });
     const state = await server("site_heartbeat");
     if (!["active", "frozen", "kicked", "banned"].includes(state)) {
@@ -117,6 +133,7 @@
     loggedIn = true;
     window.seussAccountReady = true;
     document.body.classList.add("site-authenticated");
+    $("site-account-password").value = "";
     if (login.open) login.close();
     window.dispatchEvent(new Event("seuss-site-unlocked"));
     scheduleBackgroundChecks();
@@ -128,92 +145,84 @@
       await refreshAdmin();
     }
   }
-  async function finishLogin(event) {
-    event.preventDefault();
+  async function createAccount(event) {
+    if (event) event.preventDefault();
     if (!api || !me) return;
-    const name = $("site-username").value.trim();
-    if (name.length < 2 || name.length > 24) {
-      feedback("site-login-status", "Use a username between 2 and 24 characters.", true);
+    const username = $("site-username").value.trim();
+    const password = $("site-account-password").value;
+    if (!validUsername(username)) {
+      loginFeedback("Use 3–24 characters: start with a letter, then letters, numbers or underscores.", true);
       return;
     }
-    const btn = $("site-login-submit");
-    btn.disabled = true;
-    try {
-      await activateProfile(name);
-    } catch (error) {
-      feedback("site-login-status", "Could not save username: " + errText(error), true);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-  function accountFields() {
-    return {
-      email:$("site-account-email").value.trim(),
-      password:$("site-account-password").value,
-      name:$("site-username").value.trim()
-    };
-  }
-  async function createAccount() {
-    if (!api || !me) return;
-    const {email,password,name} = accountFields();
-    if (name.length < 2 || name.length > 24) {
-      feedback("site-login-status", "Choose a username between 2 and 24 characters first.", true);
+    if (password.length < 10 || password.length > 128) {
+      loginFeedback("Choose a password between 10 and 128 characters.", true);
       return;
     }
-    const button = $("site-account-create");
-    button.disabled = true;
+    if (me.is_anonymous === false) {
+      loginFeedback("You're already signed in to an account. Use Log In or Switch account in Settings.", true);
+      return;
+    }
+    lockLoginForm(true);
+    loginFeedback("Creating your username and password account…");
     try {
-      if (!email && !password) {
-        // A real Supabase anonymous identity with a server-stored profile:
-        // no email is needed, but it is bound to this browser's saved session.
-        await activateProfile(name);
-        return;
+      const { data, error } = await api.functions.invoke("site-username-signup", {
+        body: { username, password }
+      });
+      if (error || !data?.ok) {
+        let message = (data && data.error) || error?.message || "Signup failed.";
+        // A failed HTTP status may wrap an error response in the FunctionHttpError.
+        if (error?.context && typeof error.context.json === "function") {
+          try {
+            const body = await error.context.json();
+            if (body && body.error) message = body.error;
+          } catch {}
+        }
+        throw new Error(message);
       }
-      if (me.email) {
-        throw new Error("Already signed in to an email account. Use the main Enter button.");
+      // Explicit password login refreshes Auth claims after converting
+      // the anonymous user into a permanent username/password identity.
+      const email = username.toLowerCase() + "@" + ACCOUNT_DOMAIN;
+      const signedIn = await api.auth.signInWithPassword({ email, password });
+      if (signedIn.error) {
+        throw new Error("Account created. Choose Log In with the same username and password to finish.");
       }
-      if (!email || !$("site-account-email").checkValidity()) {
-        throw new Error("For an account without email, leave the optional password empty too.");
-      }
-      if (password.length < 8 || password.length > 128) {
-        throw new Error("Email accounts need a password between 8 and 128 characters.");
-      }
-      const { data, error } = await api.auth.updateUser({ email, password });
-      if (error) throw error;
-      if (data && data.user) me = data.user;
-      await activateProfile(name);
-      const accountEmail = me.email || (data.user && data.user.new_email) || email;
-      $("site-username-label").textContent = name + " · " + accountEmail + " (verify email if prompted)";
+      me = signedIn.data.user;
+      await activateProfile(username);
     } catch (error) {
-      feedback("site-login-status", "Could not create account: " + errText(error), true);
+      loginFeedback("Could not create account: " + errText(error), true);
     } finally {
-      button.disabled = false;
+      lockLoginForm(false);
     }
   }
   async function signInAccount() {
     if (!api) return;
-    const {email,password} = accountFields();
-    if (!email || !$("site-account-email").checkValidity() || !password) {
-      feedback("site-login-status", "Enter the email and password for your account.", true); return;
+    const name = $("site-username").value.trim();
+    const password = $("site-account-password").value;
+    const oldEmailLogin = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(name);
+    if (!validUsername(name) && !oldEmailLogin) {
+      loginFeedback("Enter your username, or the email of an older account.", true);
+      return;
     }
-    const button = $("site-account-signin");
-    button.disabled = true;
+    if (!password) {
+      loginFeedback("Enter your account password.", true);
+      return;
+    }
+    lockLoginForm(true);
+    loginFeedback("Checking your login…");
     try {
+      const email = oldEmailLogin ? name : name.toLowerCase() + "@" + ACCOUNT_DOMAIN;
       const { data, error } = await api.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) throw new Error("Username or password incorrect.");
       me = data.user;
+      const handle = nameFromAccount(me);
       const { data:person, error:profileError } = await api.from("profiles")
         .select("display_name").eq("id", me.id).maybeSingle();
       if (profileError) throw profileError;
-      if (person && person.display_name) $("site-username").value = person.display_name;
-      feedback("site-login-status", person
-        ? "Account signed in. Confirm your username and continue."
-        : "Account signed in. Choose a username to finish setup.");
-      $("site-login-submit").textContent = "Continue with this account";
+      await activateProfile(handle || person?.display_name || name);
     } catch (error) {
-      feedback("site-login-status", "Sign-in failed: " + errText(error), true);
+      loginFeedback("Login failed: " + errText(error), true);
     } finally {
-      button.disabled = false;
+      lockLoginForm(false);
     }
   }
   async function claimAdmin() {
@@ -723,8 +732,7 @@
   if (tutorial && tutorial.open) tutorial.close();
   if (typeof login.showModal === "function") login.showModal();
   else login.setAttribute("open", "");
-  $("site-username").disabled = true;
-  $("site-login-submit").disabled = true;
+  lockLoginForm(true);
   feedback("site-login-status", "Connecting securely…");
   startup().catch(error => {
     feedback("site-login-status", "Could not connect: " + errText(error) + ". Retry to continue.", true);
@@ -747,8 +755,7 @@
       else login.setAttribute("open", "");
     } catch { login.setAttribute("open", ""); }
   });
-  $("site-login-form").addEventListener("submit", finishLogin);
-  $("site-account-create").addEventListener("click", createAccount);
+  $("site-login-form").addEventListener("submit", createAccount);
   $("site-account-signin").addEventListener("click", signInAccount);
   $("site-account-switch").addEventListener("click", async () => {
     // Hide the entire site as soon as a session switch starts.
@@ -769,11 +776,10 @@
       $("site-admin-redirect-notice").hidden = true;
       $("site-admin-unlock").hidden = false;
       $("site-admin-panel").hidden = true;
-      $("site-account-email").value = "";
       $("site-account-password").value = "";
       $("site-username").value = "";
-      $("site-login-submit").textContent = "Create account / Enter site";
-      feedback("site-login-status", "Signed out. Create a username account (no email) or sign in.");
+      $("site-login-submit").textContent = "Create account";
+      feedback("site-login-status", "Signed out. Create a username and password account, or log in.");
       if (typeof login.showModal === "function") login.showModal();
       else login.setAttribute("open", "");
     } catch (error) {
