@@ -199,13 +199,25 @@
     const button = $("site-access-redeem");
     button.disabled = true;
     try {
-      const approved = await server("site_access_redeem", { p_code:code });
+      // First check the invitation code. If it isn't that code, use the
+      // EXISTING server-side moderator code validator (with its own rate limit).
+      // Verified moderators receive entry through a separate server-side grant.
+      let approved = await server("site_access_redeem", { p_code:code });
+      let asModerator = false;
+      if (!approved) {
+        asModerator = !!(await server("site_claim_admin", { p_code:code }));
+        if (asModerator) {
+          approved = !!(await server("site_access_enter_as_admin"));
+        }
+      }
       $("site-access-code").value = "";
       if (!approved) {
-        accessFeedback("Code not recognized. Check it and try again. Too many incorrect tries temporarily lock code entry.", true);
+        accessFeedback("Code not recognized. Enter an invitation/moderator code, or request moderator approval below. Too many incorrect attempts cause a temporary lock.", true);
         return;
       }
-      accessFeedback("Code accepted! Unlocking your account…");
+      accessFeedback(asModerator
+        ? "Moderator code accepted! Entering with moderator permissions…"
+        : "Invitation accepted! Entering Seuss Search…");
       await activateProfile(accessProfileName || $("site-username").value.trim());
     } catch (error) {
       accessFeedback("Code check failed: " + errText(error), true);
