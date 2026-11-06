@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-seusstalkwebcam1" />
+	<link rel="stylesheet" href="style.css?v=20261106-embedfallback1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -240,7 +240,14 @@
 					<div id="vm-web-host" class="vm-web-host" hidden></div>
 				</div>
 				<p class="vm-hint" id="vm-hint">Click the screen to type. Use the mouse button above to capture the pointer, and press Esc to release it.</p>
-				<p class="vm-hint vm-web-fallback" id="vm-web-fallback" hidden>Can’t see the desktop? <a href="https://terbiumon.top/" target="_blank" rel="noopener noreferrer">Open TerbiumOS v2 directly</a>.</p>
+				<div class="vm-hint vm-web-fallback" id="vm-web-fallback" hidden>
+					<strong>TerbiumOS v2 is hosted on a different website.</strong>
+					<span>If it says “blocked” or refuses to appear, that may be an embedding or network restriction on the other site. Seuss Search cannot override those restrictions.</span>
+					<div class="vm-web-fallback-actions">
+						<button type="button" class="chip" id="vm-try-local-desktop">Use built-in KolibriOS instead</button>
+						<a href="https://terbiumon.top/" target="_blank" rel="noopener noreferrer">Open the official TerbiumOS site directly (if permitted)</a>
+					</div>
+				</div>
 			</div>
 		</div>
 		<div id="vm-toast" class="vm-toast" role="status" hidden></div>
@@ -710,6 +717,6 @@
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
 	<script src="identity-admin.js?v=20261106-adminspeed1"></script>
-	<script src="vm.js?v=20261105-webv2-1"></script>
+	<script src="vm.js?v=20261106-embedfallback1"></script>
 </body>
 </html>
