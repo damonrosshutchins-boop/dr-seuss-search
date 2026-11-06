@@ -36,6 +36,7 @@ const $ = (id) => document.getElementById(id);
 let storedSettings = {};
 try { storedSettings = JSON.parse(localStorage.getItem("dss-settings") || "{}") || {}; } catch { storedSettings = {}; }
 const settings = Object.assign({}, DEFAULTS, storedSettings);
+window.settings = settings;
 const save = () => {
 	try { localStorage.setItem("dss-settings", JSON.stringify(settings)); }
 	catch { showError("Settings could not be saved.", "Your browser may have local storage disabled or full."); }
@@ -135,6 +136,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	settings.reducedMotion = $("s-motion").checked;
 	settings.performanceMode = $("s-performance").checked;
 	applyAppearance();
+	window.dispatchEvent(new Event("dss-performance-mode-change"));
 	save();
 	syncLabel();
 	$("retry-wisp").hidden = settings.proxyEngine === "rammerhead";
