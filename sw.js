@@ -3,6 +3,17 @@ importScripts("scram/scramjet.all.js");
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
+const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
+// One configuration read per service-worker lifetime, not per image, CSS,
+// script and other resource request. If it fails, allow a clean retry.
+let scramjetConfigReady = null;
+function ensureScramjetConfig() {
+	if (!scramjetConfigReady) {
+		scramjetConfigReady = Promise.resolve().then(() => scramjet.loadConfig())
+			.catch(error => { scramjetConfigReady = null; throw error; });
+	}
+	return scramjetConfigReady;
+}
 
 /*
  * Conservative first-party ad and tracker filter for Scramjet-encoded requests.
@@ -89,13 +100,13 @@ function scheduleDssProgress() {
         } catch {}
       }
     } catch {}
-  }, 180);
+  }, 360);
 }
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 async function handleRequest(event) {
-	await scramjet.loadConfig();
+	await ensureScramjetConfig();
 	if (scramjet.route(event)) {
 		dssPending++;
 		scheduleDssProgress();
@@ -117,5 +128,10 @@ async function handleRequest(event) {
 }
 
 self.addEventListener("fetch", (event) => {
+	// Don't intercept the site's own HTML, images, Supabase auth scripts,
+	// games catalog or other first-party assets. Native browser networking
+	// can fetch/cache them faster than a JS service-worker pass-through.
+	const url = new URL(event.request.url);
+	if (url.origin !== self.location.origin || !url.pathname.startsWith(SCRAMJET_PATH)) return;
 	event.respondWith(handleRequest(event));
 });
