@@ -598,9 +598,12 @@
           video.autoplay = true;
           video.playsInline = true;
           video.muted = true;
+          tile.hidden = true;
           tile.append(video, label);
           $("talk-video-grid").append(tile);
           remoteVideos.set(peerId, video);
+          event.track.addEventListener("unmute", () => { tile.hidden = false; });
+          event.track.addEventListener("mute", () => { tile.hidden = true; });
         }
         video.srcObject = event.streams[0] || new MediaStream([event.track]);
         video.play().catch(() => {});
