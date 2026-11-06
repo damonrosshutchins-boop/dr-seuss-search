@@ -222,6 +222,71 @@ async function loadProxyRuntime() {
 	connection = new BareMux.BareMuxConnection(at("baremux/worker.js"));
 }
 
+// A ready registration is not necessarily controlling this page. An encoded
+// /scramjet/ URL without the controlling service worker is served by GitHub
+// Pages as a nonexistent static file, yielding the exact 404 seen in games.
+const PROXY_WORKER_VERSION = "greeneggs-404fix-1";
+const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
+async function verifyProxyWorker() {
+	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
+	const timeoutMs = 14000;
+	const worker = await new Promise((resolve, reject) => {
+		const active = () => {
+			const controller = navigator.serviceWorker.controller;
+			return controller && controller.state === "activated" &&
+				controller.scriptURL === expected ? controller : null;
+		};
+		const now = active();
+		if (now) { resolve(now); return; }
+		let done = false;
+		const cleanup = () => {
+			navigator.serviceWorker.removeEventListener("controllerchange", check);
+			clearInterval(interval);
+			clearTimeout(timeout);
+		};
+		const check = () => {
+			if (done) return;
+			const current = active();
+			if (!current) return;
+			done = true;
+			cleanup();
+			resolve(current);
+		};
+		navigator.serviceWorker.addEventListener("controllerchange", check);
+		const interval = setInterval(check, 150);
+		const timeout = setTimeout(() => {
+			if (done) return;
+			done = true;
+			cleanup();
+			reject(new Error("The updated Scramjet worker did not take control. Reload the page once and try again."));
+		}, timeoutMs);
+		check();
+	});
+	return new Promise((resolve, reject) => {
+		const channel = new MessageChannel();
+		const timeout = setTimeout(() => {
+			channel.port1.close();
+			reject(new Error("Scramjet did not respond to its route check. Reload the site."));
+		}, 6000);
+		channel.port1.onmessage = (event) => {
+			clearTimeout(timeout);
+			channel.port1.close();
+			const response = event.data || {};
+			if (response.ok && response.prefix === at("scramjet/")) resolve(true);
+			else reject(new Error(
+				"Scramjet route does not match this GitHub Pages repository path. " +
+				(response.error || "Expected " + at("scramjet/") + ", received " + (response.prefix || "none"))
+			));
+		};
+		try {
+			worker.postMessage({ type:"dss-scramjet-route-check" }, [channel.port2]);
+		} catch (err) {
+			clearTimeout(timeout);
+			channel.port1.close();
+			reject(err);
+		}
+	});
+}
 let ready = null;
 function boot() {
 	if (ready) return ready;
@@ -233,8 +298,12 @@ function boot() {
 		}
 		await loadProxyRuntime();
 		await scramjet.init();
-		await navigator.serviceWorker.register(at("sw.js"), { scope: BASE.pathname });
+		await navigator.serviceWorker.register(PROXY_WORKER_URL, {
+			scope: BASE.pathname,
+			updateViaCache: "none"
+		});
 		await navigator.serviceWorker.ready;
+		await verifyProxyWorker();
 		try {
 			await applyTransport();
 		} catch (primary) {
@@ -792,7 +861,7 @@ async function go(input, options = {}) {
 				? goUltraviolet(url) : goAdrift(url);
 		}
 	}
-	let tab = currentSiteTab();
+	let tab = options.newTab ? createSiteTab("home", "Green Eggs and Ham game") : currentSiteTab();
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
 	try {
@@ -912,17 +981,15 @@ function launchLibraryGame(event, url, useLibcurl = false, forceScramjet = false
 	event.stopPropagation();
 	if (!requireSeussAccount()) return;
 	gamesDialog.close();
-	if (event.currentTarget && event.currentTarget.closest("#green-eggs-grid")) {
-		createSiteTab("home", "Green Eggs and Ham game");
-	}
+	const newTab = !!(event.currentTarget && event.currentTarget.closest("#green-eggs-grid"));
 	if (useLibcurl && settings.proxyEngine !== "rammerhead") {
 		settings.transport = "libcurl";
 		save();
-		boot().then(() => applyTransport(true)).then(() => go(url, { forceScramjet })).catch((err) =>
+		boot().then(() => applyTransport(true)).then(() => go(url, { forceScramjet, newTab })).catch((err) =>
 			showError("The proxy connection could not be prepared.", String(err && err.stack || err)));
 		return;
 	}
-	go(url, { forceScramjet });
+	go(url, { forceScramjet, newTab });
 }
 document.querySelectorAll("[data-proxy-url]").forEach((button) => {
 	button.addEventListener("click", (event) =>
