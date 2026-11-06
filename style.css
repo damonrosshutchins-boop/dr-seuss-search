@@ -1043,3 +1043,150 @@ body:not(.site-authenticated) #site-login:not([open]) {
   display: block;
   margin-top: 10px;
 }
+
+
+/* Green Eggs and Ham — the searchable library inside the Games dialog. */
+#games-main-view[hidden], #green-eggs-view[hidden],
+.green-eggs-game[hidden], #green-eggs-empty[hidden] {
+  display: none !important;
+}
+.green-eggs-launcher {
+  background: linear-gradient(155deg, #e6f4c3, #bbdda2);
+  border-color: #346b40;
+  box-shadow: 3px 3px 0 #346b40;
+}
+.green-eggs-launcher-icon {
+  background: #407c48;
+  color: #fff;
+  font-size: 1.45rem;
+}
+.green-eggs-open {
+  width: min(940px, calc(100vw - 28px));
+}
+.green-eggs-view {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+}
+.green-eggs-heading {
+  background: linear-gradient(130deg, #e8f6ce, #d6edbd 65%, #f5e3ac);
+  color: #203927;
+  padding: clamp(16px, 3vw, 24px);
+  border: 2px solid #3d6940;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 #3d6940;
+  display: grid;
+  gap: 14px;
+}
+.green-eggs-heading > .chip { justify-self: start; }
+.green-eggs-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.green-eggs-emoji {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border: 2px solid #355b3a;
+  border-radius: 18px;
+  background: #fff5d9;
+  display: grid;
+  place-items: center;
+  font-size: 2.1rem;
+}
+.green-eggs-title .kicker {
+  margin: 0 0 3px;
+  color: #4a7c48;
+}
+.green-eggs-title h3 {
+  font: 900 clamp(1.35rem, 3.4vw, 2.1rem) var(--display);
+  line-height: 1.15;
+  margin: 0;
+}
+.green-eggs-heading p:last-child {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.green-eggs-search {
+  display: grid;
+  gap: 8px;
+  font: 850 .93rem var(--body);
+}
+.green-eggs-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  background: #fff;
+  color: #203927;
+  border: 2px solid #3d6940;
+  border-radius: 14px;
+  font: 700 1rem var(--body);
+}
+.green-eggs-search input:focus-visible,
+.green-eggs-game:focus-visible {
+  outline: 3px solid #55aa7a;
+  outline-offset: 3px;
+}
+.green-eggs-results { margin: 0; color: var(--ink-soft); font-size: .88rem; font-weight: 800; }
+.green-eggs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.green-eggs-game {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 13px;
+  border: 2px solid #315f42;
+  border-radius: 16px;
+  background: #fffef7;
+  color: #22362b;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 2px 3px 0 #315f42;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.green-eggs-game:hover {
+  background: #edf7df;
+  transform: translate(-1px, -2px);
+  box-shadow: 3px 5px 0 #315f42;
+}
+.green-eggs-game-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 64px;
+  min-height: 57px;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  color: #fff;
+  font: 900 .78rem var(--display);
+  text-align: center;
+  overflow-wrap: anywhere;
+  border: 1.5px solid #193f28;
+}
+.green-eggs-game-info { min-width: 0; flex: 1; display: grid; gap: 5px; }
+.green-eggs-game-info strong { font: 900 .99rem var(--display); overflow-wrap: anywhere; }
+.green-eggs-game-info small { font: 750 .78rem/1.35 var(--body); color: #526457; }
+.green-eggs-game-chevron { color: #3f7650; font-size: 1.7rem; font-weight: 900; }
+.green-eggs-empty {
+  padding: 25px;
+  border: 2px dashed #567d5a;
+  border-radius: 16px;
+  text-align: center;
+  font-weight: 800;
+}
+.green-eggs-notice { margin: 0; color: var(--ink-soft); font-size: .8rem; line-height: 1.5; }
+@media (max-width: 660px) {
+  .green-eggs-grid { grid-template-columns: 1fr; }
+  .green-eggs-game-icon { flex-basis: 60px; }
+  .green-eggs-heading { padding: 15px; }
+  .green-eggs-emoji { width: 51px; height: 51px; font-size: 1.65rem; }
+}
