@@ -237,6 +237,32 @@ function toUrl(input) {
 
 /* ---------- Multi-tab browser view ---------- */
 const loader = $("loader");
+const proxyLoadStats = $("proxy-load-stats");
+let proxyRequestSnapshot = { pending:0, handled:0, failed:0 };
+function updateProxyLoadStats() {
+	const tab = currentSiteTab();
+	const loading = !!(tab && tab.type === "web" && tab.loading);
+	proxyLoadStats.hidden = !loading;
+	if (!loading) return;
+	const elapsed = Math.max(0, Math.floor((Date.now() - (tab.loadStartedAt || Date.now())) / 1000));
+	const received = Math.max(0, proxyRequestSnapshot.handled - (tab.loadStartHandled || 0));
+	$("proxy-load-phase").textContent = elapsed > 20 ? "Still loading page…" : "Loading page…";
+	$("proxy-load-inflight").textContent = "Requests awaiting response: " + proxyRequestSnapshot.pending;
+	$("proxy-load-finished").textContent = "Responses handled: " + received;
+	$("proxy-load-elapsed").textContent = "Elapsed: " + elapsed + "s";
+}
+// These counts cover the site's active Scramjet requests; resource totals and
+// exact network packet counts are not knowable in advance.
+if ("serviceWorker" in navigator) {
+	navigator.serviceWorker.addEventListener("message", event => {
+		const p = event.data;
+		if (!p || p.type !== "dss-proxy-request-progress") return;
+		if (![p.pending, p.handled, p.failed].every(Number.isFinite)) return;
+		proxyRequestSnapshot = { pending:p.pending, handled:p.handled, failed:p.failed };
+		updateProxyLoadStats();
+	});
+}
+setInterval(updateProxyLoadStats, 1000);
 const siteTabs = [];
 let activeSiteTabId = null;
 let previousSiteTabId = null;
@@ -355,6 +381,7 @@ function activateSiteTab(id) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
 	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
+	updateProxyLoadStats();
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value = tab.rammerhead ? (tab.targetUrl || "") : (tab.url || "");
 	const rhHelper = $("rammerhead-helper");
 	rhHelper.hidden = !tab.rammerhead;
@@ -441,12 +468,17 @@ function createFrameForTab(tab) {
 	tab.frame = instance;
 	tab.pane = pane;
 	instance.addEventListener("urlchange", (event) => {
+		if (tab.url !== event.url && !tab.loading) {
+			tab.loading = true;
+			tab.loadStartedAt = Date.now();
+			tab.loadStartHandled = proxyRequestSnapshot.handled;
+		}
 		tab.url = event.url;
 		tab.title = siteTabTitle(event.url);
 		if (activeSiteTabId === tab.id) {
 			$("bar-address").value = event.url;
-			loader.classList.remove("on");
-			tab.loading = false;
+			loader.classList.toggle("on", !!tab.loading);
+			updateProxyLoadStats();
 		}
 		renderSiteTabs();
 		if (activeSiteTabId === tab.id) announceActiveSiteView();
@@ -463,6 +495,7 @@ function createFrameForTab(tab) {
 		tab.loading = false;
 		if (activeSiteTabId === tab.id) {
 			loader.classList.remove("on");
+			updateProxyLoadStats();
 			document.title = tab.title + " · Dr. Seuss Search";
 		}
 		renderSiteTabs();
@@ -583,15 +616,19 @@ async function go(input, options = {}) {
 	tab.url = url;
 	tab.title = siteTabTitle(url);
 	tab.loading = true;
+	tab.loadStartedAt = Date.now();
+	tab.loadStartHandled = proxyRequestSnapshot.handled;
 	const instance = createFrameForTab(tab);
 	activateSiteTab(tab.id);
 	$("bar-address").value = url;
 	loader.classList.add("on");
+	updateProxyLoadStats();
 	try {
 		instance.go(url);
 	} catch (err) {
 		tab.loading = false;
 		loader.classList.remove("on");
+		updateProxyLoadStats();
 		showError("That page couldn't be opened in the proxy.", String(err && err.message || err));
 	}
 }
@@ -734,7 +771,7 @@ $("library-geforce").addEventListener("click", (event) =>
 $("b-home").onclick = goHome;
 $("b-back").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.back(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.back(); };
 $("b-fwd").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.forward(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.forward(); };
-$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; loader.classList.add("on"); tab.frame.reload(); } else if (tab && tab.directFrame) { tab.loading = true; loader.classList.add("on"); tab.directFrame.contentWindow.location.reload(); } };
+$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; tab.loadStartedAt = Date.now(); tab.loadStartHandled = proxyRequestSnapshot.handled; loader.classList.add("on"); updateProxyLoadStats(); tab.frame.reload(); } else if (tab && tab.directFrame) { tab.loading = true; loader.classList.add("on"); tab.directFrame.contentWindow.location.reload(); } };
 $("b-full").onclick = () => { const el = $("frame-host"); (el.requestFullscreen || el.webkitRequestFullscreen).call(el); };
 
 const tiles = $("tiles");
