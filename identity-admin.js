@@ -298,19 +298,34 @@
     lockLoginForm(true);
     loginFeedback("Creating your username and password account…");
     try {
-      const { data, error } = await api.functions.invoke("site-username-signup", {
-        body: { username, password }
-      });
-      if (error || !data?.ok) {
-        let message = (data && data.error) || error?.message || "Signup failed.";
-        // A failed HTTP status may wrap an error response in the FunctionHttpError.
-        if (error?.context && typeof error.context.json === "function") {
-          try {
-            const body = await error.context.json();
-            if (body && body.error) message = body.error;
-          } catch {}
-        }
-        throw new Error(message);
+      // Send a simple cross-origin POST: unlike functions.invoke(), a
+      // text/plain request needs no OPTIONS preflight. The Auth session
+      // token stays in the encrypted request body and is verified by the
+      // server through Supabase Auth before any account update.
+      const { data: currentSession, error: sessionError } = await api.auth.getSession();
+      if (sessionError || !currentSession?.session?.access_token) {
+        throw new Error("Signup session expired. Refresh the page and try again.");
+      }
+      let response;
+      try {
+        response = await fetch(PROJECT + "/functions/v1/site-username-signup", {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            username, password,
+            access_token: currentSession.session.access_token
+          })
+        });
+      } catch (networkError) {
+        throw new Error("Could not contact the signup service. " +
+          "Please refresh and retry. (" + errText(networkError) + ")");
+      }
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || "Signup service returned HTTP " +
+          response.status + ". Please retry.");
       }
       // Explicit password login refreshes Auth claims after converting
       // the anonymous user into a permanent username/password identity.
