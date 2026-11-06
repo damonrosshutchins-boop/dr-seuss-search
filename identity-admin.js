@@ -24,6 +24,9 @@
   const policyNotice = $("site-policy-notice");
   const knownAllowed = new Map();
   let guardListLoading = false;
+  const accessStep = $("site-access-step");
+  const credentialsFields = $("site-credentials-fields");
+  let accessProfileName = "", accessPollTimer = 0, accessChecking = false;
   try { sharingCheckbox.checked = localStorage.getItem("dss-share-domain") !== "no"; } catch { sharingCheckbox.checked = true; }
   const errText = error => String(error && error.message || error);
   const create = (tag, cls, value) => {
@@ -118,8 +121,121 @@
       ? "Account signed in. Enter your username and password to log in again."
       : "Create a username and password. No email required.");
   }
+  function accessFeedback(message, error = false) {
+    feedback("site-access-status", message, error);
+  }
+  function stopAccessPoll() {
+    clearTimeout(accessPollTimer);
+    accessPollTimer = 0;
+  }
+  function showAccessGate(name, status) {
+    accessProfileName = name;
+    window.seussAccountReady = false;
+    document.body.classList.remove("site-authenticated");
+    loggedIn = false;
+    credentialsFields.hidden = true;
+    accessStep.hidden = false;
+    $("site-login-title").textContent = "Site access approval required";
+    $("site-account-password").value = "";
+    if (!login.open) {
+      if (typeof login.showModal === "function") login.showModal();
+      else login.setAttribute("open", "");
+    }
+    if (status === "pending")
+      accessFeedback("Your access request is pending moderator review. This page checks for approval automatically.");
+    else if (status === "denied")
+      accessFeedback("A moderator declined your last request. You may enter an invitation code or request review again later.", true);
+    else
+      accessFeedback("Enter the invitation code or request permission from a moderator.");
+    scheduleAccessPoll();
+  }
+  function resetAccessGate() {
+    stopAccessPoll();
+    accessStep.hidden = true;
+    credentialsFields.hidden = false;
+    $("site-login-title").textContent = "Sign up or log in";
+    $("site-access-code").value = "";
+    accessProfileName = "";
+  }
+  function scheduleAccessPoll() {
+    stopAccessPoll();
+    if (accessStep.hidden) return;
+    accessPollTimer = setTimeout(async () => {
+      if (!document.hidden) await checkAccessApproval(true);
+      scheduleAccessPoll();
+    }, 12000);
+  }
+  async function checkAccessApproval(silent = false) {
+    if (accessStep.hidden || accessChecking || !api) return;
+    accessChecking = true;
+    const button = $("site-access-check");
+    button.disabled = true;
+    try {
+      const result = await server("site_access_status");
+      if (result && result.state === "approved") {
+        stopAccessPoll();
+        await activateProfile(accessProfileName || $("site-username").value.trim());
+      } else if (result && result.state === "denied") {
+        accessFeedback("This access request was denied. You can try the invitation code, or request again after six hours.", true);
+      } else if (!silent && result && result.state === "pending") {
+        accessFeedback("Your request is still waiting for a moderator.");
+      } else if (!silent) {
+        accessFeedback("No approved access yet. Enter the code or request approval.");
+      }
+    } catch (error) {
+      if (!silent) accessFeedback("Could not check approval: " + errText(error), true);
+    } finally {
+      button.disabled = false;
+      accessChecking = false;
+    }
+  }
+  async function redeemSiteAccess() {
+    if (accessStep.hidden) return;
+    const code = $("site-access-code").value.trim();
+    if (!code) {
+      accessFeedback("Enter the invitation code first.", true);
+      return;
+    }
+    const button = $("site-access-redeem");
+    button.disabled = true;
+    try {
+      const approved = await server("site_access_redeem", { p_code:code });
+      $("site-access-code").value = "";
+      if (!approved) {
+        accessFeedback("Code not recognized. Check it and try again. Too many incorrect tries temporarily lock code entry.", true);
+        return;
+      }
+      accessFeedback("Code accepted! Unlocking your account…");
+      await activateProfile(accessProfileName || $("site-username").value.trim());
+    } catch (error) {
+      accessFeedback("Code check failed: " + errText(error), true);
+    } finally { button.disabled = false; }
+  }
+  async function requestSiteAccess() {
+    if (accessStep.hidden) return;
+    const button = $("site-access-request");
+    button.disabled = true;
+    try {
+      const status = await server("site_access_request");
+      accessFeedback(status === "pending"
+        ? "Request sent! A moderator can approve you in Settings → Account & moderation. This page checks automatically."
+        : status === "denied"
+          ? "The last request was denied. Please try again after six hours."
+          : "Access is already approved. Checking…",
+        status === "denied");
+      if (status === "approved") await checkAccessApproval();
+    } catch (error) {
+      accessFeedback("Could not request access: " + errText(error), true);
+    } finally { button.disabled = false; }
+  }
   async function activateProfile(name) {
     await server("set_display_name", { p_name:name });
+    const access = await server("site_access_status");
+    if (!access || access.state !== "approved") {
+      showAccessGate(name, access && access.state);
+      return;
+    }
+    stopAccessPoll();
     const state = await server("site_heartbeat");
     if (!["active", "frozen", "kicked", "banned"].includes(state)) {
       throw new Error("Could not verify your account's site access.");
@@ -131,6 +247,7 @@
     $("site-admin-unlock").hidden = isAdmin;
     $("site-admin-panel").hidden = !isAdmin;
     loggedIn = true;
+    accessStep.hidden = true;
     window.seussAccountReady = true;
     document.body.classList.add("site-authenticated");
     $("site-account-password").value = "";
@@ -147,7 +264,7 @@
   }
   async function createAccount(event) {
     if (event) event.preventDefault();
-    if (!api || !me) return;
+    if (!api || !me || !accessStep.hidden) return;
     const username = $("site-username").value.trim();
     const password = $("site-account-password").value;
     if (!validUsername(username)) {
@@ -724,9 +841,50 @@
       output.replaceChildren(create("p", "talk-muted", "Could not load rooms: " + errText(error)));
     }
   }
+  async function refreshAccessRequests() {
+    if (!isAdmin) return;
+    const output = $("site-access-admin-list");
+    output.replaceChildren(create("p","talk-muted","Checking for access requests…"));
+    try {
+      const requests = await server("site_admin_access_requests");
+      output.replaceChildren();
+      if (!requests.length) {
+        output.append(create("p","talk-muted","No pending access requests."));
+        return;
+      }
+      for (const request of requests) {
+        const row = create("div","site-admin-row");
+        const details = create("div","site-admin-person");
+        details.append(create("strong","",request.display_name || "Account"));
+        details.append(create("small","","Requested: " + new Date(request.requested_at).toLocaleString()));
+        const actions = create("div","site-admin-actions");
+        const accept = create("button","chip talk-small","Approve");
+        const deny = create("button","chip talk-small talk-danger","Deny");
+        accept.type = deny.type = "button";
+        accept.addEventListener("click", () => decideAccessRequest(request.user_id,true,request.display_name));
+        deny.addEventListener("click", () => decideAccessRequest(request.user_id,false,request.display_name));
+        actions.append(accept,deny);
+        row.append(details,actions);
+        output.append(row);
+      }
+    } catch (error) {
+      output.replaceChildren(create("p","talk-muted","Could not load requests: " + errText(error)));
+    }
+  }
+  async function decideAccessRequest(userId, allow, displayName) {
+    if (!isAdmin || !window.confirm((allow ? "Approve " : "Deny ") +
+      (displayName || "this account") + "'s access request?")) return;
+    try {
+      await server("site_admin_access_decide", { p_user_id:userId, p_approve:allow });
+      feedback("site-access-admin-status", (allow ? "Approved " : "Denied ") + (displayName || "account") + ".");
+      await refreshAccessRequests();
+    } catch (error) {
+      feedback("site-access-admin-status", "Could not update request: " + errText(error), true);
+    }
+  }
   async function refreshAdmin() {
     if (!isAdmin) return;
-    await Promise.all([refreshUsers(), refreshRooms(), refreshGuard()]);
+    await Promise.all([refreshUsers(), refreshRooms(), refreshGuard(), refreshAccessRequests()]);
   }
   const tutorial = $("tutorial");
   if (tutorial && tutorial.open) tutorial.close();
@@ -757,11 +915,23 @@
   });
   $("site-login-form").addEventListener("submit", createAccount);
   $("site-account-signin").addEventListener("click", signInAccount);
+  $("site-access-redeem").addEventListener("click", redeemSiteAccess);
+  $("site-access-request").addEventListener("click", requestSiteAccess);
+  $("site-access-check").addEventListener("click", () => checkAccessApproval());
+  $("site-access-code").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      redeemSiteAccess();
+    }
+  });
+  $("site-access-switch").addEventListener("click", () => $("site-account-switch").click());
+  $("site-access-admin-refresh").addEventListener("click", refreshAccessRequests);
   $("site-account-switch").addEventListener("click", async () => {
     // Hide the entire site as soon as a session switch starts.
     window.seussAccountReady = false;
     document.body.classList.remove("site-authenticated");
     loggedIn = false;
+    stopAccessPoll();
     try {
       if (api) {
         const { error:signOutError } = await api.auth.signOut();
@@ -778,6 +948,8 @@
       $("site-admin-panel").hidden = true;
       $("site-account-password").value = "";
       $("site-username").value = "";
+      resetAccessGate();
+      lockLoginForm(false);
       $("site-login-submit").textContent = "Create account";
       feedback("site-login-status", "Signed out. Create a username and password account, or log in.");
       if (typeof login.showModal === "function") login.showModal();
@@ -823,6 +995,7 @@
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
+      if (!accessStep.hidden) checkAccessApproval(true);
       heartbeat();
       pollInbox();
       pollNavigation();
@@ -857,7 +1030,9 @@
     if (!loggedIn || !isAdmin || !settings.open) return;
     const perf = !!(window.settings && window.settings.performanceMode);
     adminTimer = setTimeout(async () => {
-      if (!document.hidden && settings.open) await refreshUsers();
+      if (!document.hidden && settings.open) {
+        await Promise.all([refreshUsers(), refreshAccessRequests()]);
+      }
       scheduleAdminRefresh();
     }, perf ? 120000 : 30000);
   }
