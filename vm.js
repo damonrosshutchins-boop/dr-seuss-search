@@ -158,12 +158,32 @@
 		emulator.add_listener("download-error", () => { if (generation === bootGeneration) setStatus("A system file failed to download. Check your connection and retry.", true); });
 		emulator.add_listener("emulator-ready", () => {
 			if (generation !== bootGeneration) return;
+			// The VM stylesheet hides its canvas until graphics mode is ready.
+			// v86 keeps the display canvas inside screen_container, so reveal it
+			// here or graphics-mode guests can appear as a permanently black screen.
+			ui.screen.querySelectorAll("canvas").forEach((canvas) => {
+				canvas.style.display = "block";
+				canvas.style.maxWidth = "100%";
+				canvas.style.height = "auto";
+			});
 			setStatus(req.name + " is running", true);
 			setTools({ cad: 1, mouse: 1, shot: 1, pause: 1, restart: 1, power: 1 });
-			requestAnimationFrame(refit);
+			requestAnimationFrame(() => {
+				refit();
+				// A second layout pass catches canvas dimensions applied by v86
+				// immediately after its ready event.
+				requestAnimationFrame(refit);
+			});
 		});
 		emulator.add_listener("emulator-error", (err) => { if (generation === bootGeneration) setStatus("VM error: " + (err && err.message || "unknown emulator error"), true); });
-		emulator.add_listener("screen-set-size", () => requestAnimationFrame(refit));
+		emulator.add_listener("screen-set-size", () => {
+			ui.screen.querySelectorAll("canvas").forEach((canvas) => {
+				canvas.style.display = "block";
+				canvas.style.maxWidth = "100%";
+				canvas.style.height = "auto";
+			});
+			requestAnimationFrame(() => requestAnimationFrame(refit));
+		});
 		} catch (err) {
 			if (generation === bootGeneration) {
 				setStatus("Couldn't start " + req.name + ": " + (err && err.message || err), true);
