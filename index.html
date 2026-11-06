@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-admin1" />
+	<link rel="stylesheet" href="style.css?v=20261105-popups1" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
@@ -327,6 +327,34 @@
 		</div>
 	</div>
 
+	<!-- Admin-only message composer. The RPC validates moderator privileges. -->
+	<dialog id="site-admin-compose" class="site-popup-dialog" aria-labelledby="site-admin-compose-title">
+		<form id="site-admin-message-form">
+			<p class="kicker">Seuss Search moderation</p>
+			<h2 id="site-admin-compose-title">Send popup message</h2>
+			<p id="site-admin-message-target" class="talk-muted">Choose a recipient</p>
+			<label for="site-admin-message-body">Message
+				<textarea id="site-admin-message-body" rows="5" minlength="1" maxlength="400" required placeholder="Write a message to display inside the site…"></textarea>
+			</label>
+			<p id="site-admin-compose-status" class="talk-muted" role="status"></p>
+			<div class="site-popup-actions">
+				<button type="button" class="chip" id="site-admin-compose-cancel">Cancel</button>
+				<button type="submit" class="go small" id="site-admin-compose-send">Send popup</button>
+			</div>
+		</form>
+	</dialog>
+
+	<!-- Notices can be dismissed and never control anything outside this site. -->
+	<dialog id="site-incoming-popup" class="site-popup-dialog site-incoming-popup" aria-labelledby="site-incoming-sender">
+		<div class="site-incoming-content">
+			<p class="kicker">Seuss Search announcement</p>
+			<h2 id="site-incoming-sender">Message from a site admin</h2>
+			<p id="site-incoming-body" class="site-incoming-body"></p>
+			<small id="site-incoming-time" class="talk-muted"></small>
+			<button id="site-incoming-dismiss" class="go small" type="button">OK</button>
+		</div>
+	</dialog>
+
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -407,6 +435,8 @@
 				<div id="site-admin-panel" hidden>
 					<div class="site-admin-heading"><strong>Proxy visitors &amp; restricted accounts</strong><button type="button" id="site-admin-refresh" class="chip talk-small">Refresh</button></div>
 					<p class="talk-muted">Online visitors appear here, and restricted accounts stay listed so you can restore access. Freeze or kick affects only this website.</p>
+					<button type="button" class="chip" id="site-admin-message-everyone">Message everyone online</button>
+					<p class="talk-muted">Use the Message button next to someone online to send a private site popup. Messages are visible only to their recipients.</p>
 					<div id="site-admin-users" class="site-admin-list"></div>
 					<h3>Manage Seuss Talk rooms</h3>
 					<div id="site-admin-rooms" class="site-admin-list"></div>
@@ -445,7 +475,7 @@
 	<script src="ui-extras.js?v=20261105-bgdefault2"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-multiadmin1"></script>
+	<script src="identity-admin.js?v=20261105-popups1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
