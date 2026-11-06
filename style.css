@@ -877,3 +877,26 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .site-incoming-overlay .site-incoming-content button {
   justify-self: end;
 }
+
+
+/* Performance mode: keep the interface lightweight and avoid decorative rendering. */
+:root.performance-mode *,
+:root.performance-mode *::before,
+:root.performance-mode *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+:root.performance-mode .home-particles { display: none !important; }
+:root.performance-mode .site-tab-item,
+:root.performance-mode .site-new-tab,
+:root.performance-mode .site-talk-shortcut { box-shadow: none !important; }
+.site-account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.site-login input[type="email"],
+.site-login input[type="password"] {
+  width: 100%; box-sizing: border-box; padding: 11px 13px;
+  font: 650 1rem var(--body); color: #191919; background: #fff;
+  border: 2px solid var(--ink); border-radius: 12px;
+}
