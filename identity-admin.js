@@ -143,7 +143,8 @@
       if (error) throw error;
       if (data && data.user) me = data.user;
       await activateProfile(name);
-      $("site-username-label").textContent = name + (me.email ? " · " + me.email : "");
+      const accountEmail = me.email || (data.user && data.user.new_email) || email;
+      $("site-username-label").textContent = name + " · " + accountEmail + " (verify email if prompted)";
     } catch (error) {
       feedback("site-login-status", "Could not create the account: " + errText(error), true);
     } finally {
@@ -461,6 +462,30 @@
   $("site-login-form").addEventListener("submit", finishLogin);
   $("site-account-create").addEventListener("click", createAccount);
   $("site-account-signin").addEventListener("click", signInAccount);
+  $("site-account-switch").addEventListener("click", async () => {
+    try {
+      if (api) {
+        const { error:signOutError } = await api.auth.signOut();
+        if (signOutError) throw signOutError;
+        const { data, error } = await api.auth.signInAnonymously();
+        if (error) throw error;
+        me = data.user;
+      }
+      loggedIn = false;
+      isAdmin = false;
+      $("site-admin-unlock").hidden = false;
+      $("site-admin-panel").hidden = true;
+      $("site-account-email").value = "";
+      $("site-account-password").value = "";
+      $("site-username").value = "";
+      $("site-login-submit").textContent = "Continue to Seuss Search";
+      feedback("site-login-status", "Signed out. Continue as a guest or sign in to another account.");
+      if (typeof login.showModal === "function") login.showModal();
+      else login.setAttribute("open", "");
+    } catch (error) {
+      feedback("site-admin-status", "Could not switch accounts: " + errText(error), true);
+    }
+  });
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
   $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
