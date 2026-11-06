@@ -1,0 +1,41 @@
+name: Verify username signup endpoint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/check-signup-endpoint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the browser-compatible signup route without making an account
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://cihzaevtdoquseoxxdqf.supabase.co/functions/v1/site-username-signup"
+          ORIGIN="https://damonrosshutchins-boop.github.io"
+          BODY='{"username":"SmokeOnly","password":"test-password-not-a-real-account","access_token":"invalid-token-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+          STATUS="$(curl -sS --max-time 20 -o /tmp/signup-response -D /tmp/signup-headers -w '%{http_code}' \
+            -X POST -H "Origin: $ORIGIN" -H 'Content-Type: text/plain' \
+            --data-binary "$BODY" "$ENDPOINT")"
+          echo "Signup endpoint HTTP status: $STATUS"
+          if [ "$STATUS" != "401" ]; then
+            echo "::error::Invalid token should be rejected with 401; saw $STATUS"
+            sed -n '1,20p' /tmp/signup-response
+            exit 1
+          fi
+          grep -qi "^access-control-allow-origin: $ORIGIN" /tmp/signup-headers || {
+            echo "::error::Missing the website's CORS origin in POST response"
+            exit 1
+          }
+          grep -q "Signup session could not be verified" /tmp/signup-response || {
+            echo "::error::Server authentication check was not reached"
+            exit 1
+          }
+          echo "PASS: direct text/plain POST reaches the signup endpoint, CORS is correct, and invalid tokens are rejected."
