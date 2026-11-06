@@ -245,6 +245,30 @@ function siteTabTitle(url) {
 function currentSiteTab() {
 	return siteTabs.find(tab => tab.id === activeSiteTabId) || null;
 }
+// Report only the active site's domain/section, never a full URL or search query.
+function publicActiveSiteView(tab = currentSiteTab()) {
+	if (!tab || tab.type === "home") return "Home";
+	if (tab.type === "talk") return "Seuss Talk";
+	if (tab.type === "vm") return "VM";
+	if (tab.rammerhead) return "Rammerhead";
+	if (tab.type === "direct") {
+		return tab.url && /\/offline-pack\.html(?:[?#]|$)/i.test(tab.url) ?
+			"Offline Games Pack" : "Other site page";
+	}
+	if (tab.type === "web") {
+		try {
+			const host = new URL(tab.url).hostname.toLowerCase();
+			return host.slice(0, 120) || "Other site page";
+		} catch { return "Other site page"; }
+	}
+	return "Other site page";
+}
+function announceActiveSiteView() {
+	window.dispatchEvent(new CustomEvent("dss-active-view-change", {
+		detail: { site: publicActiveSiteView() }
+	}));
+}
+window.getSeussCurrentView = publicActiveSiteView;
 function renderSiteTabs() {
 	const list = $("site-tab-list");
 	list.replaceChildren();
@@ -322,6 +346,7 @@ function activateSiteTab(id) {
 	}
 	renderSiteTabs();
 	window.dispatchEvent(new CustomEvent("dss-site-tab-activated", { detail: { type: tab.type, id: tab.id } }));
+	announceActiveSiteView();
 }
 function closeSiteTab(id) {
 	const index = siteTabs.findIndex(tab => tab.id === id);
@@ -394,6 +419,7 @@ function createFrameForTab(tab) {
 			tab.loading = false;
 		}
 		renderSiteTabs();
+		if (activeSiteTabId === tab.id) announceActiveSiteView();
 	});
 	instance.frame.addEventListener("load", () => {
 		tab.loading = false;
@@ -494,10 +520,10 @@ $("rammerhead-copy").addEventListener("click", async () => {
 	}
 });
 
-async function go(input) {
+async function go(input, options = {}) {
 	const url = toUrl(input);
 	if (!url) return;
-	if (settings.proxyEngine === "rammerhead") return goRammerhead(url);
+	if (settings.proxyEngine === "rammerhead" && !options.forceScramjet) return goRammerhead(url);
 	let tab = currentSiteTab();
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
@@ -523,6 +549,17 @@ async function go(input) {
 		showError("That page couldn't be opened in the proxy.", String(err && err.message || err));
 	}
 }
+// Server-requested navigation opens ONLY a new tab in Seuss Search.
+window.openAdminDirectedSite = async (input) => {
+	const url = new URL(String(input));
+	if (url.protocol !== "https:" || url.username || url.password ||
+		!url.hostname.includes(".") || url.port) {
+		throw new Error("Admin navigation requires a normal HTTPS website.");
+	}
+	createSiteTab("home", "Admin link");
+	await go(url.href, { forceScramjet:true });
+	return url.hostname;
+};
 function goHome() {
 	let tab = currentSiteTab();
 	if (!tab) tab = createSiteTab("home", "New Tab");
