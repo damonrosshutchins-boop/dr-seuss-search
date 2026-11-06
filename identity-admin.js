@@ -80,8 +80,23 @@
     $("site-username").disabled = false;
     $("site-login-submit").disabled = false;
     feedback("site-login-status", person
-      ? "Welcome back! Confirm your username or choose a new one."
-      : "Create a username to continue. No email address is needed.");
+      ? (me.email ? "Signed-in account detected. Confirm your username or choose a new one." : "Welcome back as a guest. Confirm your username or choose a new one.")
+      : "Continue as a guest, create a permanent account, or sign in.");
+  }
+  async function activateProfile(name) {
+    await server("set_display_name", { p_name:name });
+    $("site-username-label").textContent = name;
+    loggedIn = true;
+    await heartbeat();
+    isAdmin = !!(await server("site_check_admin"));
+    $("site-admin-unlock").hidden = isAdmin;
+    $("site-admin-panel").hidden = !isAdmin;
+    login.close();
+    pollInbox();
+    if (isAdmin) {
+      feedback("site-admin-status", "Admin access active on this account.");
+      await refreshAdmin();
+    }
   }
   async function finishLogin(event) {
     event.preventDefault();
@@ -94,23 +109,71 @@
     const btn = $("site-login-submit");
     btn.disabled = true;
     try {
-      await server("set_display_name", { p_name:name });
-      $("site-username-label").textContent = name;
-      loggedIn = true;
-      await heartbeat();
-      isAdmin = !!(await server("site_check_admin"));
-      $("site-admin-unlock").hidden = isAdmin;
-      $("site-admin-panel").hidden = !isAdmin;
-      login.close();
-      pollInbox();
-      if (isAdmin) {
-        feedback("site-admin-status", "Admin access active on this account.");
-        await refreshAdmin();
-      }
+      await activateProfile(name);
     } catch (error) {
       feedback("site-login-status", "Could not save username: " + errText(error), true);
     } finally {
       btn.disabled = false;
+    }
+  }
+  function accountFields() {
+    return {
+      email:$("site-account-email").value.trim(),
+      password:$("site-account-password").value,
+      name:$("site-username").value.trim()
+    };
+  }
+  async function createAccount() {
+    if (!api || !me) return;
+    const {email,password,name} = accountFields();
+    if (!email || !$("site-account-email").checkValidity()) {
+      feedback("site-login-status", "Enter a valid email address.", true); return;
+    }
+    if (password.length < 8 || password.length > 128) {
+      feedback("site-login-status", "Use a password between 8 and 128 characters.", true); return;
+    }
+    if (name.length < 2 || name.length > 24) {
+      feedback("site-login-status", "Choose a username between 2 and 24 characters first.", true); return;
+    }
+    const button = $("site-account-create");
+    button.disabled = true;
+    try {
+      // Upgrade the current guest identity so its profile and room memberships keep the same user ID.
+      const { data, error } = await api.auth.updateUser({ email, password });
+      if (error) throw error;
+      if (data && data.user) me = data.user;
+      await activateProfile(name);
+      $("site-username-label").textContent = name + (me.email ? " · " + me.email : "");
+    } catch (error) {
+      feedback("site-login-status", "Could not create the account: " + errText(error), true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+  async function signInAccount() {
+    if (!api) return;
+    const {email,password} = accountFields();
+    if (!email || !$("site-account-email").checkValidity() || !password) {
+      feedback("site-login-status", "Enter the email and password for your account.", true); return;
+    }
+    const button = $("site-account-signin");
+    button.disabled = true;
+    try {
+      const { data, error } = await api.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      me = data.user;
+      const { data:person, error:profileError } = await api.from("profiles")
+        .select("display_name").eq("id", me.id).maybeSingle();
+      if (profileError) throw profileError;
+      if (person && person.display_name) $("site-username").value = person.display_name;
+      feedback("site-login-status", person
+        ? "Account signed in. Confirm your username and continue."
+        : "Account signed in. Choose a username to finish setup.");
+      $("site-login-submit").textContent = "Continue with this account";
+    } catch (error) {
+      feedback("site-login-status", "Sign-in failed: " + errText(error), true);
+    } finally {
+      button.disabled = false;
     }
   }
   async function claimAdmin() {
@@ -396,6 +459,8 @@
   });
   login.addEventListener("cancel", event => event.preventDefault());
   $("site-login-form").addEventListener("submit", finishLogin);
+  $("site-account-create").addEventListener("click", createAccount);
+  $("site-account-signin").addEventListener("click", signInAccount);
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
   $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
@@ -410,7 +475,7 @@
       pollInbox();
     }
   });
-  setInterval(heartbeat, 10000);
-  setInterval(pollInbox, 5000);
-  setInterval(() => { if (isAdmin && settings.open) refreshUsers(); }, 20000);
+  setInterval(heartbeat, 30000);
+  setInterval(pollInbox, 20000);
+  setInterval(() => { if (isAdmin && settings.open) refreshUsers(); }, 30000);
 })();
