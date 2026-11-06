@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-greeneggs1" />
+	<link rel="stylesheet" href="style.css?v=20261105-usernamepassword1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -419,33 +419,26 @@
 	</section>
 
 
-	<!-- USERNAME PROMPT: shown on each visit; your guest identity is stored by Supabase Auth. -->
+	<!-- Account gate: passwords are stored only by Supabase Auth, never in page code. -->
 	<dialog id="site-login" class="site-login" aria-labelledby="site-login-title">
 		<form id="site-login-form">
 			<p class="kicker">welcome to dr. seuss search</p>
-			<h2 id="site-login-title">Create your account</h2>
-			<p>Choose a username to enter Seuss Search. <strong>No email or password needed!</strong></p>
+			<h2 id="site-login-title">Sign up or log in</h2>
+			<p>Create an account with a <strong>username and password</strong>. No email is needed. Existing accounts can log in from another device.</p>
 			<label for="site-username">Username
-				<input id="site-username" type="text" minlength="2" maxlength="24" autocomplete="nickname" placeholder="Choose a username" required />
+				<input id="site-username" type="text" minlength="3" maxlength="254" autocomplete="username" placeholder="Your username" required />
 			</label>
-			<small class="talk-muted">Your username-only account is saved in this browser. If you clear browser data or change devices, you may lose access to that account.</small>
-			<details id="site-email-options" class="site-email-options">
-				<summary>Optional: email account for signing in on other devices</summary>
-				<label for="site-account-email">Email address
-					<input id="site-account-email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" />
-				</label>
-				<label for="site-account-password">Password
-					<input id="site-account-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters" />
-				</label>
-				<div class="site-account-actions">
-					<button id="site-account-create" class="chip" type="button">Create email account</button>
-					<button id="site-account-signin" class="chip" type="button">Sign in with email</button>
-				</div>
-				<small class="talk-muted">Email is only needed to use a password and sign in across devices. Never reuse a password from another site.</small>
-			</details>
+			<small class="talk-muted">New usernames must be 3–24 characters: letters, numbers and underscores; begin with a letter.</small>
+			<label for="site-account-password">Password
+				<input id="site-account-password" type="password" minlength="10" maxlength="128" autocomplete="current-password" placeholder="Enter your password" required />
+			</label>
+			<div class="site-account-actions">
+				<button id="site-login-submit" class="go small" type="submit">Create account</button>
+				<button id="site-account-signin" class="chip" type="button">Log in</button>
+			</div>
+			<small class="talk-muted">Passwords are verified by Supabase Auth. Because no email is collected, there is no automatic password-reset email. Keep your password somewhere safe. Older accounts created with an email can still log in using that email in the username field.</small>
 			<small class="talk-muted"><strong>Site moderation and safety:</strong> Current website domains are shared with admins by default; you can switch off routine sharing in Settings. Website safety rules still check domains opened inside Seuss Search, even with sharing off. Blocked visits are reported; visits to recognized adult-content sites can automatically restrict your site account. Admins can review and lift bans. No full URLs, search terms or page contents are recorded.</small>
 			<p id="site-login-status" class="talk-muted" role="status">Connecting securely…</p>
-			<button id="site-login-submit" class="go small" type="submit">Create account / Enter site</button>
 			<button id="site-login-retry" class="chip" type="button" hidden>Retry connection</button>
 		</form>
 	</dialog>
@@ -664,7 +657,7 @@
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-authwall1"></script>
+	<script src="identity-admin.js?v=20261105-usernamepassword1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
