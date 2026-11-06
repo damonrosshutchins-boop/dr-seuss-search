@@ -69,16 +69,49 @@ function blockedScramjetResource(request) {
 }
 
 
+// The browser does not disclose TCP/WebSocket packet totals or future
+// resources. These are honest counts of Scramjet requests awaiting a response.
+let dssPending = 0, dssHandled = 0, dssFailed = 0, dssBroadcastTimer = null;
+function scheduleDssProgress() {
+  if (dssBroadcastTimer !== null) return;
+  dssBroadcastTimer = setTimeout(async () => {
+    dssBroadcastTimer = null;
+    try {
+      const rootPath = new URL(self.registration.scope).pathname;
+      const windows = await self.clients.matchAll({ type:"window", includeUncontrolled:true });
+      const payload = {
+        type:"dss-proxy-request-progress",
+        pending:dssPending, handled:dssHandled, failed:dssFailed
+      };
+      for (const client of windows) {
+        try {
+          if (new URL(client.url).pathname === rootPath) client.postMessage(payload);
+        } catch {}
+      }
+    } catch {}
+  }, 180);
+}
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 async function handleRequest(event) {
 	await scramjet.loadConfig();
 	if (scramjet.route(event)) {
-		if (await isAdBlockEnabled() && blockedScramjetResource(event.request)) {
-			return new Response(null, { status: 204, statusText: "No Content" });
+		dssPending++;
+		scheduleDssProgress();
+		try {
+			if (await isAdBlockEnabled() && blockedScramjetResource(event.request)) {
+				return new Response(null, { status: 204, statusText: "No Content" });
+			}
+			return await scramjet.fetch(event);
+		} catch (error) {
+			dssFailed++;
+			throw error;
+		} finally {
+			dssPending = Math.max(0, dssPending - 1);
+			dssHandled++;
+			scheduleDssProgress();
 		}
-		return scramjet.fetch(event);
 	}
 	return fetch(event.request);
 }
