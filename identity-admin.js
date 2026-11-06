@@ -156,7 +156,8 @@
   function showNextIncomingPopup() {
     if (!loggedIn || incomingPopup.open || !popupQueue.length) return;
     const note = popupQueue.shift();
-    $("site-incoming-sender").textContent = "Message from " + (note.sender_name || "a site admin");
+    $("site-incoming-sender").textContent = "An admin has alerted you";
+    $("site-incoming-from").textContent = "From: " + (note.sender_name || "Site admin");
     $("site-incoming-body").textContent = note.message;
     $("site-incoming-time").textContent = note.sent_at
       ? new Date(note.sent_at).toLocaleString() : "";
