@@ -346,8 +346,14 @@
 					<select id="s-theme"><option value="light">Light</option><option value="dark">Dark</option></select>
 				</label>
 			</div>
-<label class="row"><input id="s-interactive-bg" type="checkbox" /> Interactive New Tab background</label>
-			<small>Floating colorful dots drift and move away from your mouse. Reduce animations turns this effect off.</small>
+<label>Interactive New Tab background
+				<select id="s-interactive-bg">
+					<option value="dots">Floating dots</option>
+					<option value="aurora">Aurora waves</option>
+					<option value="off">Off</option>
+				</select>
+			</label>
+			<small>Choose an animated background. Floating dots react to your pointer; aurora waves flow and respond to movement. Reduce animations turns the effect off.</small>
 			<label>Cursor style
 				<select id="s-cursor">
 					<option value="normal">Normal</option>
