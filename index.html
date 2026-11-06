@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-gateprogress1" />
+	<link rel="stylesheet" href="style.css?v=20261105-moreproxies1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -96,8 +96,8 @@
 			<button class="ib" id="b-full" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 		</nav>
 		<div class="rammerhead-helper" id="rammerhead-helper" hidden>
-			<strong>Rammerhead session</strong>
-			<span>Copy this destination, create or select a private session in Rammerhead, and paste it into Rammerhead's URL box. An external server is required.</span>
+			<strong id="proxy-portal-title">Remote proxy portal</strong>
+			<span id="proxy-portal-description">Copy the destination and paste it in the remote proxy portal. External proxy features may be limited by browser framing.</span>
 			<div class="rammerhead-tools">
 				<input type="text" id="rammerhead-target" readonly aria-label="Destination to enter in Rammerhead" />
 				<button type="button" id="rammerhead-copy" class="chip">Copy address</button>
@@ -448,12 +448,12 @@
 				<small class="talk-muted">Passwords are verified by Supabase Auth. Because no email is collected, there is no automatic password-reset email. Keep your password somewhere safe. Older accounts created with an email can still log in using that email in the username field.</small>
 			</div>
 			<section id="site-access-step" class="site-access-step" aria-label="Site access approval" hidden>
-				<h3>One more step: site access</h3>
-				<p>Your account is created, but this website requires an invitation code or moderator approval before you can enter.</p>
-				<label for="site-access-code">Invitation code
+				<h3>Choose one way to enter</h3>
+				<p>Enter an invitation code and you're in, or request approval from a moderator. You do <strong>not</strong> need both. A verified moderator code also grants moderator access automatically.</p>
+				<label for="site-access-code">Invitation or moderator code
 					<input id="site-access-code" type="password" maxlength="80" autocomplete="off" placeholder="Enter your access code" />
 				</label>
-				<button id="site-access-redeem" class="go small" type="button">Unlock with code</button>
+				<button id="site-access-redeem" class="go small" type="button">Enter site with code</button>
 				<div class="site-access-divider"><span>or</span></div>
 				<button id="site-access-request" class="chip" type="button">Request access from a moderator</button>
 				<p id="site-access-status" class="talk-muted" role="status"></p>
@@ -552,12 +552,18 @@
 				<select id="s-proxy-engine">
 					<option value="scramjet">Scramjet (built in)</option>
 					<option value="rammerhead">Rammerhead (separate server)</option>
+					<option value="ultraviolet">Ultraviolet (experimental)</option>
+					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small>Scramjet works on GitHub Pages. Rammerhead requires a separate Node.js server and a private session; the portal opens in your site if embedding is allowed.</small>
+				<small>Scramjet is the recommended, built-in engine. Ultraviolet is an experimental built-in engine. Rammerhead and Adrift open separately hosted portals inside a tab and may block embedding. Experimental engines are restricted to moderators because Seuss Search cannot reliably monitor their internal page navigations.</small>
 			</label>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
+			</label>
+			<label>Adrift portal URL
+				<input type="url" id="s-adrift-url" placeholder="https://adrift-6c1f6.web.app/" spellcheck="false" />
+				<small>Adrift uses WebRTC trackers and exit nodes. The official demonstration is prefilled; hosting a separate Adrift portal is also supported. A server-side connection is not bundled with GitHub Pages.</small>
 			</label>
 			<label>Scramjet transport
 				<select id="s-transport">
@@ -682,11 +688,11 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261105-gateprogress1"></script>
+	<script src="app.js?v=20261105-moreproxies1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261105-identity1"></script>
-	<script src="identity-admin.js?v=20261105-gateprogress1"></script>
+	<script src="identity-admin.js?v=20261105-automod1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
