@@ -1,0 +1,33 @@
+name: Check Supabase Auth signup settings
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/check-auth-signup-settings.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-settings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read public Supabase Auth configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request
+          url = 'https://cihzaevtdoquseoxxdqf.supabase.co/auth/v1/settings'
+          with urllib.request.urlopen(url, timeout=20) as r:
+              data = json.load(r)
+          for key in ['disable_signup','external','mailer_autoconfirm','autoconfirm','email_autoconfirm','anonymous_users']:
+              val=data.get(key)
+              if key=='external' and isinstance(val,dict):
+                  print('email_provider_enabled:', val.get('email'))
+                  print('anonymous_provider_enabled:', val.get('anonymous'))
+              elif val is not None:
+                  print(key+':', val)
+          PY
