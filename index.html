@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261105-adblock1" />
+	<link rel="stylesheet" href="style.css?v=20261105-admin1" />
 	<script src="scram/scramjet.all.js"></script>
 	<script src="baremux/index.js"></script>
 </head>
@@ -302,6 +302,31 @@
 	</section>
 
 
+	<!-- USERNAME PROMPT: shown on each visit; your guest identity is stored by Supabase Auth. -->
+	<dialog id="site-login" class="site-login" aria-labelledby="site-login-title">
+		<form id="site-login-form">
+			<p class="kicker">welcome to dr. seuss search</p>
+			<h2 id="site-login-title">What's your username?</h2>
+			<p>Choose a name to use across Seuss Search and Seuss Talk.</p>
+			<label for="site-username">Username
+				<input id="site-username" type="text" minlength="2" maxlength="24" autocomplete="nickname" placeholder="Create your username" required />
+			</label>
+			<p id="site-login-status" class="talk-muted" role="status">Connecting securely…</p>
+			<button id="site-login-submit" class="go small" type="submit">Continue to Seuss Search</button>
+			<button id="site-login-retry" class="chip" type="button" hidden>Retry connection</button>
+		</form>
+	</dialog>
+
+	<!-- A moderator can pause only this site's interface, not the visitor's browser or computer. -->
+	<div id="site-moderation-overlay" class="site-moderation-overlay" role="alertdialog" aria-modal="true" hidden>
+		<div class="site-moderation-notice">
+			<p class="kicker">Seuss Search moderation</p>
+			<h2 id="site-moderation-title">Session paused</h2>
+			<p id="site-moderation-explanation">A site moderator has paused this session.</p>
+			<p class="talk-muted">This affects only Seuss Search, not your computer or other websites.</p>
+		</div>
+	</div>
+
 	<!-- SETTINGS -->
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
@@ -368,6 +393,27 @@
 			<label class="row"><input id="s-adblock" type="checkbox" /> Block ads and trackers (Scramjet)</label>
 			<small>Blocks requests to common advertising and tracking domains and hides typical ad spaces on proxied pages. Enabled by default; this does not affect Rammerhead.</small>
 			<label class="row"><input id="s-motion" type="checkbox" /> Reduce animations</label>
+			<section class="site-admin-settings">
+				<h3>Account &amp; moderation</h3>
+				<p class="talk-muted">Current username: <strong id="site-username-label">Loading…</strong></p>
+				<div id="site-admin-unlock">
+					<label for="site-admin-code">Admin access code
+						<input id="site-admin-code" type="password" maxlength="120" autocomplete="off" placeholder="Enter admin code" />
+					</label>
+					<button type="button" class="chip" id="site-admin-activate">Unlock admin tools</button>
+					<small>This code can be claimed only once by a guest account. Keep your browser profile to retain access.</small>
+				</div>
+				<p id="site-admin-status" class="talk-muted" role="status"></p>
+				<div id="site-admin-panel" hidden>
+					<div class="site-admin-heading"><strong>Live proxy visitors</strong><button type="button" id="site-admin-refresh" class="chip talk-small">Refresh</button></div>
+					<p class="talk-muted">Visitors active within about the last minute. Freeze or kick affects only this website.</p>
+					<div id="site-admin-users" class="site-admin-list"></div>
+					<h3>Manage Seuss Talk rooms</h3>
+					<div id="site-admin-rooms" class="site-admin-list"></div>
+					<h4 id="site-admin-selected-room">Choose a room to manage its members</h4>
+					<div id="site-admin-room-members" class="site-admin-list"></div>
+				</div>
+			</section>
 			<button type="button" class="chip settings-help" id="s-tutorial">Show the getting-started guide</button>
 			<div class="actions">
 				<button type="button" class="chip" id="s-reset">Reset</button>
@@ -398,7 +444,8 @@
 	<script src="app.js?v=20261105-gustcomparison1"></script>
 	<script src="ui-extras.js?v=20261105-bgdefault2"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
-	<script src="chat.js?v=20261104-tabs1"></script>
+	<script src="chat.js?v=20261105-identity1"></script>
+	<script src="identity-admin.js?v=20261105-admin1"></script>
 	<script src="vm.js?v=20261105-webv2-1"></script>
 </body>
 </html>
