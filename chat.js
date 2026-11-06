@@ -901,6 +901,11 @@
       await leaveVoice();
     }
   });
+  // Do not leave a camera feed running invisibly when someone changes tabs.
+  // They must explicitly turn it back on when returning to Seuss Talk.
+  window.addEventListener("dss-site-tab-activated", event => {
+    if (event.detail?.type !== "talk" && cameraStream) stopCamera();
+  });
   window.addEventListener("seuss-talk-tab-open", async () => { await boot(); });
   window.addEventListener("seuss-talk-tab-close", async () => {
     if (room) await showRoomsTab();
