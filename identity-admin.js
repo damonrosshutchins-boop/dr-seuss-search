@@ -125,6 +125,10 @@
   }
   async function createAccount() {
     if (!api || !me) return;
+    if (me.email) {
+      feedback("site-login-status", "You're already signed in to a permanent account. Use Settings → Account & moderation → Add / switch account first, then create another account.", true);
+      return;
+    }
     const {email,password,name} = accountFields();
     if (!email || !$("site-account-email").checkValidity()) {
       feedback("site-login-status", "Enter a valid email address.", true); return;
@@ -500,7 +504,34 @@
       pollInbox();
     }
   });
-  setInterval(heartbeat, 30000);
-  setInterval(pollInbox, 20000);
-  setInterval(() => { if (isAdmin && settings.open) refreshUsers(); }, 30000);
+  // Keep background network work light. Performance Mode stretches polling
+  // intervals and all checks remain paused while the page is hidden.
+  let heartbeatTimer = 0, inboxTimer = 0, adminTimer = 0;
+  function scheduleBackgroundChecks() {
+    clearTimeout(heartbeatTimer);
+    clearTimeout(inboxTimer);
+    clearTimeout(adminTimer);
+    if (!loggedIn) return;
+    const performanceMode = !!(window.settings && window.settings.performanceMode);
+    const hidden = document.visibilityState === "hidden";
+    const heartbeatDelay = hidden ? 180000 : performanceMode ? 120000 : 30000;
+    const inboxDelay = hidden ? 180000 : performanceMode ? 90000 : 20000;
+    heartbeatTimer = setTimeout(async () => {
+      if (!document.hidden) await heartbeat();
+      scheduleBackgroundChecks();
+    }, heartbeatDelay);
+    inboxTimer = setTimeout(async () => {
+      if (!document.hidden) await pollInbox();
+      scheduleBackgroundChecks();
+    }, inboxDelay);
+    if (isAdmin && settings.open) {
+      adminTimer = setTimeout(async () => {
+        if (!document.hidden && settings.open) await refreshUsers();
+        scheduleBackgroundChecks();
+      }, performanceMode ? 120000 : 30000);
+    }
+  }
+  document.addEventListener("visibilitychange", scheduleBackgroundChecks);
+  window.addEventListener("dss-performance-mode-change", scheduleBackgroundChecks);
+  scheduleBackgroundChecks();
 })();
