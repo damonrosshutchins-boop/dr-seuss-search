@@ -177,7 +177,7 @@
 	}
 	function refreshBackground() {
 		const active = !!ctx && settings.interactiveBgStyle !== "off" && !settings.reducedMotion &&
-			!reduced.matches && !controls.home.hidden;
+			!settings.performanceMode && !reduced.matches && !controls.home.hidden;
 		controls.home.classList.toggle("interactive-bg", !!active);
 		if (active && !running) {
 			running = true;
