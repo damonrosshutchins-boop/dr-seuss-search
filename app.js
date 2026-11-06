@@ -201,7 +201,11 @@ async function loadProxyRuntime() {
 			script.src = at("scram/scramjet.all.js");
 			script.async = true;
 			script.onload = resolve;
-			script.onerror = () => reject(new Error("The Scramjet runtime could not be downloaded."));
+			script.onerror = () => {
+				runtimeLoading = null;
+				script.remove();
+				reject(new Error("The Scramjet runtime could not be downloaded."));
+			};
 			document.head.appendChild(script);
 		});
 		await runtimeLoading;
@@ -231,7 +235,22 @@ function boot() {
 		await scramjet.init();
 		await navigator.serviceWorker.register(at("sw.js"), { scope: BASE.pathname });
 		await navigator.serviceWorker.ready;
-		await applyTransport();
+		try {
+			await applyTransport();
+		} catch (primary) {
+			// Epoxy is a separate Wisp transport already bundled with the site.
+			// Fall back only when the configured transport cannot initialize.
+			if (settings.transport !== "libcurl") throw primary;
+			settings.transport = "epoxy";
+			try {
+				await applyTransport(true);
+				save();
+				setStatus("", "libcurl could not start; switched to Epoxy. Loading websites may now work more reliably.");
+			} catch {
+				settings.transport = "libcurl";
+				throw primary;
+			}
+		}
 	})();
 	ready.catch(() => { ready = null; });
 	return ready;
@@ -240,14 +259,23 @@ function boot() {
 // Keep the BareMux worker synchronized with the locally saved address on every
 // page startup, even when the transport module is unchanged.
 let appliedTransportSettings = null;
-async function applyTransport(force = false) {
-	const path = TRANSPORTS[settings.transport] || TRANSPORTS.libcurl;
-	const opts = settings.transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
+// Serialize transport changes: a network retry and Settings save must not
+// race and replace each other's working Wisp connection.
+let transportChangeQueue = Promise.resolve();
+function applyTransport(force = false) {
+	const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
+	const path = TRANSPORTS[transport];
+	const opts = transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
 	const signature = JSON.stringify([path, opts]);
-	if (force || signature !== appliedTransportSettings) {
-		await connection.setTransport(path, [opts]);
-		appliedTransportSettings = signature;
-	}
+	const task = transportChangeQueue.catch(() => {}).then(async () => {
+		if (!connection) throw new Error("The proxy transport has not initialized.");
+		if (force || signature !== appliedTransportSettings) {
+			await connection.setTransport(path, [opts]);
+			appliedTransportSettings = signature;
+		}
+	});
+	transportChangeQueue = task.catch(() => {});
+	return task;
 }
 
 /* ---------- URL / search parsing ---------- */
@@ -332,6 +360,7 @@ window.dssRecheckActiveSite = async () => {
 function publicActiveSiteView(tab = currentSiteTab()) {
 	if (!tab || tab.type === "home") return "Home";
 	if (tab.type === "talk") return "Seuss Talk";
+	if (tab.type === "admin") return "Admin Dashboard";
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
 	if (tab.adrift) return "Other site page";
@@ -410,6 +439,7 @@ function activateSiteTab(id) {
 	$("browser").hidden = tab.type !== "web" && tab.type !== "direct";
 	$("seuss-talk").hidden = tab.type !== "talk";
 	$("vm").hidden = tab.type !== "vm";
+	$("admin-workspace").hidden = tab.type !== "admin";
 
 	for (const item of siteTabs) {
 		if (item.pane) item.pane.hidden = item.id !== id;
@@ -440,6 +470,8 @@ function activateSiteTab(id) {
 		window.dispatchEvent(new Event("seuss-talk-tab-open"));
 	} else if (tab.type === "vm") {
 		document.title = "VM · Dr. Seuss Search";
+	} else if (tab.type === "admin") {
+		document.title = "Admin Dashboard · Dr. Seuss Search";
 	}
 	renderSiteTabs();
 	window.dispatchEvent(new CustomEvent("dss-site-tab-activated", { detail: { type: tab.type, id: tab.id } }));
@@ -481,6 +513,15 @@ function openVMTab() {
 	if (!tab) tab = createSiteTab("vm", "VM");
 	else activateSiteTab(tab.id);
 }
+function openAdminTab() {
+	if (!requireSeussAccount()) return;
+	let tab = siteTabs.find(item => item.type === "admin");
+	if (!tab) tab = createSiteTab("admin", "Admin Dashboard");
+	else activateSiteTab(tab.id);
+	window.dispatchEvent(new Event("seuss-admin-dashboard-open"));
+}
+window.openAdminTab = openAdminTab;
+$("open-admin").addEventListener("click", openAdminTab);
 window.openSeussTalkTab = openSeussTalkTab;
 window.switchAwayFromSeussTalk = switchAwayFromSeussTalk;
 window.openVMTab = openVMTab;
@@ -1077,12 +1118,33 @@ if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Adrift selected. Its remote portal must allow framing; moderator authorization is required.");
 } else if (settings.proxyEngine === "ultraviolet") {
 	setStatus("", "Ultraviolet selected (experimental, moderator-only). The engine loads when you browse.");
-} else if (settings.performanceMode) {
-	setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 } else {
-	checkWisp();
-	boot().catch((err) => showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err)));
+	setStatus("", "Ready to connect. Proxy setup begins after account approval.");
 }
+// Avoid downloading Scramjet/WASM and opening a Wisp probe while the
+// site's account gate is still locked. Warm the shared runtime on idle
+// after approval so the first browse has less startup delay.
+let proxyWarmupScheduled = false;
+function warmProxyAfterLogin() {
+	if (proxyWarmupScheduled || !requireSeussAccount() ||
+		!["scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
+	if (settings.performanceMode) return;
+	proxyWarmupScheduled = true;
+	const warm = async () => {
+		if (!requireSeussAccount()) { proxyWarmupScheduled = false; return; }
+		try {
+			await boot();
+			setStatus("ok", "Scramjet is initialized. The relay connection is checked when browsing.");
+		} catch (err) {
+			proxyWarmupScheduled = false;
+			setStatus("bad", "Proxy warmup failed: " + (err && err.message || String(err)));
+		}
+	};
+	if (typeof requestIdleCallback === "function")
+		requestIdleCallback(warm, { timeout: 1800 });
+	else setTimeout(warm, 350);
+}
+window.addEventListener("seuss-site-unlocked", warmProxyAfterLogin);
 
 const params = new URLSearchParams(location.search);
 const q = params.get("q") || params.get("goto");
