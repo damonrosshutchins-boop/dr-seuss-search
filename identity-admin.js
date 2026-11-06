@@ -21,6 +21,9 @@
   let selectedDirectRecipient = null;
   let navigationChecking = false, lastReportedView = null, viewTimer = 0;
   const sharingCheckbox = $("site-share-active-view");
+  const policyNotice = $("site-policy-notice");
+  const knownAllowed = new Map();
+  let guardListLoading = false;
   try { sharingCheckbox.checked = localStorage.getItem("dss-share-domain") !== "no"; } catch { sharingCheckbox.checked = true; }
   const errText = error => String(error && error.message || error);
   const create = (tag, cls, value) => {
@@ -47,10 +50,15 @@
     window.dispatchEvent(new CustomEvent("seuss-site-access-change", { detail:{ state } }));
     const overlay = $("site-moderation-overlay");
     overlay.hidden = state === "active";
-    $("site-moderation-title").textContent = state === "frozen" ? "Your Seuss session is paused" : "Your Seuss session has been removed";
-    $("site-moderation-explanation").textContent = state === "frozen"
-      ? "A site moderator temporarily froze this in-site session. The page will unlock when they restore access."
-      : "A site moderator removed this session from Seuss Search. Access will return if they restore your account.";
+    $("site-moderation-title").textContent =
+      state === "banned" ? "Your Seuss Search account is banned" :
+      state === "frozen" ? "Your Seuss session is paused" : "Your Seuss session has been removed";
+    $("site-moderation-explanation").textContent =
+      state === "banned"
+        ? "A blocked website was detected or an admin restricted this account. Your access to Seuss Search is paused until an admin reviews and lifts the ban."
+        : state === "frozen"
+          ? "A site moderator temporarily froze this in-site session. The page will unlock when they restore access."
+          : "A site moderator removed this session from Seuss Search. Access will return if they restore your account.";
     document.body.classList.toggle("site-access-locked", state !== "active");
   }
   async function heartbeat() {
@@ -58,7 +66,7 @@
     checking = true;
     try {
       const state = await server("site_heartbeat");
-      setLock(state === "active" ? "active" : state === "frozen" ? "frozen" : "kicked");
+      setLock(["active","frozen","kicked","banned"].includes(state) ? state : "kicked");
     } catch (error) {
       feedback("site-login-status", "Connection issue: " + errText(error), true);
     } finally {
@@ -387,6 +395,143 @@
     } finally { button.disabled = false; }
   }
 
+  // Proxy-only site protection. Never send full URLs, searches, or page text.
+  // Visitors can opt out of routine domain sharing, but site safety checks
+  // still evaluate domains they try to visit within this proxy.
+  function showPolicyNotice(message) {
+    $("site-policy-description").textContent = message;
+    if (!policyNotice.open) {
+      if (typeof policyNotice.showModal === "function") policyNotice.showModal();
+      else policyNotice.setAttribute("open", "");
+    }
+  }
+
+  window.dssSitePolicyCheck = async target => {
+    if (!loggedIn || !api) return false;
+    let host;
+    try {
+      const u = new URL(target);
+      if (u.protocol !== "https:" && u.protocol !== "http:") return true;
+      host = u.hostname.toLowerCase();
+      if (!host || host.length > 120) return false;
+    } catch { return false; }
+
+    const expires = knownAllowed.get(host);
+    if (expires && expires > Date.now()) return true;
+    try {
+      const decision = await server("site_guard_evaluate", { p_domain:host });
+      if (decision && decision.blocked) {
+        knownAllowed.delete(host);
+        if (decision.banned) {
+          setLock("banned");
+          feedback("site-admin-status", "Your account is restricted. Ask a site admin to review the ban.", true);
+        } else {
+          showPolicyNotice("This website is blocked by Seuss Search site rules. The attempt has been reported to site admins.");
+        }
+        return false;
+      }
+      knownAllowed.set(host, Date.now() + 20000);
+      return true;
+    } catch (error) {
+      console.warn("Could not check Seuss Search site rules:", errText(error));
+      showPolicyNotice("Website safety checks are temporarily unavailable. Please try again later.");
+      return false;
+    }
+  };
+
+  async function editGuardRule(event) {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const input = $("site-guard-domain");
+    const domain = input.value.trim().toLowerCase()
+      .replace(/^https?:\/\//,"").replace(/\/.*$/,"");
+    if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(domain) || domain.length>120) {
+      feedback("site-guard-status", "Enter a valid domain without a path or URL scheme.", true);
+      return;
+    }
+    const button = $("site-guard-add");
+    button.disabled = true;
+    try {
+      await server("site_admin_guard_change_rule", {p_domain:domain,p_action:"add"});
+      input.value = "";
+      feedback("site-guard-status", domain + " is now blocked and reported.");
+      await refreshGuard();
+    } catch(error) {
+      feedback("site-guard-status", "Could not add domain: " + errText(error), true);
+    } finally {button.disabled = false;}
+  }
+
+  async function setGuardRule(domain,action) {
+    if (!isAdmin) return;
+    if (action==="remove" && !window.confirm("Remove "+domain+" from the custom block list?")) return;
+    try {
+      await server("site_admin_guard_change_rule", {p_domain:domain,p_action:action});
+      feedback("site-guard-status", domain + " removed from the custom block list.");
+      await refreshGuard();
+    } catch(error) { feedback("site-guard-status", "Rule update failed: " + errText(error), true); }
+  }
+
+  async function setGuardBan(id,name,action) {
+    if (!isAdmin) return;
+    if (!window.confirm((action==="ban"?"Ban ":"Unban ")+name+" from Seuss Search?")) return;
+    try {
+      await server("site_admin_guard_set_ban", {p_user_id:id,p_action:action});
+      feedback("site-guard-status", (action==="ban"?"Banned ":"Unbanned ")+name+".");
+      await Promise.all([refreshGuard(),refreshUsers()]);
+    } catch(error) { feedback("site-guard-status", "Ban update failed: " + errText(error), true); }
+  }
+
+  async function refreshGuard() {
+    if (!isAdmin || guardListLoading) return;
+    guardListLoading = true;
+    const ruleBox = $("site-guard-rules");
+    const banBox = $("site-guard-bans");
+    const eventBox = $("site-guard-events");
+    try {
+      const [rules,bans,events] = await Promise.all([
+        server("site_admin_guard_rules"),
+        server("site_admin_guard_bans"),
+        server("site_admin_guard_incidents")
+      ]);
+      ruleBox.replaceChildren();
+      banBox.replaceChildren();
+      eventBox.replaceChildren();
+      if (!rules.length) ruleBox.append(create("p","talk-muted","No custom domains blocked yet."));
+      for(const rule of rules) {
+        const row=create("div","site-admin-row");
+        row.append(create("strong","",rule.domain));
+        const remove=create("button","chip talk-small","Remove");
+        remove.type="button";
+        remove.addEventListener("click",()=>setGuardRule(rule.domain,"remove"));
+        row.append(remove);ruleBox.append(row);
+      }
+      if (!bans.length) banBox.append(create("p","talk-muted","No accounts currently banned."));
+      for(const entry of bans) {
+        const row=create("div","site-admin-row");
+        const detail=create("div","site-admin-person");
+        detail.append(create("strong","",entry.display_name || "Guest"));
+        detail.append(create("small","","Reason: "+(entry.reason==="adult"?"Built-in adult-site filter":"Admin action")));
+        detail.append(create("small","","Blocked domain: "+(entry.reason==="adult"?entry.domain:"Not applicable")));
+        detail.append(create("small","","Since: "+new Date(entry.banned_at).toLocaleString()));
+        const unban=create("button","chip talk-small","Unban");
+        unban.type="button";
+        unban.addEventListener("click",()=>setGuardBan(entry.user_id,entry.display_name || "Guest","unban"));
+        row.append(detail,unban);banBox.append(row);
+      }
+      if (!events.length) eventBox.append(create("p","talk-muted","No blocked visits recorded."));
+      for(const event of events) {
+        const row=create("div","site-admin-row");
+        const detail=create("div","site-admin-person");
+        detail.append(create("strong","",(event.display_name||"Guest")+" · "+event.category));
+        detail.append(create("small","",event.domain));
+        detail.append(create("small","",new Date(event.occurred_at).toLocaleString()));
+        row.append(detail);eventBox.append(row);
+      }
+    } catch(error) {
+      feedback("site-guard-status", "Could not refresh site rules: " + errText(error), true);
+    } finally {guardListLoading=false;}
+  }
+
   async function refreshUsers() {
     const output = $("site-admin-users");
     output.replaceChildren(create("p", "talk-muted", "Loading users…"));
@@ -426,6 +571,10 @@
             directButton.type = "button";
             directButton.addEventListener("click", () => openDirectComposer(person.user_id, name));
             controls.prepend(directButton);
+            const banButton = create("button", "chip talk-small talk-danger", "Ban");
+            banButton.type = "button";
+            banButton.addEventListener("click", () => setGuardBan(person.user_id,name,"ban"));
+            controls.append(banButton);
           }
           row.append(controls);
         }
@@ -549,7 +698,7 @@
   }
   async function refreshAdmin() {
     if (!isAdmin) return;
-    await Promise.all([refreshUsers(), refreshRooms()]);
+    await Promise.all([refreshUsers(), refreshRooms(), refreshGuard()]);
   }
   const tutorial = $("tutorial");
   if (tutorial && tutorial.open) tutorial.close();
@@ -600,6 +749,9 @@
   });
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
+  $("site-guard-form").addEventListener("submit", editGuardRule);
+  $("site-guard-refresh").addEventListener("click", refreshGuard);
+  $("site-policy-dismiss").addEventListener("click", () => policyNotice.close());
   $("site-admin-message-everyone").addEventListener("click", () => openMessageComposer(null, "everyone"));
   $("site-admin-message-form").addEventListener("submit", sendAdminMessage);
   $("site-admin-direct-form").addEventListener("submit", sendAdminNavigation);
