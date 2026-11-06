@@ -1,0 +1,44 @@
+name: Vendor official Ultraviolet runtime
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/vendor-ultraviolet.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-uv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Get pinned official Ultraviolet distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p uv
+          pack="$(npm pack @titaniumnetwork-dev/ultraviolet@3.2.10 --silent)"
+          tar -xzf "$pack"
+          for filename in uv.bundle.js uv.sw.js uv.client.js uv.handler.js; do
+            test -s "package/dist/$filename"
+            cp "package/dist/$filename" "uv/$filename"
+          done
+          rm -rf package "$pack"
+      - name: Commit runtime assets to GitHub Pages branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv/uv.bundle.js uv/uv.sw.js uv/uv.client.js uv/uv.handler.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Use pinned official Ultraviolet 3.2.10 runtime"
+            git push origin HEAD:main
+          fi
