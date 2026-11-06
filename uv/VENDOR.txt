@@ -1,0 +1,3 @@
+Ultraviolet runtime files are from MercuryWorkshop/adrift's bundled UV frontend (which includes the Titanium Network Ultraviolet implementation). Source: https://github.com/MercuryWorkshop/adrift/tree/main/frontend/public/uv .
+Ultraviolet project: https://github.com/titaniumnetwork-dev/Ultraviolet — MIT licensed.
+Only use the bundled runtime inside a restricted, sandboxed iframe so it cannot access the Seuss Search account UI or local storage. These assets are provided for an optional experimental engine. Real web-proxy functionality and compatibility depend on browser service workers, Wisp and transport availability.
