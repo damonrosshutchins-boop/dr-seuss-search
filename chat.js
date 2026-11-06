@@ -92,22 +92,18 @@
   }
 
   async function loadProfile() {
-    const { data, error } = await client.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+    // Ask every visitor to choose a screen name when they enter Seuss Talk.
+    // The anonymous guest identity remains browser-persisted, but the name is
+    // deliberately re-entered for each fresh page visit.
+    const { error } = await client.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
     if (error) throw error;
-    if (data && typeof data.display_name === "string" && data.display_name.trim().length >= 2) {
-      profile = data;
-      $("talk-name").value = data.display_name;
-      $("talk-current-name").textContent = data.display_name;
-      show("talk-auth", false);
-      show("talk-setup", false);
-      show("talk-app", true);
-      await listRooms();
-    } else {
-      show("talk-setup", false);
-      show("talk-auth", true);
-      show("talk-app", false);
-      status("Choose a screen name to get started.");
-    }
+    profile = null;
+    $("talk-name").value = "";
+    $("talk-current-name").textContent = "";
+    show("talk-setup", false);
+    show("talk-auth", true);
+    show("talk-app", false);
+    status("Choose a username to join Seuss Talk.");
   }
 
   async function saveName(event) {
