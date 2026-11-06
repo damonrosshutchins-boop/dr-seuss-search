@@ -493,12 +493,12 @@
 					<div class="site-guard-admin">
 						<h3>Website blocking &amp; reports</h3>
 						<p class="talk-muted">Known adult-content sites are blocked by a built-in filter. Non-admin accounts that trigger the filter are added to the ban list for review. You can block additional domains below; custom rules block and report but do not automatically ban.</p>
-						<form id="site-guard-form" class="site-guard-form">
+						<div id="site-guard-form" class="site-guard-form">
 							<label for="site-guard-domain">Block an additional website domain
 								<input id="site-guard-domain" type="text" maxlength="120" required spellcheck="false" autocapitalize="none" placeholder="example.com"/>
 							</label>
-							<button id="site-guard-add" class="chip" type="submit">Block &amp; report</button>
-						</form>
+							<button id="site-guard-add" class="chip" type="button">Block &amp; report</button>
+						</div>
 						<p id="site-guard-status" class="talk-muted" role="status"></p>
 						<div class="site-admin-heading"><h4>Custom blocked domains</h4><button id="site-guard-refresh" class="chip talk-small" type="button">Refresh lists</button></div>
 						<div id="site-guard-rules" class="site-admin-list"></div>
