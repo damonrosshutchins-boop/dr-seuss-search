@@ -1068,7 +1068,7 @@ function ensureGustSearchEngine(tab) {
 	tab.gustReady = false;
 	tab.directFrame = frame;
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	frame.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
+	frame.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
 	return tab.gustReadyPromise;
 }
 async function fetchSeussSourceJson(tab, url, signal) {
@@ -1713,6 +1713,7 @@ async function goGust(url, options = {}) {
 	let tab = !options.newTab && currentSiteTab()?.gust &&
 		!currentSiteTab()?.gustSearchEngine ? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", siteTabTitle(url));
+	$("error").hidden = true;
 	tab.type = "direct";
 	tab.gust = true;
 	tab.title = siteTabTitle(url);
@@ -1750,7 +1751,7 @@ async function goGust(url, options = {}) {
 			"The local GUST browser interface failed to load.");
 	});
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	iframe.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
+	iframe.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
 	activateSiteTab(tab.id);
 }
 // Every request from the GUST shell must be allowed by the site's server
@@ -1758,7 +1759,8 @@ async function goGust(url, options = {}) {
 window.addEventListener("message", async event => {
 	const data = event.data;
 	if (!data || !["dss-gust-policy","dss-gust-active","dss-gust-location",
-		"dss-gust-ready","dss-gust-error","dss-gust-json-result"].includes(data.type)) return;
+		"dss-gust-ready","dss-gust-error","dss-gust-json-result",
+		"dss-gust-page-loading","dss-gust-page-loaded","dss-gust-page-error"].includes(data.type)) return;
 	const tab = siteTabs.find(item => item.gust &&
 		item.directFrame?.contentWindow === event.source);
 	if (!tab) return;
@@ -1784,6 +1786,31 @@ window.addEventListener("message", async event => {
 			data.ok ? data.data : null);
 		return;
 	}
+	if (data.type === "dss-gust-page-loading") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = true;
+		if (activeSiteTabId === tab.id) {
+			$("error").hidden = true;
+			activateSiteTab(tab.id);
+		}
+		return;
+	}
+	if (data.type === "dss-gust-page-loaded") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+		return;
+	}
+	if (data.type === "dss-gust-page-error") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			activateSiteTab(tab.id);
+			showError("This website couldn't be loaded in Seuss Search.",
+				String(data.message || "The connection or page failed.").slice(0,240));
+		}
+		return;
+	}
 	if (data.type === "dss-gust-error") {
 		tab.gustReady = false;
 		tab.loading = false;
@@ -1796,8 +1823,9 @@ window.addEventListener("message", async event => {
 		}
 		if (activeSiteTabId === tab.id) {
 			activateSiteTab(tab.id);
-			setStatus("bad", "Seuss Search (GUST engine): " +
+			showError("Seuss Search's loading engine couldn't start.",
 				String(data.message || "Unknown error").slice(0,200));
+			setStatus("bad", "Website loading engine failed to initialize.");
 		}
 		return;
 	}
