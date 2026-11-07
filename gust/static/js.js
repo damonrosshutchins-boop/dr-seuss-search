@@ -10848,6 +10848,56 @@ parent.postMessage({ t: 'ready' }, '*');
   }, 400);
   // ─────────────────────────────────────────────────────────────────
 
+
+  // Seuss Search owns the search interface; this restricted bridge uses
+  // GUST's existing libcurl HTTP fetch method to retrieve source JSON.
+  // Arbitrary URLs and HTML are deliberately not exposed via postMessage.
+  function dssSourceEndpoint(raw) {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" || u.username || u.password || u.hash)
+      throw new Error("Search source URL must be secure");
+    const allowed =
+      (u.hostname === "en.wikipedia.org" && u.pathname === "/w/api.php" &&
+        u.searchParams.get("action") === "query" &&
+        u.searchParams.get("list") === "search" &&
+        u.searchParams.get("format") === "json") ||
+      (u.hostname === "openlibrary.org" && u.pathname === "/search.json") ||
+      (u.hostname === "api.stackexchange.com" &&
+        u.pathname === "/2.3/search/advanced" &&
+        u.searchParams.get("site") === "stackoverflow");
+    if (!allowed) throw new Error("Unsupported Seuss Search source");
+    if (u.href.length > 1800) throw new Error("Search query too long");
+    return u;
+  }
+  window.addEventListener("message", async event => {
+    if (!seussEngineView || window.parent === window ||
+        event.source !== window.parent ||
+        event.data?.type !== "dss-gust-json-request") return;
+    const id = event.data.id;
+    if (typeof id !== "string" || !/^dss-json-\d+$/.test(id)) return;
+    try {
+      if (!curl) throw new Error("GUST HTTP engine is not connected");
+      const url = dssSourceEndpoint(event.data.url);
+      // doFetch enforces Seuss Search's domain authorization before
+      // libcurl requests and again on every explicit redirect.
+      const response = await doFetch(url.href, {
+        method:"GET", headers:{Accept:"application/json"}
+      });
+      if (response.status < 200 || response.status >= 300)
+        throw new Error("Search source returned HTTP " + response.status);
+      if (!response.buf || response.buf.byteLength > 1024*1024)
+        throw new Error("Search result response exceeds size limit");
+      const data = JSON.parse(new TextDecoder().decode(response.buf));
+      window.parent.postMessage({
+        type:"dss-gust-json-result",id,ok:true,data
+      },"*");
+    } catch(error) {
+      window.parent.postMessage({
+        type:"dss-gust-json-result",id,ok:false,
+        error:String(error?.message || error).slice(0,160)
+      },"*");
+    }
+  });
   // The surrounding Seuss Search toolbar controls the GUST session's
   // internal history, not the SVG iframe's document navigation.
   window.addEventListener("message", event => {
