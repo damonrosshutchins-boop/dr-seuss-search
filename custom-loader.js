@@ -144,6 +144,20 @@
       el.setAttribute("referrerpolicy", "no-referrer");
     }
   }
+  // Retain harmless root attributes needed by common page CSS selectors,
+  // while rejecting event handlers, remote resources and arbitrary metadata.
+  function rootAttributes(el, allowStyle = false) {
+    if (!el) return "";
+    let result = "";
+    for (const key of ["class", "id", "lang", "dir", ...(allowStyle ? ["style"] : [])]) {
+      const value = el.getAttribute(key);
+      if (!value || value.length > (key === "style" ? 1200 : 500)) continue;
+      if (key === "dir" && !["ltr", "rtl", "auto"].includes(value.toLowerCase()))
+        continue;
+      result += " " + key + '="' + escapeHTML(value) + '"';
+    }
+    return result;
+  }
   function makeDocument(html, rawUrl) {
     const base = normalize(rawUrl);
     const parsed = new DOMParser().parseFromString(html, "text/html");
@@ -210,7 +224,9 @@
     const title = (parsed.title || base.hostname).slice(0, 120);
     return {
       token, title,
-      html: '<!doctype html><html><head><meta charset="utf-8">' +
+      html: '<!doctype html><html' + rootAttributes(parsed.documentElement) +
+        '><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
         '<meta name="referrer" content="no-referrer">' +
         '<meta http-equiv="Content-Security-Policy" content="' + escapeHTML(csp) + '">' +
         // srcdoc otherwise resolves relative CSS URLs against GitHub Pages.
@@ -218,7 +234,8 @@
         '<base href="' + escapeHTML(assetBase.href) + '">' +
         '<title>' + escapeHTML(title) + '</title>' + styles +
         '<script nonce="' + token + '">' + navigatorScript + '<\/script>' +
-        '</head><body>' + parsed.body.innerHTML + '</body></html>'
+        '</head><body' + rootAttributes(parsed.body, true) + '>' +
+        parsed.body.innerHTML + '</body></html>'
     };
   }
   async function fetchPage(raw, options = {}) {
