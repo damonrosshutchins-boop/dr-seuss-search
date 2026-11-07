@@ -260,7 +260,7 @@ function updateBuildSettingDescription() {
 	$("s-build-description").textContent = mode === "gust" ?
 		"Seuss Search keeps its own search bar, tabs, and navigation controls while GUST methods load the websites behind them. Verified site admins only." :
 		mode === "scramjet" ?
-		"Scramjet build: typed searches and URLs use Scramjet, the configured full-web provider and the selected Wisp transport." :
+		"Search phrases show Seuss Search's own Wikipedia, books and programming results. Website addresses still use the separately configured Scramjet service worker; that connection may be unavailable." :
 		"Other modes retain their original behavior. Seuss Browser offers native search results, not an unrestricted web index.";
 }
 $("s-proxy-engine").addEventListener("change", updateBuildSettingDescription);
@@ -1019,16 +1019,17 @@ function seussSearchExternalLink(label, href) {
 	link.textContent = label;
 	return link;
 }
-// Search results open in a Seuss Search tab when a full site engine is
-// selected. External provider links explicitly labeled "new tab" retain
-// their ordinary behavior. Domain and admin checks still run in go().
+// GUST's verified-admin renderer can load source pages in an internal tab.
+// Scramjet result links stay normal external links: routing them into
+// /scramjet/ could expose GitHub Pages' 404 when its worker isn't controlling
+// the page. Explicit website addresses retain their original browsing path.
 function seussSearchResultLink(label, href) {
 	const link = seussSearchExternalLink(label, href);
 	link.addEventListener("click", event => {
 		if (event.defaultPrevented || event.button !== 0 ||
 			event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
 			!requireSeussAccount() ||
-			!["gust","scramjet"].includes(settings.proxyEngine)) return;
+			settings.proxyEngine !== "gust") return;
 		event.preventDefault();
 		void go(href, {newTab:true});
 	});
@@ -1225,6 +1226,10 @@ function showSeussSearch(query, options = {}) {
 			"These are Seuss Search results fetched using GUST's libcurl connection. " +
 			"Sources include Wikipedia, Open Library and Stack Overflow. " +
 			"For broader web results, use the full-web provider links." :
+			settings.proxyEngine === "scramjet" ?
+			"Search results open here in Seuss Search instead of a /scramjet/ page that GitHub Pages may return as 404. " +
+			"Wikipedia, Open Library and Stack Overflow are specialized sources. " +
+			"Full-web search providers and result links open in your normal browser." :
 			"Browse Wikipedia, books and programming Q&A below. " +
 			"For full-web results, choose Brave, Google, Bing or DuckDuckGo in a new browser tab.");
 	const form = document.createElement("form");
@@ -1890,16 +1895,19 @@ window.addEventListener("seuss-site-access-change", event => {
 
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
-	if (!options.forceScramjet && isSeussSearchQuery(input) &&
-		(options.forceLite || ["seusslite","gust"].includes(settings.proxyEngine))) {
-		const useGust = !options.forceLite && settings.proxyEngine === "gust";
+	if (isSeussSearchQuery(input) &&
+		(options.forceLite || ["seusslite","gust","scramjet"].includes(settings.proxyEngine))) {
+		const useGust = !options.forceLite && !options.forceScramjet &&
+			settings.proxyEngine === "gust";
 		if (useGust && !await canLaunchGust()) {
 			showError("GUST search requires a verified site admin.",
 				"Choose another engine or sign in with your administrator account.");
 			return;
 		}
-		// Search phrases belong to Seuss Search's results UI. GUST supplies
-		// source JSON through libcurl; GUST's own browser/search page never opens.
+		// Search phrases belong to Seuss Search's results UI. The
+		// GitHub Pages host has no static files at /scramjet/ URLs.
+		// A missing or stale worker must never turn a search into a 404.
+		// GUST supplies source JSON for verified admins as before.
 		return showSeussSearch(input,{...options,gustData:useGust});
 	}
 	const url = toUrl(input);
