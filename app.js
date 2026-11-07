@@ -1019,6 +1019,21 @@ function seussSearchExternalLink(label, href) {
 	link.textContent = label;
 	return link;
 }
+// Search results open in a Seuss Search tab when a full site engine is
+// selected. External provider links explicitly labeled "new tab" retain
+// their ordinary behavior. Domain and admin checks still run in go().
+function seussSearchResultLink(label, href) {
+	const link = seussSearchExternalLink(label, href);
+	link.addEventListener("click", event => {
+		if (event.defaultPrevented || event.button !== 0 ||
+			event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
+			!requireSeussAccount() ||
+			!["gust","scramjet"].includes(settings.proxyEngine)) return;
+		event.preventDefault();
+		void go(href, {newTab:true});
+	});
+	return link;
+}
 function seussSearchNode(tag, className, value) {
 	const el = document.createElement(tag);
 	if (className) el.className = className;
@@ -1306,7 +1321,7 @@ function showSeussSearch(query, options = {}) {
 				if (typeof book.title !== "string" || typeof book.key !== "string" ||
 					!/^\/works\/OL\d+W$/.test(book.key)) continue;
 				const item = seussSearchNode("article","seuss-search-result");
-				item.append(seussSearchExternalLink(book.title,"https://openlibrary.org" + book.key));
+				item.append(seussSearchResultLink(book.title,"https://openlibrary.org" + book.key));
 				const authors = Array.isArray(book.author_name)
 					? book.author_name.filter(a=>typeof a==="string").slice(0,2).join(", ") : "";
 				const details = [authors,Number.isInteger(book.first_publish_year)
@@ -1335,7 +1350,7 @@ function showSeussSearch(query, options = {}) {
 				const item=seussSearchNode("article","seuss-search-result");
 				const cleanTitle=question.title.replace(/&amp;/g,"&").replace(/&lt;/g,"<")
 					.replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-				item.append(seussSearchExternalLink(cleanTitle,
+				item.append(seussSearchResultLink(cleanTitle,
 					"https://stackoverflow.com/questions/"+question.question_id));
 				if(Array.isArray(question.tags))
 					item.append(seussSearchNode("p","",
@@ -1384,7 +1399,7 @@ function showSeussSearch(query, options = {}) {
 				const article = seussSearchNode("article", "seuss-search-result");
 				const linkUrl = "https://en.wikipedia.org/wiki/" +
 					encodeURIComponent(hit.title.replaceAll(" ", "_"));
-				article.append(seussSearchExternalLink(hit.title, linkUrl));
+				article.append(seussSearchResultLink(hit.title, linkUrl));
 				if (typeof hit.snippet === "string") {
 					// Search snippets are untrusted; display text, never HTML.
 					const preview = hit.snippet.replace(/<[^>]*>/g, "").slice(0,350);
@@ -1747,8 +1762,9 @@ async function goGust(url, options = {}) {
 		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
 	});
 	iframe.addEventListener("error", () => {
-		if (activeSiteTabId === tab.id) showError("GUST could not start.",
-			"The local GUST browser interface failed to load.");
+		if (activeSiteTabId === tab.id) showError(
+			"Seuss Search's page loader couldn't start.",
+			"The website-rendering component failed to load.");
 	});
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
 	iframe.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
