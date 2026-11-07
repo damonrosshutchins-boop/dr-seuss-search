@@ -14,6 +14,7 @@ const DEFAULTS = {
 	engine: "https://search.brave.com/search?q=%s",
 	transport: "libcurl",
 	wisp: "wss://wisp.mercurywork.shop/",
+	fallbackWisp: "",
 	background: "",
 	accent: "#d8262f",
 	theme: "light",
@@ -118,6 +119,10 @@ const wispPresetSelect = $("s-wisp-preset");
 const wispUrlInput = $("s-wisp");
 const wispTestStatus = $("s-wisp-test-status");
 const wispTestButton = $("s-wisp-test");
+const fallbackWispPresetSelect = $("s-fallback-wisp-preset");
+const fallbackWispUrlInput = $("s-fallback-wisp");
+const fallbackWispTestStatus = $("s-fallback-wisp-test-status");
+const fallbackWispTestButton = $("s-fallback-wisp-test");
 const WISP_PRESET_VALUES = [...wispPresetSelect.options]
 	.map(option => option.value).filter(value => value !== "custom");
 let cancelWispPresetTest = null;
@@ -139,6 +144,89 @@ function validateWispAddress(input) {
 		return url.href;
 	} catch { return null; }
 }
+// Direct, short-lived Wisp handshake test: independent of Scramjet and its
+// service worker. A response confirms only Wisp protocol availability.
+// It cannot prove a remote website is reachable through the relay.
+function probeWispHandshake(address, timeoutMs = 6000, signal = null) {
+	return new Promise(resolve => {
+		let socket = null;
+		let timer = null;
+		let done = false;
+		const abort = () => finish(false, "Test cancelled.");
+		const finish = (ok, reason) => {
+			if (done) return;
+			done = true;
+			clearTimeout(timer);
+			if (signal) signal.removeEventListener("abort", abort);
+			try { socket?.close(); } catch {}
+			resolve({ ok, reason });
+		};
+		if (signal?.aborted) return finish(false, "Test cancelled.");
+		try {
+			socket = new WebSocket(address);
+			socket.binaryType = "arraybuffer";
+		} catch {
+			return finish(false, "Could not create a WebSocket.");
+		}
+		if (signal) signal.addEventListener("abort", abort, { once:true });
+		timer = setTimeout(() => finish(false, "Wisp handshake timed out."), timeoutMs);
+		socket.addEventListener("message", event => {
+			const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
+			const valid = bytes && bytes.length >= 5 && [3,5].includes(bytes[0]) &&
+				bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0;
+			finish(!!valid, valid ? "Wisp handshake received." : "Not a Wisp handshake.");
+		});
+		socket.addEventListener("error", () => finish(false, "WebSocket connection failed."));
+		socket.addEventListener("close", () => finish(false, "Connection closed before handshake."));
+	});
+}
+function syncFallbackWispPreset() {
+	const value = fallbackWispUrlInput.value.trim();
+	fallbackWispPresetSelect.value = value === "" ? "" :
+		WISP_PRESET_VALUES.includes(value) ? value : "custom";
+}
+let cancelFallbackWispTest = null;
+function clearFallbackWispTest() {
+	if (cancelFallbackWispTest) cancelFallbackWispTest();
+	cancelFallbackWispTest = null;
+	fallbackWispTestButton.disabled = false;
+	fallbackWispTestStatus.textContent = "";
+}
+fallbackWispPresetSelect.addEventListener("change", () => {
+	clearFallbackWispTest();
+	fallbackWispUrlInput.setCustomValidity("");
+	if (fallbackWispPresetSelect.value === "custom") fallbackWispUrlInput.focus();
+	else fallbackWispUrlInput.value = fallbackWispPresetSelect.value;
+});
+fallbackWispUrlInput.addEventListener("input", () => {
+	fallbackWispUrlInput.setCustomValidity("");
+	syncFallbackWispPreset();
+	clearFallbackWispTest();
+});
+fallbackWispTestButton.addEventListener("click", async () => {
+	clearFallbackWispTest();
+	const candidate = fallbackWispUrlInput.value.trim();
+	if (!candidate) {
+		fallbackWispTestStatus.textContent = "Fallback is disabled.";
+		return;
+	}
+	const address = validateWispAddress(candidate);
+	if (!address) {
+		fallbackWispTestStatus.textContent = "Enter a valid secure wss:// address.";
+		return;
+	}
+	const controller = new AbortController();
+	let cancelled = false;
+	cancelFallbackWispTest = () => { cancelled = true; controller.abort(); };
+	fallbackWispTestButton.disabled = true;
+	fallbackWispTestStatus.textContent = "Testing fallback Wisp handshake…";
+	const result = await probeWispHandshake(address, 7000, controller.signal);
+	if (cancelled) return;
+	cancelFallbackWispTest = null;
+	fallbackWispTestButton.disabled = false;
+	fallbackWispTestStatus.textContent = result.reason +
+		(result.ok ? " Save to enable this fallback." : " Check this relay's settings.");
+});
 wispPresetSelect.addEventListener("change", () => {
 	clearWispPresetTest();
 	wispUrlInput.setCustomValidity("");
@@ -218,6 +306,9 @@ function openSettings() {
 	$("s-wisp").value = settings.wisp;
 	syncWispPreset();
 	clearWispPresetTest();
+	fallbackWispUrlInput.value = settings.fallbackWisp || "";
+	syncFallbackWispPreset();
+	clearFallbackWispTest();
 	$("s-background").value = settings.background || "";
 	$("s-accent").value = settings.accent || DEFAULTS.accent;
 	$("s-theme").value = settings.theme || "light";
@@ -237,6 +328,9 @@ $("s-reset").onclick = () => {
 	$("s-wisp").value = DEFAULTS.wisp;
 	syncWispPreset();
 	clearWispPresetTest();
+	fallbackWispUrlInput.value = DEFAULTS.fallbackWisp;
+	syncFallbackWispPreset();
+	clearFallbackWispTest();
 	$("s-background").value = DEFAULTS.background;
 	$("s-accent").value = DEFAULTS.accent;
 	$("s-theme").value = DEFAULTS.theme;
@@ -268,8 +362,24 @@ $("settings-form").addEventListener("submit", async (event) => {
 		return;
 	}
 	wispUrlInput.setCustomValidity("");
+	const fallbackValue = fallbackWispUrlInput.value.trim();
+	const selectedFallbackWisp = fallbackValue ? validateWispAddress(fallbackValue) : "";
+	if (fallbackValue && !selectedFallbackWisp) {
+		event.preventDefault();
+		fallbackWispUrlInput.setCustomValidity("Enter a secure wss:// fallback address or leave blank.");
+		fallbackWispUrlInput.reportValidity();
+		return;
+	}
+	if (selectedFallbackWisp && selectedFallbackWisp === selectedWisp) {
+		event.preventDefault();
+		fallbackWispUrlInput.setCustomValidity("Fallback must differ from the primary Wisp address.");
+		fallbackWispUrlInput.reportValidity();
+		return;
+	}
+	fallbackWispUrlInput.setCustomValidity("");
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
-	const wispChanged = settings.wisp !== selectedWisp;
+	const wispChanged = settings.wisp !== selectedWisp ||
+		(settings.fallbackWisp || "") !== selectedFallbackWisp;
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
@@ -281,6 +391,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	settings.transport = TRANSPORT_OPTIONS.includes($("s-transport").value)
 		? $("s-transport").value : DEFAULTS.transport;
 	settings.wisp = selectedWisp;
+	settings.fallbackWisp = selectedFallbackWisp;
 	settings.background = $("s-background").value.trim();
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
 	settings.theme = $("s-theme").value;
@@ -443,6 +554,42 @@ function boot() {
 // Keep the BareMux worker synchronized with the locally saved address on every
 // page startup, even when the transport module is unchanged.
 let appliedTransportSettings = null;
+let activeWisp = null;
+let selectedWispPair = "";
+// Optional failover selects an alternative relay only on an actual failed
+// Wisp handshake. No automatic relay probing when fallback is disabled.
+async function chooseWispRelay(force = false) {
+	const primary = validateWispAddress(settings.wisp);
+	const fallback = settings.fallbackWisp ?
+		validateWispAddress(settings.fallbackWisp) : "";
+	if (!primary || (settings.fallbackWisp && !fallback)) {
+		throw new Error("Saved Wisp addresses are invalid. Check Settings.");
+	}
+	const pair = JSON.stringify([primary, fallback]);
+	if (!fallback) {
+		activeWisp = primary;
+		selectedWispPair = pair;
+		return primary;
+	}
+	if (!force && activeWisp && selectedWispPair === pair) return activeWisp;
+	const primaryResult = await probeWispHandshake(primary, 6500);
+	if (primaryResult.ok) {
+		activeWisp = primary;
+		selectedWispPair = pair;
+		return primary;
+	}
+	const fallbackResult = await probeWispHandshake(fallback, 6500);
+	if (!fallbackResult.ok) {
+		throw new Error("Both Wisp handshakes failed. Primary: " +
+			primaryResult.reason + " Fallback: " + fallbackResult.reason +
+			" Check relay availability and network permissions.");
+	}
+	activeWisp = fallback;
+	selectedWispPair = pair;
+	setStatus("", "Primary Wisp handshake failed; using the saved fallback relay. " +
+		"Website loading is not guaranteed.");
+	return fallback;
+}
 // Serialize transport changes: a network retry and Settings save must not
 // race and replace each other's working Wisp connection.
 let transportChangeQueue = Promise.resolve();
@@ -450,7 +597,8 @@ function applyTransport(force = false, requestedTransport = preferredTransport()
 	const transport = Object.hasOwn(TRANSPORTS, requestedTransport)
 		? requestedTransport : "libcurl";
 	const path = TRANSPORTS[transport];
-	const opts = transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
+	const relay = activeWisp || settings.wisp;
+	const opts = transport === "epoxy" ? { wisp: relay } : { websocket: relay };
 	const signature = JSON.stringify([path, opts]);
 	const task = transportChangeQueue.catch(() => {}).then(async () => {
 		if (!connection) throw new Error("The proxy transport has not initialized.");
@@ -466,6 +614,7 @@ function applyTransport(force = false, requestedTransport = preferredTransport()
 // saved Wisp endpoint or site access policy, and never promise a working
 // destination merely because an initialization call completed.
 async function configureTransport(force = false) {
+	await chooseWispRelay(force);
 	const preference = transportPreference();
 	const first = preferredTransport();
 	try {
