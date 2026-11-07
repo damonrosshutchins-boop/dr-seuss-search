@@ -89,3 +89,29 @@ home-page diagnostics work when Seuss Browser is the default.
 service-worker initialization and transport configuration. Neither proves that
 a particular destination site can load. Ordinary website security rules and
 network policies still apply; some websites will not function in this view.
+
+## GUST experimental browsing engine (admins only)
+
+The site now offers **GUST (experimental · site admins only)** in Settings →
+Browsing engine. The option is revealed only when the currently signed-in site
+account passes the existing **server-side** `site_check_admin` verification.
+The site checks again before saving the option and launching the browser.
+
+The modified AGPL-3.0 GUST interface is served at `gust/site.svg` and opens
+within an **origin-sandboxed internal Seuss Search tab**. GUST is separate from
+Scramjet and does not require its service worker. The user's selected Wisp
+relay is passed to the embedded engine for startup, while GUST retains its
+own in-frame browser controls. Browsing requests, redirects, WebSockets and
+streaming endpoints are checked through the parent site's server-backed
+domain policy. When opened without that authorized parent, the adapted
+GUST code fails closed instead of fetching arbitrary destinations.
+
+Original project: [nautilus-os/GUST](https://github.com/nautilus-os/GUST),
+distributed under the GNU Affero General Public License v3.0. See
+[`gust/NOTICE.md`](gust/NOTICE.md) for source attribution and modifications;
+the root `LICENSE` includes the AGPL-3.0 text. GUST's original external
+dependency scripts are still fetched from CDNs; the connection may fail if
+these or the selected relay are unavailable. The built-in browser sandbox may
+also restrict a few features. Admin-only visibility does not make
+GitHub Pages assets private, so the vendored engine independently requires
+authorization from the parent page before making web requests.
