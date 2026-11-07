@@ -799,8 +799,8 @@ function activateSiteTab(id) {
 			"Seuss Browser loads directly without Wisp. If the page is blank or blocked, its host may forbid embedding; this mode cannot override network restrictions.";
 	}
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value =
-		tab.gust ? (tab.targetUrl || "") :
 		tab.searchPage ? (tab.searchQuery || tab.url || "") :
+		tab.gust ? (tab.targetUrl || "") :
 		tab.rammerhead || tab.adrift ? (tab.targetUrl || "") : (tab.url || "");
 	const rhHelper = $("rammerhead-helper");
 	const isPortal = !!(tab.rammerhead || tab.adrift);
@@ -838,6 +838,7 @@ function closeSiteTab(id) {
 	if (tab.type === "talk") window.dispatchEvent(new Event("seuss-talk-tab-close"));
 	if (tab.searchAbort) tab.searchAbort.abort();
 	if (tab.extraSearchAbort) tab.extraSearchAbort.abort();
+	if (tab.gustSearchEngine) stopGustSearchEngine(tab);
 	if (tab.pane) tab.pane.remove();
 	const wasActive = activeSiteTabId === id;
 	siteTabs.splice(index, 1);
@@ -1024,12 +1025,92 @@ function seussSearchNode(tag, className, value) {
 	if (value != null) el.textContent = String(value);
 	return el;
 }
+
+/* ---------- GUST source fetching for Seuss Search's own result UI ---------- */
+let gustJsonSequence = 0;
+function stopGustSearchEngine(tab) {
+	if (tab.gustReadyReject) {
+		tab.gustReadyReject(new Error("Search closed"));
+		tab.gustReadyReject = null;
+		tab.gustReadyResolve = null;
+	}
+	if (tab.gustJsonPending) {
+		for (const entry of tab.gustJsonPending.values())
+			entry.finish(new Error("Search closed"));
+		tab.gustJsonPending.clear();
+	}
+}
+function ensureGustSearchEngine(tab) {
+	if (!tab.gustSearchEngine || !siteTabs.includes(tab))
+		return Promise.reject(new Error("The GUST results tab was closed"));
+	if (tab.gustReady) return Promise.resolve();
+	if (tab.gustReadyPromise) return tab.gustReadyPromise;
+	tab.gustJsonPending = new Map();
+	tab.gustReadyPromise = new Promise((resolve,reject) => {
+		const expiry = setTimeout(() => {
+			tab.gustReadyReject = null;
+			tab.gustReadyResolve = null;
+			reject(new Error("GUST connection timed out"));
+		}, 18000);
+		tab.gustReadyResolve = () => { clearTimeout(expiry); resolve(); };
+		tab.gustReadyReject = error => { clearTimeout(expiry); reject(error); };
+	});
+	// This iframe is an isolated HTTP engine only, never a displayed GUST
+	// browser or a second search page.
+	const frame = document.createElement("iframe");
+	frame.hidden = true;
+	frame.title = "Background GUST search data engine";
+	frame.setAttribute("sandbox","allow-scripts allow-forms");
+	frame.referrerPolicy = "no-referrer";
+	frame.style.display = "none";
+	tab.pane.append(frame);
+	tab.gust = true;
+	tab.gustReady = false;
+	tab.directFrame = frame;
+	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
+	frame.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
+	return tab.gustReadyPromise;
+}
+async function fetchSeussSourceJson(tab, url, signal) {
+	if (!tab.gustSearchEngine) {
+		const response = await fetch(url.href, {
+			method:"GET",credentials:"omit",mode:"cors",
+			referrerPolicy:"no-referrer",signal
+		});
+		if (!response.ok) throw new Error("Search source returned HTTP " + response.status);
+		return response.json();
+	}
+	if (signal?.aborted) throw new DOMException("Aborted","AbortError");
+	await ensureGustSearchEngine(tab);
+	if (signal?.aborted || !siteTabs.includes(tab))
+		throw new DOMException("Aborted","AbortError");
+	if (!tab.directFrame?.contentWindow) throw new Error("Search engine unavailable");
+	return new Promise((resolve,reject) => {
+		const id = "dss-json-" + (++gustJsonSequence);
+		const finish = (error,data) => {
+			clearTimeout(timeout);
+			signal?.removeEventListener("abort", abort);
+			tab.gustJsonPending?.delete(id);
+			if (error) reject(error); else resolve(data);
+		};
+		const abort = () => finish(new DOMException("Aborted","AbortError"));
+		const timeout = setTimeout(() => finish(new Error("Search source timed out")),12000);
+		if (signal) signal.addEventListener("abort",abort,{once:true});
+		tab.gustJsonPending.set(id,{finish});
+		try {
+			tab.directFrame.contentWindow.postMessage({
+				type:"dss-gust-json-request",id,url:url.href
+			},"*");
+		} catch(error) { finish(error); }
+	});
+}
 function createSeussSearchPane(options = {}) {
 	let tab = !options.newTab && (currentSiteTab()?.searchPage || currentSiteTab()?.liteEngine)
 		? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", "Seuss Search");
 	if (tab.searchAbort) tab.searchAbort.abort();
 	if (tab.extraSearchAbort) tab.extraSearchAbort.abort();
+	if (tab.gustSearchEngine) stopGustSearchEngine(tab);
 	if (tab.pane) tab.pane.remove();
 	const pane = document.createElement("div");
 	pane.className = "site-frame-pane seuss-native-search-pane";
@@ -1043,6 +1124,11 @@ function createSeussSearchPane(options = {}) {
 	tab.pane = pane;
 	tab.frame = null;
 	tab.directFrame = null;
+	tab.gust = !!options.gustData;
+	tab.gustSearchEngine = !!options.gustData;
+	tab.gustReady = false;
+	tab.gustReadyPromise = null;
+	tab.gustJsonPending = null;
 	tab.searchPage = true;
 	tab.sourceNotice = false;
 	tab.liteEngine = false;
@@ -1120,9 +1206,12 @@ function showSeussSearch(query, options = {}) {
 	activateSiteTab(tab.id);
 	const heading = seussSearchNode("h1", "", "Seuss Search");
 	const explainer = seussSearchNode("p", "seuss-search-note",
-		"Browse Wikipedia, books and programming Q&A below. " +
-		"For full-web results, choose Brave, Google, Bing or DuckDuckGo and open the normal search page " +
-		"in a new browser tab. Search engines cannot reliably run inside a regular iframe.");
+		options.gustData ?
+			"These are Seuss Search results fetched using GUST's libcurl connection. " +
+			"Sources include Wikipedia, Open Library and Stack Overflow. " +
+			"For broader web results, use the full-web provider links." :
+			"Browse Wikipedia, books and programming Q&A below. " +
+			"For full-web results, choose Brave, Google, Bing or DuckDuckGo in a new browser tab.");
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
 	const input = document.createElement("input");
@@ -1202,10 +1291,7 @@ function showSeussSearch(query, options = {}) {
 			!(await window.dssSitePolicyCheck(url.origin + "/")))
 			throw new Error("Blocked under website rules");
 		if (!stillActive()) throw new Error("Search cancelled");
-		const response = await fetch(url.href, {method:"GET",mode:"cors",
-			credentials:"omit",referrerPolicy:"no-referrer",signal:extraController.signal});
-		if (!response.ok) throw new Error("HTTP " + response.status);
-		return response.json();
+		return fetchSeussSourceJson(tab,url,extraController.signal);
 	};
 	async function loadBooks() {
 		try {
@@ -1288,12 +1374,7 @@ function showSeussSearch(query, options = {}) {
 				action:"query", list:"search", srsearch:q, srlimit:"10",
 				sroffset:String(offset), srprop:"snippet", format:"json", origin:"*"
 			})) apiUrl.searchParams.set(key,value);
-			const response = await fetch(apiUrl.href, {
-				method:"GET", credentials:"omit", mode:"cors",
-				referrerPolicy:"no-referrer", signal:controller.signal
-			});
-			if (!response.ok) throw new Error("HTTP " + response.status);
-			const json = await response.json();
+			const json = await fetchSeussSourceJson(tab,apiUrl,controller.signal);
 			if (controller.signal.aborted || tab.searchAbort !== controller) return;
 			const hits = Array.isArray(json?.query?.search) ? json.query.search : [];
 			for (const hit of hits) {
@@ -1627,7 +1708,8 @@ async function goGust(url, options = {}) {
 			"The current site account does not have server-confirmed admin access.");
 		return;
 	}
-	let tab = !options.newTab && currentSiteTab()?.gust ? currentSiteTab() : null;
+	let tab = !options.newTab && currentSiteTab()?.gust &&
+		!currentSiteTab()?.gustSearchEngine ? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", siteTabTitle(url));
 	tab.type = "direct";
 	tab.gust = true;
@@ -1674,20 +1756,42 @@ async function goGust(url, options = {}) {
 window.addEventListener("message", async event => {
 	const data = event.data;
 	if (!data || !["dss-gust-policy","dss-gust-active","dss-gust-location",
-		"dss-gust-ready","dss-gust-error"].includes(data.type)) return;
+		"dss-gust-ready","dss-gust-error","dss-gust-json-result"].includes(data.type)) return;
 	const tab = siteTabs.find(item => item.gust &&
 		item.directFrame?.contentWindow === event.source);
 	if (!tab) return;
 	if (data.type === "dss-gust-ready") {
 		tab.gustReady = true;
 		tab.loading = false;
+		if (tab.gustSearchEngine) {
+			tab.gustReadyResolve?.();
+			tab.gustReadyResolve = null;
+			tab.gustReadyReject = null;
+			return;
+		}
 		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
 		sendGustDestination(tab, tab.targetUrl);
+		return;
+	}
+	if (data.type === "dss-gust-json-result") {
+		if (!tab.gustSearchEngine || typeof data.id !== "string") return;
+		const entry = tab.gustJsonPending?.get(data.id);
+		if (!entry) return;
+		entry.finish(data.ok ? null : new Error(
+			String(data.error || "GUST source request failed").slice(0,160)),
+			data.ok ? data.data : null);
 		return;
 	}
 	if (data.type === "dss-gust-error") {
 		tab.gustReady = false;
 		tab.loading = false;
+		if (tab.gustSearchEngine) {
+			tab.gustReadyReject?.(new Error(
+				String(data.message || "GUST could not connect").slice(0,160)));
+			tab.gustReadyResolve = null;
+			tab.gustReadyReject = null;
+			return;
+		}
 		if (activeSiteTabId === tab.id) {
 			activateSiteTab(tab.id);
 			setStatus("bad", "Seuss Search (GUST engine): " +
@@ -1740,12 +1844,17 @@ window.addEventListener("seuss-site-access-change", event => {
 
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
-	if (!options.forceScramjet &&
-		(options.forceLite || settings.proxyEngine === "seusslite") &&
-		isSeussSearchQuery(input)) {
-		// Always display native results in the lightweight engine. Do not
-		// turn search terms into /scramjet/ URLs that GitHub Pages serves as 404.
-		return showSeussSearch(input, options);
+	if (!options.forceScramjet && isSeussSearchQuery(input) &&
+		(options.forceLite || ["seusslite","gust"].includes(settings.proxyEngine))) {
+		const useGust = !options.forceLite && settings.proxyEngine === "gust";
+		if (useGust && !await canLaunchGust()) {
+			showError("GUST search requires a verified site admin.",
+				"Choose another engine or sign in with your administrator account.");
+			return;
+		}
+		// Search phrases belong to Seuss Search's results UI. GUST supplies
+		// source JSON through libcurl; GUST's own browser/search page never opens.
+		return showSeussSearch(input,{...options,gustData:useGust});
 	}
 	const url = toUrl(input);
 	if (!url) return;
