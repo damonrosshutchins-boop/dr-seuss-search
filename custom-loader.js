@@ -4,6 +4,7 @@
 (function () {
   "use strict";
   const LIMIT = 1_500_000;
+  const TIMEOUT_MS = 15_000;
   const MAX_NODES = 15_000;
   const TAGS = new Set(("a abbr article aside b blockquote br caption code dd details " +
     "div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i " +
@@ -30,8 +31,23 @@
       return url.href;
     } catch { return null; }
   }
+  // Rebuild responsive image candidates rather than trusting arbitrary srcset
+  // entries. Images remain HTTPS-only and same-origin with the viewed page.
+  function cleanSrcset(raw, base) {
+    return String(raw || "").split(",").slice(0, 12).map(entry => {
+      const parts = entry.trim().split(/\s+/);
+      if (!parts[0] || parts.length > 2) return "";
+      const url = resolved(parts[0], base, true);
+      const descriptor = parts[1] || "";
+      if (!url || (descriptor &&
+          !/^(?:\d+(?:\.\d+)?x|[1-9]\d{0,4}w)$/.test(descriptor))) return "";
+      return url + (descriptor ? " " + descriptor : "");
+    }).filter(Boolean).join(", ");
+  }
   function cleanElement(el, base) {
     const tag = el.localName;
+    const lazySrc = tag === "img" ? el.getAttribute("data-src") : null;
+    const lazySrcset = tag === "img" ? el.getAttribute("data-srcset") : null;
     if (!TAGS.has(tag)) { el.remove(); return; }
     for (const a of [...el.attributes]) {
       const key = a.name.toLowerCase(), value = a.value;
@@ -45,6 +61,10 @@
       } else if (tag === "img" && key === "src") {
         const url = resolved(value, base, true);
         if (url) el.setAttribute("src", url);
+        else el.removeAttribute(a.name);
+      } else if (tag === "img" && key === "srcset") {
+        const safe = cleanSrcset(value, base);
+        if (safe) el.setAttribute("srcset", safe);
         else el.removeAttribute(a.name);
       } else if (tag === "img" && ["alt", "loading"].includes(key)) {
         // Readable descriptions are preserved.
@@ -66,7 +86,18 @@
       }
       el.setAttribute("rel", "noopener noreferrer");
     }
-    if (tag === "img") el.setAttribute("referrerpolicy", "no-referrer");
+    if (tag === "img") {
+      // Many modern sites keep image URLs in lazy-loading attributes.
+      if (!el.hasAttribute("src")) {
+        const src = resolved(lazySrc, base, true);
+        if (src) el.setAttribute("src", src);
+      }
+      if (!el.hasAttribute("srcset")) {
+        const srcset = cleanSrcset(lazySrcset, base);
+        if (srcset) el.setAttribute("srcset", srcset);
+      }
+      el.setAttribute("referrerpolicy", "no-referrer");
+    }
   }
   function makeDocument(html, rawUrl) {
     const base = normalize(rawUrl);
@@ -119,25 +150,76 @@
   }
   async function fetchPage(raw, options = {}) {
     const url = normalize(raw);
-    let response;
+    const controller = new AbortController();
+    let timedOut = false;
+    const cancel = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener("abort", cancel, { once: true });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, TIMEOUT_MS);
     try {
-      response = await fetch(url.href, {
-        mode: "cors", credentials: "omit", redirect: "error",
-        referrerPolicy: "no-referrer", signal: options.signal
-      });
-    } catch (e) {
-      if (e?.name === "AbortError") throw e;
-      throw new Error("Fetch failed. The site may reject CORS, redirect, or be unavailable.");
+      let response;
+      try {
+        response = await fetch(url.href, {
+          mode: "cors", credentials: "omit", redirect: "error",
+          referrerPolicy: "no-referrer", signal: controller.signal
+        });
+      } catch (error) {
+        if (error?.name === "AbortError") throw error;
+        throw new Error("Could not fetch this page. It may block CORS, redirect, or be offline.");
+      }
+      if (!response.ok) {
+        if (response.status === 429)
+          throw new Error("The website is rate-limiting requests (HTTP 429). Try again later.");
+        throw new Error("The website returned HTTP " + response.status + ".");
+      }
+      const mime = (response.headers.get("content-type") || "").toLowerCase();
+      if (!mime.includes("text/html") && !mime.includes("application/xhtml+xml"))
+        throw new Error("Only HTML documents are supported.");
+      if (Number(response.headers.get("content-length") || 0) > LIMIT)
+        throw new Error("The HTML document is too large.");
+
+      // Read with a byte cap. response.text() alone could buffer an
+      // unbounded response when a server omits Content-Length.
+      let html = "";
+      if (response.body && typeof response.body.getReader === "function") {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let received = 0;
+        try {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            received += chunk.value.byteLength;
+            if (received > LIMIT) {
+              await reader.cancel();
+              throw new Error("The HTML document is too large.");
+            }
+            html += decoder.decode(chunk.value, { stream: true });
+          }
+          html += decoder.decode();
+        } finally {
+          reader.releaseLock();
+        }
+      } else {
+        // Fallback for browsers without streamed fetch responses.
+        html = await response.text();
+        if (new Blob([html]).size > LIMIT)
+          throw new Error("The HTML document is too large.");
+      }
+      return makeDocument(html, url.href);
+    } catch (error) {
+      if (options.signal?.aborted)
+        throw new DOMException("Navigation canceled.", "AbortError");
+      if (timedOut)
+        throw new Error("Loading timed out after 15 seconds. Press Reload to retry.");
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", cancel);
     }
-    if (!response.ok) throw new Error("The website returned HTTP " + response.status + ".");
-    const mime = (response.headers.get("content-type") || "").toLowerCase();
-    if (!mime.includes("text/html") && !mime.includes("application/xhtml+xml"))
-      throw new Error("Only HTML documents are supported.");
-    if (Number(response.headers.get("content-length") || 0) > LIMIT)
-      throw new Error("The HTML document is too large.");
-    const html = await response.text();
-    if (html.length > LIMIT) throw new Error("The HTML document is too large.");
-    return makeDocument(html, url.href);
   }
   window.DSSCustomLoader = Object.freeze({ fetchPage, makeDocument });
 })();
