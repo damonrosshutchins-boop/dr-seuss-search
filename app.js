@@ -258,7 +258,7 @@ $("s-reset").onclick = () => {
 function updateBuildSettingDescription() {
 	const mode = $("s-proxy-engine").value;
 	$("s-build-description").textContent = mode === "gust" ?
-		"GUST build: typed searches and URLs open in the independent GUST browser. Verified site admins only." :
+		"Seuss Search keeps its own search bar, tabs, and navigation controls while GUST methods load the websites behind them. Verified site admins only." :
 		mode === "scramjet" ?
 		"Scramjet build: typed searches and URLs use Scramjet, the configured full-web provider and the selected Wisp transport." :
 		"Other modes retain their original behavior. Seuss Browser offers native search results, not an unrestricted web index.";
@@ -329,7 +329,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
 	} else if (settings.proxyEngine === "gust") {
-		setStatus("", "GUST build selected: searches and websites open inside GUST after admin and site-policy checks.");
+		setStatus("", "Seuss Search uses GUST methods to load websites behind its normal interface. Verified site admins only.");
 	} else if (settings.proxyEngine === "ultraviolet") {
 		setStatus("", "Ultraviolet is unavailable on this GitHub Pages deployment. A compatibility explanation will be shown instead of navigating to a broken proxy URL.");
 	} else if (settings.performanceMode && !ready) {
@@ -737,7 +737,7 @@ function renderSiteTabs() {
 		const select = document.createElement("button");
 		select.type = "button";
 		select.className = "site-tab-select";
-		select.textContent = (tab.type === "talk" ? "💬 " : tab.type === "vm" ? "🖥 " : tab.gust ? "🌬️ " : "") + tab.title;
+		select.textContent = (tab.type === "talk" ? "💬 " : tab.type === "vm" ? "🖥 " : "") + tab.title;
 		select.title = tab.title;
 		select.setAttribute("aria-current", tab.id === activeSiteTabId ? "page" : "false");
 		select.addEventListener("click", () => activateSiteTab(tab.id));
@@ -1628,10 +1628,10 @@ async function goGust(url, options = {}) {
 		return;
 	}
 	let tab = !options.newTab && currentSiteTab()?.gust ? currentSiteTab() : null;
-	if (!tab) tab = createSiteTab("direct", "GUST");
+	if (!tab) tab = createSiteTab("direct", siteTabTitle(url));
 	tab.type = "direct";
 	tab.gust = true;
-	tab.title = "GUST";
+	tab.title = siteTabTitle(url);
 	tab.targetUrl = url;
 	tab.url = url;
 	tab.gustHost = new URL(url).hostname.toLowerCase();
@@ -1644,7 +1644,7 @@ async function goGust(url, options = {}) {
 	pane.className = "site-frame-pane";
 	pane.hidden = true;
 	const iframe = document.createElement("iframe");
-	iframe.title = "GUST experimental browser — site admins only";
+	iframe.title = "Seuss Search website viewer — GUST loading engine (admins only)";
 	// Keep the independent GUST runtime away from site login tokens and
 	// the parent page. No allow-same-origin or allow-top-navigation.
 	iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-downloads");
@@ -1666,14 +1666,14 @@ async function goGust(url, options = {}) {
 			"The local GUST browser interface failed to load.");
 	});
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	iframe.src = at("gust/site.svg") + "?wisp=" + encodeURIComponent(relay);
+	iframe.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
 	activateSiteTab(tab.id);
 }
 // Every request from the GUST shell must be allowed by the site's server
 // policy; GUST has no independent permission to fetch web destinations.
 window.addEventListener("message", async event => {
 	const data = event.data;
-	if (!data || !["dss-gust-policy","dss-gust-active",
+	if (!data || !["dss-gust-policy","dss-gust-active","dss-gust-location",
 		"dss-gust-ready","dss-gust-error"].includes(data.type)) return;
 	const tab = siteTabs.find(item => item.gust &&
 		item.directFrame?.contentWindow === event.source);
@@ -1690,9 +1690,28 @@ window.addEventListener("message", async event => {
 		tab.loading = false;
 		if (activeSiteTabId === tab.id) {
 			activateSiteTab(tab.id);
-			setStatus("bad", "GUST startup: " +
+			setStatus("bad", "Seuss Search (GUST engine): " +
 				String(data.message || "Unknown error").slice(0,200));
 		}
+		return;
+	}
+	if (data.type === "dss-gust-location") {
+		// Only the identified GUST frame can report a navigation. Keep full
+		// URLs in this tab, while ordinary site presence exposes only hosts.
+		if (typeof data.url !== "string" || data.url.length > 2048) return;
+		let locationUrl;
+		try {
+			locationUrl = new URL(data.url);
+			if (!["http:","https:"].includes(locationUrl.protocol) ||
+				locationUrl.username || locationUrl.password) return;
+		} catch { return; }
+		tab.url = locationUrl.href;
+		tab.targetUrl = locationUrl.href;
+		tab.gustHost = locationUrl.hostname.toLowerCase();
+		tab.title = siteTabTitle(locationUrl.href);
+		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+		renderSiteTabs();
+		announceActiveSiteView();
 		return;
 	}
 	const host = typeof data.host === "string" ? data.host.toLowerCase() : "";
@@ -2065,7 +2084,7 @@ $("retry-proxy").hidden = $("retry-wisp").hidden;
 if (settings.proxyEngine === "seusslite") {
 	setStatus("ok", "Seuss Browser ready. Direct pages load without Wisp or a service worker.");
 } else if (settings.proxyEngine === "gust") {
-	setStatus("", "GUST is an experimental engine for server-verified site admins. Its browser will open in a site tab.");
+	setStatus("", "Seuss Search is using the GUST loading engine behind its normal interface. Site-admin authorization is required.");
 } else if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else if (settings.proxyEngine === "adrift") {

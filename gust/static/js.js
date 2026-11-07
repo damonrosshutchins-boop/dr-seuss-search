@@ -5,6 +5,10 @@
   const root = document.querySelector("foreignObject").firstElementChild;
   const head = root.querySelector("head");
   const body = root.querySelector("body");
+  // GUST still supplies the HTTP and rewriting runtime, but its own
+  // browser chrome is hidden when Seuss Search owns the UI.
+  const seussEngineView = new URLSearchParams(location.search).get("seuss") === "1";
+  if (seussEngineView) body.classList.add("seuss-engine-view");
   const originalCreateElement = document.createElement.bind(document);
   const originalCreateElementNS = document.createElementNS.bind(document);
 
@@ -6174,7 +6178,10 @@ parent.postMessage({ t: 'ready' }, '*');
       }
 
       await dssAllowRequest(url);
-      window.parent.postMessage({type:"dss-gust-active",host:new URL(url).hostname.toLowerCase()},"*");
+      if (seussEngineView && window.parent !== window)
+        window.parent.postMessage({type:"dss-gust-location",url},"*");
+      else
+        window.parent.postMessage({type:"dss-gust-active",host:new URL(url).hostname.toLowerCase()},"*");
       const r = await queueFetch(url, opts, PRIORITY.html);
       if (activeTabId !== initiatorTabId) return;
 
@@ -6183,6 +6190,8 @@ parent.postMessage({ t: 'ready' }, '*');
       if (r.finalUrl && r.finalUrl !== url) {
         url = r.finalUrl;
         pageUrl = url;
+        if (seussEngineView && window.parent !== window)
+          window.parent.postMessage({type:"dss-gust-location",url},"*");
         urlInput.value = url;
         updateTabUrl(url);
         updateSecurityChip(url);
@@ -8458,10 +8467,6 @@ parent.postMessage({ t: 'ready' }, '*');
         libcurl.set_websocket(WISP);
         curl = new libcurl.HTTPSession();
         curl.set_connections(MAX_CONCURRENT, MAX_CONCURRENT, MAX_CONCURRENT);
-        // The SVG iframe loading is not proof that this session is ready.
-        // Only now tell Seuss Search that it can send the first navigation.
-        if(window.parent !== window)
-          window.parent.postMessage({type:"dss-gust-ready"},"*");
         log(
           `<i class="fas fa-circle-check" style="color:var(--ok)"></i><span style="color:var(--ok)">libcurl initialized successfully</span>`,
           "ok",
@@ -8490,7 +8495,12 @@ parent.postMessage({ t: 'ready' }, '*');
       // Signal that libcurl init is complete so deferred UI (tutorial, etc.) can start
       if (window._onLibcurlInitDone) window._onLibcurlInitDone();
 
-      if (tabsLoaded) {
+      if (seussEngineView) {
+        // Seuss Search is the browser UI: do not restore GUST's own tabs or
+        // its homepage. Report readiness after initialization is finished.
+        if (window.parent !== window)
+          window.parent.postMessage({type:"dss-gust-ready"},"*");
+      } else if (tabsLoaded) {
         const activeTab = getActiveTab();
         if (
           activeTab &&
