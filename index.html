@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-framefix1" />
+	<link rel="stylesheet" href="style.css?v=20261106-wisp-picker1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -655,10 +655,27 @@
 				</select>
 				<small>libcurl.js is already included with Dr. Seuss Search. This option changes the Scramjet network transport; it is not GUST's standalone browser engine.</small>
 			</label>
-			<label>Wisp server
-				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" />
-				<small>A Wisp relay carries proxy traffic. Use <strong>Test Wisp</strong> to check whether the configured relay answers a WebSocket handshake, independently of Scramjet. Use <strong>Retry Scramjet</strong> to test the service worker and transport setup. A failed test on a managed network may reflect that network's policy; the website cannot override it.</small>
+			<label>Wisp relay
+				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
+					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
+					<option value="wss://anura.pro/">anura.pro</option>
+					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
+					<option value="wss://mages.io/">mages.io</option>
+					<option value="wss://lichology.com/">lichology.com</option>
+					<option value="wss://definitelyscience.com/">definitelyscience.com</option>
+					<option value="wss://wisp.terbiumon.top/">wisp.terbiumon.top</option>
+					<option value="custom">Custom Wisp relay…</option>
+				</select>
+				<small>Choose a relay, or select Custom to enter your own. These are candidate addresses; availability and Wisp support have not been verified.</small>
 			</label>
+			<label>Selected Wisp address
+				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" required />
+			</label>
+			<div class="wisp-relay-test">
+				<button type="button" class="chip" id="s-wisp-test">Test selected relay</button>
+				<span role="status" aria-live="polite" id="s-wisp-test-status"></span>
+			</div>
+			<small>The test checks a Wisp WebSocket handshake, not whether a destination website loads. Press Save to apply your selection. Public relay operators may see traffic metadata, and some relays may reject connections.</small>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
 				<small>Use a direct image URL. Leave blank to use the default background.</small>
@@ -728,7 +745,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-framefix1"></script>
+	<script src="app.js?v=20261106-wisp-picker1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
