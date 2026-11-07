@@ -220,5 +220,11 @@ self.addEventListener("fetch", (event) => {
 		event.respondWith(scramjetFetchProbe());
 		return;
 	}
-	event.respondWith(handleRequest(event));
+	event.respondWith(handleRequest(event).catch(error => {
+		// A missing IndexedDB config or unexpected route failure should still
+		// respond from the site's worker instead of yielding a generic browser
+		// network error or a nonexistent GitHub Pages file.
+		console.warn("Scramjet route initialization failed:", error);
+		return unavailableResponse(503);
+	}));
 });
