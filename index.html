@@ -179,8 +179,8 @@
 			<button id="lite-hide-tip" type="button" title="Hide this notice" aria-label="Hide browser notice">×</button>
 		</div>
 		<div id="uv-fallback-banner" class="uv-fallback-banner" role="status" hidden>
-			<strong>Ultraviolet couldn't run securely here.</strong>
-			<span>This site shares its origin with account login. To protect login storage, your page has opened using Scramjet instead of loading Ultraviolet's broken iframe.</span>
+			<strong>Ultraviolet isn't available on this login-hosting origin.</strong>
+			<span>Use the compatibility view to choose Seuss Browser for sites that allow normal embedding.</span>
 			<button id="uv-fallback-dismiss" type="button" aria-label="Dismiss Ultraviolet compatibility notice">Dismiss</button>
 		</div>
 		<div id="frame-host" class="frame-host"></div>
@@ -632,10 +632,10 @@
 					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
 					<option value="scramjet">Scramjet (built in)</option>
 					<option value="rammerhead">Rammerhead (separate server)</option>
-					<option value="ultraviolet">Ultraviolet (secure Scramjet fallback)</option>
+					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
 					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small><strong>Seuss Browser</strong> is direct loading without Wisp. <strong>Ultraviolet</strong> requires a separate origin to work securely: on this GitHub Pages site, choosing it opens the page through Scramjet instead, with a visible notice. This protects your account credentials and avoids the broken 404 iframe. Moderator requirements stay in place.</small>
+				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
 			</label>
 			<label class="row"><input type="checkbox" id="s-embed-search" /> Try to embed search websites inside Seuss Browser</label>
 			<small>Optional. Search websites such as Google, Brave and YouTube may refuse embedding. Firefox will still enforce their security settings. Uncheck this to use Seuss Search's built-in article results.</small>
@@ -727,7 +727,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-uvfallback1"></script>
+	<script src="app.js?v=20261106-uv404compat2"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
