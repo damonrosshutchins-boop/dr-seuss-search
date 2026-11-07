@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-wisp-picker1" />
+	<link rel="stylesheet" href="style.css?v=20261106-uvfallback1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -175,7 +175,6 @@
 		<div id="lite-helper" class="lite-helper" role="status" hidden>
 			<span id="lite-helper-description">Seuss Browser loads directly. Sites that disallow embedding cannot be opened in this view; use Seuss Search results or an approved external browser tab.</span>
 			<a id="lite-source-link" href="#" target="_blank" rel="noopener noreferrer">Open original site</a>
-			<button type="button" id="lite-try-scramjet">Try with Scramjet</button>
 			<button type="button" id="lite-back-to-results" hidden>Back to Seuss results</button>
 			<button id="lite-hide-tip" type="button" title="Hide this notice" aria-label="Hide browser notice">×</button>
 		</div>
@@ -628,23 +627,18 @@
 					<option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
 				</select>
 			</label>
-			<label>Proxy and search build
+			<label>Browsing engine
 				<select id="s-proxy-engine">
-					<optgroup label="Website loading methods">
-						<option value="scramjet">Scramjet — full-web search + website viewer</option>
-						<option value="gust" id="s-gust-option" disabled hidden>GUST loading method — Seuss Search UI (admins only)</option>
-					</optgroup>
-					<optgroup label="Other modes">
-						<option value="seusslite">Seuss Browser — built-in search + permitted embeds</option>
-						<option value="rammerhead">Rammerhead — separate server</option>
-						<option value="ultraviolet">Ultraviolet — unavailable here</option>
-						<option value="adrift">Adrift — experimental portal</option>
-					</optgroup>
+					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
+					<option value="scramjet">Scramjet (built in)</option>
+					<option value="rammerhead">Rammerhead (separate server)</option>
+					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
+					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small id="s-build-description">Choose the loading engine behind Dr. Seuss Search. Both use Seuss Search's own search bar, browser tabs and navigation controls. GUST remains admin-only and observes site rules.</small>
+				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
 			</label>
-			<input type="checkbox" id="s-embed-search" hidden aria-hidden="true" />
-			<small>Scramjet uses the selected full-web search provider when its service worker works. Seuss Browser and GUST modes use Seuss Search results. If Scramjet fails to start, searches fall back to built-in results instead of GitHub Pages 404.</small>
+			<label class="row"><input type="checkbox" id="s-embed-search" /> Try to embed search websites inside Seuss Browser</label>
+			<small>Optional. Search websites such as Google, Brave and YouTube may refuse embedding. Firefox will still enforce their security settings. Uncheck this to use Seuss Search's built-in article results.</small>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
@@ -658,30 +652,12 @@
 					<option value="libcurl">libcurl.js (Wisp transport · recommended)</option>
 					<option value="epoxy">Epoxy (Wisp transport)</option>
 				</select>
-				<small>libcurl.js is already included. Scramjet configures the selected transport before running an independent Wisp diagnostic; a slow diagnostic handshake no longer prevents startup. This is not GUST's standalone engine.</small>
+				<small>libcurl.js is already included with Dr. Seuss Search. This option changes the Scramjet network transport; it is not GUST's standalone browser engine.</small>
 			</label>
-			<label>Wisp relay
-				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
-					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
-					<option value="wss://anura.pro/">anura.pro</option>
-					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
-					<option value="wss://mages.io/">mages.io</option>
-					<option value="wss://mages.io/wisp/">mages.io/wisp/ (backup)</option>
-					<option value="wss://lichology.com/">lichology.com</option>
-					<option value="wss://definitelyscience.com/">definitelyscience.com</option>
-					<option value="wss://wisp.terbiumon.top/">wisp.terbiumon.top</option>
-					<option value="custom">Custom Wisp relay…</option>
-				</select>
-				<small>Choose a relay, or select Custom to enter your own. If the selected relay fails, Scramjet automatically tries wss://mages.io/wisp/ as its backup. Server availability is not guaranteed.</small>
+			<label>Wisp server
+				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" />
+				<small>A Wisp relay carries proxy traffic. Use <strong>Test Wisp</strong> to check whether the configured relay answers a WebSocket handshake, independently of Scramjet. Use <strong>Retry Scramjet</strong> to test the service worker and transport setup. A failed test on a managed network may reflect that network's policy; the website cannot override it.</small>
 			</label>
-			<label>Selected Wisp address
-				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" required />
-			</label>
-			<div class="wisp-relay-test">
-				<button type="button" class="chip" id="s-wisp-test">Test selected relay</button>
-				<span role="status" aria-live="polite" id="s-wisp-test-status"></span>
-			</div>
-			<small>The test checks your selected relay, then the backup if it fails. Save to apply your choice. A successful handshake doesn't guarantee website loading. Public relay operators may see traffic metadata.</small>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
 				<small>Use a direct image URL. Leave blank to use the default background.</small>
@@ -751,7 +727,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-scramjet-probe3"></script>
+	<script src="app.js?v=20261106-uv404compat2"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
