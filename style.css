@@ -1408,3 +1408,46 @@ body:not(.site-authenticated) #site-login:not([open]) {
 }
 .vm-web-fallback-actions .chip { flex: none; }
 .vm-web-fallback-actions a { font-weight: 750; }
+
+
+/* Seuss Browser: zero-extra-runtime native iframe mode, with a compact
+   source/link notice that never sits on top of the game canvas. */
+.lite-helper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--paper-2);
+  color: var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 7px clamp(10px, 2vw, 18px);
+  font: 700 .8rem/1.35 var(--body);
+  position: relative;
+  z-index: 1;
+}
+.lite-helper[hidden] { display: none !important; }
+.lite-helper span { flex: 1 1 210px; min-width: 0; }
+.lite-helper a {
+  flex: none;
+  color: var(--red);
+  font-weight: 900;
+  text-decoration: underline;
+}
+.lite-helper button {
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 1px 9px;
+  cursor: pointer;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+.lite-helper button:focus-visible, .lite-helper a:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .lite-helper { gap: 5px 8px; font-size: .73rem; }
+}
