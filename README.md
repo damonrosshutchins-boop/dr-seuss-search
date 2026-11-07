@@ -79,3 +79,28 @@ new transports. They try one other bundled module only if initialization
 fails, never switch Wisp servers, and do not override website restrictions.
 The saved preference is not overwritten by fallback. Network availability
 and compatibility with external websites are not guaranteed.
+
+
+## Primary and optional fallback Wisp
+
+The current site already includes BareMux with two supported Wisp transports
+(libcurl and Epoxy). Settings now provides a saved **primary Wisp relay**
+(the existing `settings.wisp` field) and a separate, optional
+**fallback Wisp relay** (`settings.fallbackWisp`, disabled by default).
+
+When a fallback is configured, Scramjet performs a short WebSocket/Wisp
+protocol handshake check on the primary before configuring BareMux. If it
+fails, the site checks the fallback once and uses it for this session only
+when it provides a valid handshake. The configured primary is never
+overwritten. If both fail, the site reports the handshake failures.
+Without a fallback, previous startup behavior is unchanged. Tests are
+on-demand or performed when configuring the browser, not periodic scanning.
+The two distinct Settings buttons let you test each address directly.
+Transport initialization and successful handshakes are not guarantees a
+remote website will load. Site-domain permission checks remain active.
+
+**Service worker limitation:** BareMux is a transport selection API; it
+does not replace Scramjet's request-intercepting service worker. The
+existing Seuss Browser mode does not use a worker or Wisp, but ordinary
+iframe restrictions still apply. This change does not remove Scramjet's
+service worker, add a workerless proxy, or circumvent network controls.

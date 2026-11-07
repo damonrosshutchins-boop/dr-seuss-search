@@ -1620,3 +1620,5 @@ body:not(.site-authenticated) #site-login:not([open]) {
 .wisp-relay-test button:disabled { opacity: .65; cursor: wait; }
 .settings #s-wisp-preset { width: 100%; min-width: 0; }
 .settings #s-wisp { width: 100%; min-width: 0; box-sizing: border-box; }
+.settings #s-fallback-wisp-preset,
+.settings #s-fallback-wisp { width: 100%; min-width: 0; box-sizing: border-box; }

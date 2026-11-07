@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-wisp-picker-restore1" />
+	<link rel="stylesheet" href="style.css?v=20261106-primary-fallback-wisp1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -654,9 +654,9 @@
 					<option value="auto-libcurl">Automatic — libcurl first, then Epoxy</option>
 					<option value="auto-epoxy">Automatic — Epoxy first, then libcurl</option>
 				</select>
-				<small>Two transport modules are installed: libcurl and Epoxy. Automatic options try the other module only if startup fails. All use the Wisp relay you selected and keep the site's access rules. To browse without Wisp, choose Seuss Browser above.</small>
+				<small>BareMux is already installed and manages the two available transports (libcurl and Epoxy). Automatic options can switch modules on startup failure. Your primary/fallback Wisp settings choose the relay. Scramjet still needs its service worker; select Seuss Browser for ordinary no-service-worker browsing.</small>
 			</label>
-			<label>Wisp relay
+			<label>Primary Wisp relay
 				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
 					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
 					<option value="wss://anura.pro/">anura.pro</option>
@@ -669,14 +669,36 @@
 				</select>
 				<small>Choose a relay, or select Custom to enter your own. These are candidate addresses; availability and Wisp support have not been verified.</small>
 			</label>
-			<label>Selected Wisp address
+			<label>Primary Wisp address
 				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" required />
 			</label>
 			<div class="wisp-relay-test">
-				<button type="button" class="chip" id="s-wisp-test">Test selected relay</button>
+				<button type="button" class="chip" id="s-wisp-test">Test primary relay</button>
 				<span role="status" aria-live="polite" id="s-wisp-test-status"></span>
 			</div>
 			<small>The test checks a Wisp WebSocket handshake, not whether a destination website loads. Press Save to apply your selection. Public relay operators may see traffic metadata, and some relays may reject connections.</small>
+			<label>Fallback Wisp relay (optional)
+				<select id="s-fallback-wisp-preset" aria-label="Choose a fallback Wisp relay">
+					<option value="">Disabled — use primary only</option>
+					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
+					<option value="wss://anura.pro/">anura.pro</option>
+					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
+					<option value="wss://mages.io/">mages.io</option>
+					<option value="wss://lichology.com/">lichology.com</option>
+					<option value="wss://definitelyscience.com/">definitelyscience.com</option>
+					<option value="wss://wisp.terbiumon.top/">wisp.terbiumon.top</option>
+					<option value="custom">Custom fallback Wisp…</option>
+				</select>
+				<small>Disabled by default. When enabled, Scramjet checks the primary Wisp handshake, then tries the fallback if the primary fails. This is not a substitute for network permission.</small>
+			</label>
+			<label>Fallback Wisp address
+				<input id="s-fallback-wisp" type="url" placeholder="wss://example.net/wisp/" spellcheck="false" />
+			</label>
+			<div class="wisp-relay-test">
+				<button type="button" class="chip" id="s-fallback-wisp-test">Test fallback relay</button>
+				<span role="status" aria-live="polite" id="s-fallback-wisp-test-status"></span>
+			</div>
+			<small>BareMux remains the underlying transport manager. Scramjet still requires its service worker. Seuss Browser is the existing no-service-worker mode, using ordinary browser embedding without a proxy.</small>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
 				<small>Use a direct image URL. Leave blank to use the default background.</small>
@@ -746,7 +768,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-transport-strategies1"></script>
+	<script src="app.js?v=20261106-primary-fallback-wisp1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
