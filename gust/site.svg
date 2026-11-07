@@ -4,16 +4,16 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GUST Browser</title>
+    <title>Seuss Search page loader</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-    <link rel="stylesheet" href="./static/css.css" />
+    <link rel="stylesheet" href="./static/css.css?v=20261106-seuss-only2" />
     <script src="https://cdn.jsdelivr.net/npm/iso-639-1@2.1.11/build/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/libcurl.js@latest/libcurl_full.js"></script>
 </head>
-<body>
+<body class="seuss-engine-view">
     <div class="app">
         <div class="titlebar">
             <div class="tab-strip-wrapper">
@@ -1614,7 +1614,7 @@
                 </div>
             </div>
         </main>
-        <script src="./static/js.js?v=20261106-search-data1"></script>
+        <script src="./static/js.js?v=20261106-seuss-only2"></script>
         <div id="tutorialOverlay" style="display:none; position:fixed; inset:0; z-index:99999; pointer-events:all;">
         <div id="tutorialBackdrop"
             style="position:absolute; inset:0; backdrop-filter:blur(10px); -webkit-backdrop-filter: blur(10px); transition:opacity .35s; opacity:0; pointer-events:all;">
