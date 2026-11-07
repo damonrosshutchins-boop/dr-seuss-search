@@ -127,3 +127,21 @@ or Wisp. Traffic is **not concealed or tunneled**: the browser and
 network provider can still observe connections to permitted sites.
 The original Scramjet transport and primary/fallback Wisp settings
 remain available and unchanged.
+
+
+## Verified admin-only temporary Wisp relay
+
+Settings includes an optional **Admin Relay Session** area, visible only
+after the existing `site_check_admin` permission is confirmed by the
+site's server. An admin may enter a trusted `wss://` relay used by the
+already-bundled Scramjet/BareMux transport. The choice lives only in page
+memory, is not written into saved settings, is rechecked on activation,
+and is cleared on site access changes or closing the page.
+
+A failing private relay stops with a clear message rather than silently
+switching to a public relay. It does **not** affect the worker-free
+CORS Custom Loader, skip any domain moderation, or remove Scramjet's
+service worker. Neither this UI nor the Wisp protocol conceals traffic
+from the browser, local network, or relay operator; it is not anonymity
+or covert browsing technology. Normal account users retain the
+existing non-admin Scramjet and Wisp settings.

@@ -700,6 +700,16 @@
 				<span role="status" aria-live="polite" id="s-fallback-wisp-test-status"></span>
 			</div>
 			<small>BareMux remains the underlying transport manager. Scramjet still requires its service worker. Seuss Browser is the existing no-service-worker mode, using ordinary browser embedding without a proxy.</small>
+			<section id="s-admin-relay-panel" hidden aria-label="Verified admin relay session">
+				<h3>Admin Relay Session</h3>
+				<label class="row"><input id="s-admin-relay-enabled" type="checkbox" disabled />
+					Use a temporary Wisp relay for Scramjet (verified admins only)</label>
+				<label>Temporary Wisp address
+					<input id="s-admin-relay-url" type="url" placeholder="wss://your-trusted-relay.example/wisp/" spellcheck="false" autocomplete="off" />
+				</label>
+				<small>This relay preference is never saved to the site's settings. Every activation requires server-verified admin permission; it is cleared when the tab closes or site access changes. The endpoint remains visible to your browser, network, and relay operator. It does not make Custom Loader use Wisp, does not bypass website rules, and does not replace Scramjet's service worker.</small>
+				<p id="s-admin-relay-status" role="status" aria-live="polite"></p>
+			</section>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
 				<small>Use a direct image URL. Leave blank to use the default background.</small>
@@ -770,7 +780,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261106-custom-html1"></script>
-	<script src="app.js?v=20261106-custom-html1"></script>
+	<script src="app.js?v=20261106-admin-relay-session1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>

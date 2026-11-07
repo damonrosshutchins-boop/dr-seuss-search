@@ -113,6 +113,45 @@ function adriftPortalURL(raw = settings.adriftServer) {
 }
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
+// The private admin relay is deliberately not saved or sent to a service;
+// it lives only in page memory until the tab closes or access changes.
+// This is a UI/session privacy preference, not a concealed network tunnel.
+let adminRelaySession = "";
+let adminRelayPermissionChecked = false;
+let adminRelayVisibilitySequence = 0;
+async function canUseAdminRelay() {
+	if (!requireSeussAccount() ||
+		typeof window.seussCanUseExperimentalProxy !== "function") return false;
+	try { return (await window.seussCanUseExperimentalProxy()) === true; }
+	catch { return false; }
+}
+async function showAdminRelaySettings() {
+	const sequence = ++adminRelayVisibilitySequence;
+	const panel = $("s-admin-relay-panel");
+	panel.hidden = true;
+	$("s-admin-relay-enabled").disabled = true;
+	adminRelayPermissionChecked = false;
+	const allowed = await canUseAdminRelay();
+	if (sequence !== adminRelayVisibilitySequence || !dlg.open) return;
+	adminRelayPermissionChecked = allowed;
+	if (!allowed) return;
+	panel.hidden = false;
+	$("s-admin-relay-enabled").disabled = false;
+	$("s-admin-relay-enabled").checked = !!adminRelaySession;
+	$("s-admin-relay-url").value = adminRelaySession;
+	$("s-admin-relay-status").textContent = adminRelaySession
+		? "Session-only relay selected for Scramjet."
+		: "Disabled — existing primary and fallback relays are unchanged.";
+}
+$("s-admin-relay-enabled").addEventListener("change", () => {
+	$("s-admin-relay-status").textContent =
+		$("s-admin-relay-enabled").checked
+			? "Enter a trusted secure wss:// relay and Save."
+			: "Admin relay disabled after Save.";
+});
+$("s-admin-relay-url").addEventListener("input", () => {
+	$("s-admin-relay-url").setCustomValidity("");
+});
 // Keep relay presets separate from the saved transport setting. Selecting
 // a preset changes only the Settings form until Save is pressed.
 const wispPresetSelect = $("s-wisp-preset");
@@ -315,6 +354,7 @@ function openSettings() {
 	$("s-motion").checked = !!settings.reducedMotion;
 	$("s-performance").checked = !!settings.performanceMode;
 	if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
+	void showAdminRelaySettings();
 }
 $("open-settings").onclick = openSettings;
 $("engine-label").onclick = openSettings;
@@ -325,6 +365,9 @@ $("s-reset").onclick = () => {
 	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
 	$("s-adrift-url").value = DEFAULTS.adriftServer;
 	$("s-transport").value = DEFAULTS.transport;
+	$("s-admin-relay-enabled").checked = false;
+	$("s-admin-relay-url").value = "";
+	$("s-admin-relay-status").textContent = "Admin relay will be cleared when Settings is saved.";
 	$("s-wisp").value = DEFAULTS.wisp;
 	syncWispPreset();
 	clearWispPresetTest();
@@ -340,6 +383,27 @@ $("s-reset").onclick = () => {
 $("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
 $("s-adrift-url").addEventListener("input", () => $("s-adrift-url").setCustomValidity(""));
 $("settings-form").addEventListener("submit", async (event) => {
+	const requestAdminRelay = !$("s-admin-relay-panel").hidden &&
+		$("s-admin-relay-enabled").checked;
+	const rawAdminRelay = $("s-admin-relay-url").value.trim();
+	const selectedAdminRelay = requestAdminRelay ? validateWispAddress(rawAdminRelay) : "";
+	if (requestAdminRelay && !selectedAdminRelay) {
+		event.preventDefault();
+		$("s-admin-relay-url").setCustomValidity(
+			"Enter a secure wss:// WebSocket address for this admin-only session.");
+		$("s-admin-relay-url").reportValidity();
+		return;
+	}
+	if (requestAdminRelay) {
+		// A fresh server-side permission check is required on each activation.
+		event.preventDefault();
+		if (!adminRelayPermissionChecked || !(await canUseAdminRelay())) {
+			adminRelayPermissionChecked = false;
+			$("s-admin-relay-panel").hidden = true;
+			$("s-admin-relay-status").textContent = "Admin permission could not be verified.";
+			return;
+		}
+	}
 	const rawRammerheadServer = $("s-rammerhead-url").value.trim();
 	if (rawRammerheadServer && !rammerheadServerURL(rawRammerheadServer)) {
 		event.preventDefault();
@@ -378,8 +442,11 @@ $("settings-form").addEventListener("submit", async (event) => {
 	}
 	fallbackWispUrlInput.setCustomValidity("");
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
+	const nextAdminRelay = requestAdminRelay ? selectedAdminRelay : "";
 	const wispChanged = settings.wisp !== selectedWisp ||
-		(settings.fallbackWisp || "") !== selectedFallbackWisp;
+		(settings.fallbackWisp || "") !== selectedFallbackWisp ||
+		adminRelaySession !== nextAdminRelay;
+	adminRelaySession = nextAdminRelay;
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
@@ -429,6 +496,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 		try { await ready; await configureTransport(true); }
 		catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 	}
+	if (requestAdminRelay && dlg.open) dlg.close();
 });
 
 
@@ -561,6 +629,28 @@ let selectedWispPair = "";
 // Optional failover selects an alternative relay only on an actual failed
 // Wisp handshake. No automatic relay probing when fallback is disabled.
 async function chooseWispRelay(force = false) {
+	if (adminRelaySession) {
+		const candidate = validateWispAddress(adminRelaySession);
+		const permitted = await canUseAdminRelay();
+		if (permitted && candidate) {
+			const signature = JSON.stringify(["admin-session", candidate]);
+			if (!force && selectedWispPair === signature && activeWisp === candidate)
+				return candidate;
+			const outcome = await probeWispHandshake(candidate, 6500);
+			if (!outcome.ok) {
+				throw new Error("Admin Wisp relay did not respond: " + outcome.reason +
+					" No public relay fallback was attempted.");
+			}
+			selectedWispPair = signature;
+			activeWisp = candidate;
+			setStatus("", "Using this session's admin Wisp relay in Scramjet. " +
+				"The relay and your network can still see connection metadata.");
+			return candidate;
+		}
+		// No permission or an invalid address: disable, never silently use
+		// a stale/unauthorized admin relay value.
+		adminRelaySession = "";
+	}
 	const primary = validateWispAddress(settings.wisp);
 	const fallback = settings.fallbackWisp ?
 		validateWispAddress(settings.fallbackWisp) : "";
@@ -637,6 +727,20 @@ async function configureTransport(force = false) {
 		return backup;
 	}
 }
+
+// A site access/permission change must not retain the admin relay override.
+window.addEventListener("seuss-site-access-change", () => {
+	++adminRelayVisibilitySequence;
+	adminRelayPermissionChecked = false;
+	const hadOverride = !!adminRelaySession;
+	adminRelaySession = "";
+	$("s-admin-relay-panel").hidden = true;
+	if (hadOverride && ready && requireSeussAccount()) {
+		void configureTransport(true).catch(err =>
+			setStatus("bad", "Couldn't restore normal Wisp settings: " +
+				(err?.message || String(err))));
+	}
+});
 
 /* ---------- URL / search parsing ---------- */
 function toUrl(input) {
