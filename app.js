@@ -368,7 +368,7 @@ function toUrl(input) {
 	if (/^[^\s]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(q) || /^localhost(:\d+)?/.test(q)) {
 		try { return new URL("https://" + q).href; } catch {}
 	}
-	return settings.engine.replace("%s", encodeURIComponent(q));
+	return searchWebLink(q);
 }
 // Plain words are searches, NOT destinations to display in an iframe.
 // Browsers will reject embedded full search engines and YouTube pages.
@@ -805,22 +805,78 @@ function createSeussSearchPane(options = {}) {
 	activateSiteTab(tab.id);
 	return { tab, main };
 }
-function searchWebLink(query) {
-	return settings.engine.replace("%s", encodeURIComponent(query));
+// GUST-inspired engine URL selection and URL encoding.
+// Adapted from nautilus-os/GUST (AGPL-3.0); see its svg/static/js.js.
+function searchWebLink(query, template = settings.engine) {
+	const selected = Object.prototype.hasOwnProperty.call(ENGINE_NAMES, template)
+		? template : DEFAULTS.engine;
+	return selected.replace("%s", encodeURIComponent(String(query || "").trim()));
 }
 function youtubeSearchLink(query) {
 	return "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
 }
+let seussSuggestionCounter = 0;
+function attachSeussSearchSuggestions(input) {
+	// Wikipedia is used for suggestions only, not as a full-web search index.
+	const choices = document.createElement("datalist");
+	choices.id = "seuss-suggestions-" + (++seussSuggestionCounter);
+	input.setAttribute("list", choices.id);
+	input.insertAdjacentElement("afterend", choices);
+	let controller = null;
+	let timer = null;
+	let requestNumber = 0;
+	input.addEventListener("input", () => {
+		const current = ++requestNumber;
+		clearTimeout(timer);
+		if (controller) controller.abort();
+		choices.replaceChildren();
+		const term = input.value.trim().slice(0,100);
+		if (term.length < 3 || !isSeussSearchQuery(term) || !requireSeussAccount()) return;
+		timer = setTimeout(async () => {
+			if (!input.isConnected || current !== requestNumber) return;
+			controller = new AbortController();
+			const pending = controller;
+			try {
+				if (typeof window.dssSitePolicyCheck === "function" &&
+					!(await window.dssSitePolicyCheck("https://en.wikipedia.org/"))) return;
+				if (current !== requestNumber || pending.signal.aborted) return;
+				const url = new URL("https://en.wikipedia.org/w/api.php");
+				for (const [key,value] of Object.entries({
+					action:"opensearch", search:term, limit:"5", namespace:"0", format:"json", origin:"*"
+				})) url.searchParams.set(key,value);
+				const response = await fetch(url.href, {
+					credentials:"omit", mode:"cors", referrerPolicy:"no-referrer",
+					signal:pending.signal
+				});
+				if (!response.ok) return;
+				const json = await response.json();
+				if (!input.isConnected || current !== requestNumber || pending.signal.aborted) return;
+				const titles = Array.isArray(json?.[1]) ? json[1] : [];
+				for (const title of titles) {
+					if (typeof title !== "string" || title.length > 180) continue;
+					const option = document.createElement("option");
+					option.value = title;
+					choices.append(option);
+				}
+			} catch {
+				// Suggestions are optional; manual searching always remains available.
+			} finally {
+				if (controller === pending) controller = null;
+			}
+		}, 450);
+	});
+}
 function showSeussSearch(query, options = {}) {
 	if (!requireSeussAccount()) return;
-	const q = String(query || "").trim().slice(0, 180);
+	const q = String(query || "").trim().slice(0,180);
 	if (!q) return;
 	const {tab,main} = createSeussSearchPane({ ...options, title:"Search: " + q.slice(0,40) });
 	tab.searchQuery = q;
 	activateSiteTab(tab.id);
 	const heading = seussSearchNode("h1", "", "Seuss Search");
 	const explainer = seussSearchNode("p", "seuss-search-note",
-		"Read article results here or optionally try the selected search website inside an in-site tab. Sites that forbid embedding will still be blocked by Firefox.");
+		"Pick a search engine for full-web results, or browse Wikipedia articles below. " +
+		"Article suggestions and results are provided by Wikipedia, not by Brave or Bing.");
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
 	const input = document.createElement("input");
@@ -833,49 +889,88 @@ function showSeussSearch(query, options = {}) {
 	button.type = "submit";
 	button.textContent = "Search";
 	form.append(input,button);
+	attachSeussSearchSuggestions(input);
 	form.addEventListener("submit", event => {
 		event.preventDefault();
 		showSeussSearch(input.value);
 	});
+	const pickerLabel = seussSearchNode("p", "seuss-engine-label", "Full-web search engine");
+	const picker = seussSearchNode("div", "seuss-engine-picker");
+	picker.setAttribute("role", "group");
+	picker.setAttribute("aria-label", "Full-web search provider");
+	const providerButtons = [];
 	const actions = seussSearchNode("div", "seuss-search-actions");
-	actions.append(
-		seussSearchButton("Try embedding " + (ENGINE_NAMES[settings.engine] || "search") + " here", () => {
-			go(searchWebLink(q), {
-				forceLite:true, allowEmbeddedRestricted:true, newTab:true, embeddedQuery:q
-			});
-		}),
-		seussSearchExternalLink("Search the full web (new tab)", searchWebLink(q)),
-		seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q))
-	);
+	const external = seussSearchExternalLink("Full web results (new browser tab)", searchWebLink(q));
+	const embed = seussSearchButton("Try embedded search (may be blocked)", () => {
+		go(searchWebLink(q), {
+			forceLite:true, allowEmbeddedRestricted:true, newTab:true, embeddedQuery:q
+		});
+	});
+	const youtube = seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q));
+	const updateProviders = () => {
+		const name = ENGINE_NAMES[settings.engine] || ENGINE_NAMES[DEFAULTS.engine];
+		for (const [template,element] of providerButtons) {
+			const active = template === settings.engine;
+			element.classList.toggle("active", active);
+			element.setAttribute("aria-pressed", String(active));
+		}
+		external.href = searchWebLink(q);
+		external.textContent = "Search the full web with " + name + " (new tab)";
+		embed.textContent = "Try " + name + " inside site (may be blocked)";
+	};
+	for (const [template,name] of Object.entries(ENGINE_NAMES)) {
+		const control = seussSearchButton(name, () => {
+			settings.engine = template;
+			save();
+			syncLabel();
+			updateProviders();
+		});
+		control.classList.add("seuss-engine-chip");
+		picker.append(control);
+		providerButtons.push([template,control]);
+	}
+	actions.append(external,embed,youtube);
+	updateProviders();
 	const heading2 = seussSearchNode("h2", "", "Wikipedia article results");
 	const status = seussSearchNode("p", "seuss-search-status", "Searching Wikipedia…");
 	status.setAttribute("role", "status");
 	const results = seussSearchNode("div", "seuss-search-results");
-	main.append(heading,explainer,form,actions,heading2,status,results);
-	tab.searchAbort = new AbortController();
-	const controller = tab.searchAbort;
-	const clock = setTimeout(() => controller.abort(), 12000);
-	const apiUrl = new URL("https://en.wikipedia.org/w/api.php");
-	for (const [key,value] of Object.entries({
-		action:"query", list:"search", srsearch:q, srlimit:"8", format:"json", origin:"*"
-	})) apiUrl.searchParams.set(key,value);
-	(async () => {
+	const more = seussSearchButton("More Wikipedia results", () => {
+		if (nextOffset !== null) loadWikipediaPage(nextOffset);
+	});
+	more.classList.add("seuss-load-more");
+	more.hidden = true;
+	main.append(heading,explainer,form,pickerLabel,picker,actions,heading2,status,results,more);
+	let shown = 0;
+	let nextOffset = 0;
+	async function loadWikipediaPage(offset) {
+		if (tab.searchAbort) tab.searchAbort.abort();
+		const controller = new AbortController();
+		tab.searchAbort = controller;
+		const timeout = setTimeout(() => controller.abort(), 12000);
+		more.disabled = true;
+		more.hidden = true;
+		status.textContent = offset ? "Loading more Wikipedia articles…" : "Searching Wikipedia…";
 		try {
 			if (typeof window.dssSitePolicyCheck === "function" &&
 				!(await window.dssSitePolicyCheck("https://en.wikipedia.org/"))) {
-				status.textContent = "Wikipedia results aren't available under this site's rules.";
+				status.textContent = "Wikipedia isn't available under this site's rules.";
 				return;
 			}
+			if (controller.signal.aborted || tab.searchAbort !== controller) return;
+			const apiUrl = new URL("https://en.wikipedia.org/w/api.php");
+			for (const [key,value] of Object.entries({
+				action:"query", list:"search", srsearch:q, srlimit:"10",
+				sroffset:String(offset), srprop:"snippet", format:"json", origin:"*"
+			})) apiUrl.searchParams.set(key,value);
 			const response = await fetch(apiUrl.href, {
 				method:"GET", credentials:"omit", mode:"cors",
 				referrerPolicy:"no-referrer", signal:controller.signal
 			});
-			if (!response.ok) throw new Error("Search server returned HTTP " + response.status);
+			if (!response.ok) throw new Error("HTTP " + response.status);
 			const json = await response.json();
 			if (controller.signal.aborted || tab.searchAbort !== controller) return;
 			const hits = Array.isArray(json?.query?.search) ? json.query.search : [];
-			status.textContent = hits.length ?
-				hits.length + " Wikipedia results" : "No matching Wikipedia articles found.";
 			for (const hit of hits) {
 				if (typeof hit.title !== "string") continue;
 				const article = seussSearchNode("article", "seuss-search-result");
@@ -883,21 +978,37 @@ function showSeussSearch(query, options = {}) {
 					encodeURIComponent(hit.title.replaceAll(" ", "_"));
 				article.append(seussSearchExternalLink(hit.title, linkUrl));
 				if (typeof hit.snippet === "string") {
-					// Wikipedia snippets contain highlighting HTML. Display as
-					// plain text only; never inject third-party HTML.
+					// Search snippets are untrusted; display text, never HTML.
 					const preview = hit.snippet.replace(/<[^>]*>/g, "").slice(0,350);
 					article.append(seussSearchNode("p", "", preview));
 				}
 				results.append(article);
+				shown++;
 			}
+			const total = Number(json?.query?.searchinfo?.totalhits);
+			status.textContent = shown ? "Showing " + shown +
+				(Number.isFinite(total) ? " of about " + total : "") +
+				" Wikipedia articles" : "No matching Wikipedia articles found.";
+			const following = Number(json?.continue?.sroffset);
+			nextOffset = hits.length && Number.isFinite(following) && following > offset
+				? following : null;
+			more.hidden = nextOffset === null;
+			more.disabled = nextOffset === null;
 		} catch (error) {
 			if (tab.searchAbort !== controller) return;
-			status.textContent = "Wikipedia results couldn't be loaded on this connection. You can still use the external search links above.";
+			status.textContent = shown
+				? "More results could not load. You can retry or use a full-web search engine above."
+				: "Wikipedia could not load on this connection. Try a full-web search engine above.";
+			if (shown && nextOffset !== null) {
+				more.hidden = false;
+				more.disabled = false;
+			}
 		} finally {
-			clearTimeout(clock);
+			clearTimeout(timeout);
 			if (tab.searchAbort === controller) tab.searchAbort = null;
 		}
-	})();
+	}
+	loadWikipediaPage(0);
 }
 function showEmbeddingNotice(target, options = {}) {
 	const {tab,main} = createSeussSearchPane({ ...options, title:target.hostname });
@@ -1272,6 +1383,7 @@ window.addEventListener("popstate", () => {
 });
 
 /* ---------- Wire up UI ---------- */
+attachSeussSearchSuggestions($("address"));
 $("search-form").addEventListener("submit", (e) => {
 	e.preventDefault();
 	go($("address").value);
