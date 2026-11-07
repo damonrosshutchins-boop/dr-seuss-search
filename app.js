@@ -381,8 +381,10 @@ function isSeussSearchQuery(input) {
 }
 function prefersSupportedExternalPage(url) {
 	const host = url.hostname.toLowerCase().replace(/^www\./, "");
-	return ["youtube.com", "m.youtube.com", "music.youtube.com",
-		"google.com", "bing.com", "duckduckgo.com", "search.brave.com"].includes(host);
+	return host === "reddit.com" || host.endsWith(".reddit.com") ||
+		["youtube.com", "m.youtube.com", "music.youtube.com", "google.com",
+		 "bing.com", "duckduckgo.com", "search.brave.com",
+		 "github.com", "discord.com"].includes(host);
 }
 
 /* ---------- Multi-tab browser view ---------- */
@@ -901,10 +903,8 @@ function showSeussSearch(query, options = {}) {
 	const providerButtons = [];
 	const actions = seussSearchNode("div", "seuss-search-actions");
 	const external = seussSearchExternalLink("Full web results (new browser tab)", searchWebLink(q));
-	const embed = seussSearchButton("Try embedded search (may be blocked)", () => {
-		go(searchWebLink(q), {
-			forceLite:true, allowEmbeddedRestricted:true, newTab:true, embeddedQuery:q
-		});
+	const embed = seussSearchButton("Open inside Seuss Search with Scramjet", () => {
+		go(searchWebLink(q), { forceScramjet:true, newTab:true });
 	});
 	const youtube = seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q));
 	const updateProviders = () => {
@@ -916,7 +916,7 @@ function showSeussSearch(query, options = {}) {
 		}
 		external.href = searchWebLink(q);
 		external.textContent = "Search the full web with " + name + " (new tab)";
-		embed.textContent = "Try " + name + " inside site (may be blocked)";
+		embed.textContent = "Try " + name + " inside site with Scramjet";
 	};
 	for (const [template,name] of Object.entries(ENGINE_NAMES)) {
 		const control = seussSearchButton(name, () => {
@@ -1018,14 +1018,22 @@ function showEmbeddingNotice(target, options = {}) {
 	activateSiteTab(tab.id);
 	const host = target.hostname.toLowerCase().replace(/^www\./, "");
 	const isYoutube = ["youtube.com","m.youtube.com","music.youtube.com"].includes(host);
-	const title = isYoutube ? "YouTube can't show its full site here" : "This search site can't be embedded";
+	const title = options.proxyFailure ? "Scramjet could not start"
+		: isYoutube ? "YouTube refuses normal iframe embedding"
+		: host + " refuses normal iframe embedding";
 	main.append(
 		seussSearchNode("h1", "", title),
-		seussSearchNode("p", "seuss-search-note", "Firefox is respecting the website's embedding security policy. Seuss Search cannot override it. You can try a normal iframe or open the website in a separate browser tab."),
-		seussSearchButton("Try embedding anyway (may be blocked)", () => {
-			go(target.href, { forceLite:true, allowEmbeddedRestricted:true, newTab:true });
+		seussSearchNode("p", "seuss-search-note",
+			"Some websites forbid ordinary iframe embedding. The existing Scramjet " +
+			"browser is an alternative, but needs a working service worker and Wisp connection."),
+		...(options.proxyFailure ? [
+			seussSearchNode("p", "seuss-search-status",
+				"Proxy startup failed: " + options.proxyFailure.slice(0,240))
+		] : []),
+		seussSearchButton("Try Scramjet inside Seuss Search", () => {
+			go(target.href, { forceScramjet:true, newTab:true });
 		}),
-		seussSearchExternalLink("Open original website (new tab)", target.href)
+		seussSearchExternalLink("Open original website (new browser tab)", target.href)
 	);
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
@@ -1143,6 +1151,11 @@ $("lite-hide-tip").addEventListener("click", () => {
 $("lite-back-to-results").addEventListener("click", () => {
 	const tab = currentSiteTab();
 	if (tab?.liteEngine && tab.liteSearchQuery) showSeussSearch(tab.liteSearchQuery);
+});
+$("lite-try-scramjet").addEventListener("click", () => {
+	const tab = currentSiteTab();
+	if (!tab?.liteEngine || !tab.url) return;
+	go(tab.url, { forceScramjet:true, newTab:true });
 });
 
 /* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
@@ -1276,9 +1289,10 @@ async function go(input, options = {}) {
 		isSeussSearchQuery(input)) {
 		if (!options.nativeSearch && settings.embedSearchPages) {
 			const q = String(input).trim().slice(0, 180);
+			// Full search providers refuse ordinary iframe embedding; use
+			// the existing proxied browsing option instead.
 			return go(searchWebLink(q), {
-				...options, forceLite:true, allowEmbeddedRestricted:true,
-				embeddedQuery:q
+				...options, forceLite:false, forceScramjet:true
 			});
 		}
 		return showSeussSearch(input, options);
@@ -1293,8 +1307,13 @@ async function go(input, options = {}) {
 	}
 	if (options.forceLite || (!options.forceScramjet && settings.proxyEngine === "seusslite")) {
 		const u = new URL(url);
-		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted)
+		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted) {
+			// Avoid known iframe-blocking hosts by trying the existing proxy.
+			// Explicitly lightweight game links retain their original behavior.
+			if (!options.forceLite)
+				return go(url, { ...options, forceLite:false, forceScramjet:true });
 			return showEmbeddingNotice(u, options);
+		}
 		return openSeussLite(url, options);
 	}
 	if (!options.forceScramjet) {
@@ -1323,8 +1342,10 @@ async function go(input, options = {}) {
 	try {
 		await boot();
 	} catch (err) {
-		showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err));
-		return;
+		// A failed Wisp/service worker must not strand users with an empty page.
+		return showEmbeddingNotice(new URL(url), {
+			...options, proxyFailure:String(err && err.message || err)
+		});
 	}
 	tab.type = "web";
 	tab.uvFallback = !!options.uvFallback;
