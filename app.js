@@ -1785,10 +1785,16 @@ async function reconnectConfiguredWisp() {
 	retryButton.disabled = true;
 	setStatus("", "Checking the Scramjet service worker and configured transport…");
 	try {
+		const alreadyInitialized = !!ready;
 		await boot();
-		const chosen = await configureTransport(true);
+		// Boot already selected a Wisp and transport when it ran fresh.
+		// Recheck explicitly only when retrying an existing connection.
+		const chosen = await configureTransport(alreadyInitialized);
+		const usingFallback = !!settings.fallbackWisp &&
+			activeWisp === settings.fallbackWisp;
 		setStatus("ok", "Scramjet initialized with " + TRANSPORT_LABELS[chosen] +
-			". Select Test Wisp to check relay connectivity.");
+			" using the " + (usingFallback ? "fallback" : "primary") +
+			" Wisp relay. Test Wisp checks the primary separately.");
 	} catch (err) {
 		setStatus("bad", "Scramjet initialization failed (not necessarily a Wisp failure): " +
 			(err && err.message || String(err)));
