@@ -64,8 +64,13 @@
       if (tag === "a" && key === "href") {
         // Do not retain an actual href: without the controller, links must
         // be inert rather than navigating around the site's access policy.
-        const url = resolved(value, base);
-        if (url) el.setAttribute("data-dss-href", url);
+        const rawHref = value.trim();
+        if (/^#[^#]/.test(rawHref)) {
+          el.setAttribute("data-dss-fragment", rawHref.slice(1, 256));
+        } else {
+          const url = resolved(value, base);
+          if (url) el.setAttribute("data-dss-href", url);
+        }
         el.removeAttribute(a.name);
       } else if (tag === "img" && key === "src") {
         const url = resolved(value, base, true);
@@ -114,7 +119,8 @@
       }
     }
     if (tag === "a") {
-      if (el.hasAttribute("data-dss-href")) {
+      if (el.hasAttribute("data-dss-href") ||
+          el.hasAttribute("data-dss-fragment")) {
         el.setAttribute("role", "link");
         el.setAttribute("tabindex", "0");
       }
@@ -159,8 +165,8 @@
     let styles = '<style>body{margin:1rem;font:16px/1.55 system-ui,sans-serif;' +
       'overflow-wrap:break-word}img,video{max-width:100%;height:auto}' +
       'pre{max-width:100%;overflow:auto}table{max-width:100%;overflow-x:auto}' +
-      'a[data-dss-href]{color:#1456a0;text-decoration:underline;cursor:pointer}' +
-      'a[data-dss-href]:focus-visible{outline:2px solid currentColor}</style>';
+      'a[data-dss-href],a[data-dss-fragment]{color:#1456a0;text-decoration:underline;cursor:pointer}' +
+      'a[data-dss-href]:focus-visible,a[data-dss-fragment]:focus-visible{outline:2px solid currentColor}</style>';
     for (const link of [...parsed.head.querySelectorAll('link[rel~="stylesheet"]')].slice(0, 8)) {
       const href = resolved(link.getAttribute("href"), base, true);
       if (href) styles += '<link rel="stylesheet" href="' + escapeHTML(href) +
@@ -180,12 +186,15 @@
       "media-src " + base.origin
     ].join("; ");
     const navigatorScript = '(function(){document.addEventListener("click",function(e){' +
-      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href]"):null;' +
+      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href],a[data-dss-fragment]"):null;' +
       'if(!a)return;e.preventDefault();e.stopPropagation();' +
+      'var hash=a.getAttribute("data-dss-fragment");' +
+      'if(hash){try{var id=decodeURIComponent(hash);var el=document.getElementById(id);' +
+      'if(el)el.scrollIntoView({block:"start",behavior:"auto"});}catch(_){ }return;}' +
       'parent.postMessage({type:"dss-custom-loader-navigate",' +
       'url:a.getAttribute("data-dss-href"),token:"' + token + '"},"*");},true);' +
       'document.addEventListener("keydown",function(e){if(e.key!=="Enter")return;' +
-      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href]"):null;' +
+      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href],a[data-dss-fragment]"):null;' +
       'if(a){e.preventDefault();a.click();}},true);})();';
     const title = (parsed.title || base.hostname).slice(0, 120);
     return {
