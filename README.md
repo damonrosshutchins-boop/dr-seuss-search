@@ -271,3 +271,9 @@ with an explicit startup error. Website addresses show a compatibility
 notice with the failure reason. It does not fake a working transport and
 cannot guarantee every destination loads. The existing verified-admin
 GUST restrictions and website-domain checks are preserved.
+
+
+For reused browser sessions, the client repeats the actual fetch-interception
+check before navigating. If it fails, the cached initialization promise is
+cleared so **Retry Scramjet** can re-register the worker; the user sees a
+first-party error rather than the incorrect iframe-blocking explanation.
