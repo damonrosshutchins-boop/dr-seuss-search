@@ -1614,7 +1614,7 @@
                 </div>
             </div>
         </main>
-        <script src="./static/js.js"></script>
+        <script src="./static/js.js?v=20261106-search-data1"></script>
         <div id="tutorialOverlay" style="display:none; position:fixed; inset:0; z-index:99999; pointer-events:all;">
         <div id="tutorialBackdrop"
             style="position:absolute; inset:0; backdrop-filter:blur(10px); -webkit-backdrop-filter: blur(10px); transition:opacity .35s; opacity:0; pointer-events:all;">
