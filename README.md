@@ -74,3 +74,18 @@ the site shows a connection error rather than claiming the proxy works.
 These candidate endpoints are not guaranteed to be available. A Wisp handshake
 does not establish that every destination website will load. The code does not
 automatically cycle through all seven presets.
+
+
+## Troubleshooting website connections
+GUST fetches pages with libcurl directly, while this site uses Scramjet's
+service-worker routing and BareMux transport. The two are not interchangeable.
+Seuss Search now configures its transport without first blocking all navigation
+on a separate, short Wisp handshake probe. The selected relay can therefore
+start a real request even if its independent diagnostic WebSocket is slow.
+The selected and backup relays are still available through Test Wisp, and the
+home-page diagnostics work when Seuss Browser is the default.
+
+**Test Wisp** checks for a valid protocol handshake; **Retry Scramjet** checks
+service-worker initialization and transport configuration. Neither proves that
+a particular destination site can load. Ordinary website security rules and
+network policies still apply; some websites will not function in this view.

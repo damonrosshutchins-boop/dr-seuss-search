@@ -653,7 +653,7 @@
 					<option value="libcurl">libcurl.js (Wisp transport · recommended)</option>
 					<option value="epoxy">Epoxy (Wisp transport)</option>
 				</select>
-				<small>libcurl.js is already included with Dr. Seuss Search. This option changes the Scramjet network transport; it is not GUST's standalone browser engine.</small>
+				<small>libcurl.js is already included. Scramjet configures the selected transport before running an independent Wisp diagnostic; a slow diagnostic handshake no longer prevents startup. This is not GUST's standalone engine.</small>
 			</label>
 			<label>Wisp relay
 				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
@@ -746,7 +746,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-wisp-backup1"></script>
+	<script src="app.js?v=20261106-connectionfix1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
