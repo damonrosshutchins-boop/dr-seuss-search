@@ -1541,7 +1541,10 @@ body:not(.site-authenticated) #site-login:not([open]) {
 .seuss-video-player { margin: 18px 0; width: 100%; }
 .seuss-video-player iframe {
   display: block;
+  position: static;
+  inset: auto;
   width: 100%;
+  height: auto;
   max-height: 68vh;
   aspect-ratio: 16 / 9;
   border: 2px solid var(--ink);
