@@ -79,7 +79,8 @@
 		<footer class="foot">
 			<span>Powered by <a href="https://github.com/MercuryWorkshop/scramjet" target="_blank" rel="noopener">Scramjet</a> &amp; Wisp from Mercury Workshop</span>
 			<span id="status" class="status"><i></i> <span>Warming up the whatchamajig&hellip;</span></span>
-			<button type="button" id="retry-wisp" class="chip retry-wisp" title="Recheck the Wisp WebSocket connection">Retry relay</button>
+			<button type="button" id="retry-wisp" class="chip retry-wisp" title="Test the configured Wisp relay directly, without starting Scramjet">Test Wisp</button>
+			<button type="button" id="retry-proxy" class="chip retry-wisp" title="Retry service worker and proxy transport initialization">Retry Scramjet</button>
 		</footer>
 	</main>
 
@@ -712,7 +713,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-greeneggs404fix1"></script>
+	<script src="app.js?v=20261106-wispdiagnostics1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
