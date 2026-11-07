@@ -260,7 +260,7 @@ function updateBuildSettingDescription() {
 	$("s-build-description").textContent = mode === "gust" ?
 		"Seuss Search keeps its own search bar, tabs, and navigation controls while GUST methods load the websites behind them. Verified site admins only." :
 		mode === "scramjet" ?
-		"Search phrases show Seuss Search's own Wikipedia, books and programming results. Website addresses still use the separately configured Scramjet service worker; that connection may be unavailable." :
+		"Scramjet loads full-web search pages and website addresses in Seuss Search. An actual service-worker interception check prevents broken GitHub Pages routes. If startup fails, searches show safe built-in results." :
 		"Other modes retain their original behavior. Seuss Browser offers native search results, not an unrestricted web index.";
 }
 $("s-proxy-engine").addEventListener("change", updateBuildSettingDescription);
@@ -388,7 +388,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "connection-startup-fix-20261106";
+const PROXY_WORKER_VERSION = "scramjet-actual-route-probe-v2-20261106";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -450,6 +450,32 @@ async function verifyProxyWorker() {
 		}
 	});
 }
+
+async function verifyScramjetFetchInterception() {
+	// This URL does NOT exist on GitHub Pages. Only the controlling
+	// service worker can return the expected JSON and response header.
+	const probe = new URL(at("scramjet/__dss_worker_probe_v2"), location.origin);
+	probe.searchParams.set("check", String(Date.now()));
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 8500);
+	try {
+		const response = await fetch(probe.href, {
+			method:"GET", credentials:"same-origin", cache:"no-store",
+			redirect:"error", signal:controller.signal
+		});
+		if (response.headers.get("x-dss-scramjet-worker") !== "active")
+			throw new Error("Scramjet did not intercept the browser route. GitHub Pages would return 404.");
+		const data = await response.json();
+		if (!response.ok || data.ok !== true || data.prefix !== at("scramjet/"))
+			throw new Error("Scramjet route configuration did not match the site path.");
+		return true;
+	} catch (error) {
+		throw new Error("Scramjet service-worker route check failed: " +
+			String(error?.message || error).slice(0,220));
+	} finally {
+		clearTimeout(timeout);
+	}
+}
 let ready = null;
 function boot() {
 	if (ready) return ready;
@@ -467,6 +493,7 @@ function boot() {
 		});
 		await navigator.serviceWorker.ready;
 		await verifyProxyWorker();
+		await verifyScramjetFetchInterception();
 		try {
 			await applyTransport();
 		} catch (primary) {
@@ -1019,10 +1046,10 @@ function seussSearchExternalLink(label, href) {
 	link.textContent = label;
 	return link;
 }
-// GUST's verified-admin renderer can load source pages in an internal tab.
-// Scramjet result links stay normal external links: routing them into
-// /scramjet/ could expose GitHub Pages' 404 when its worker isn't controlling
-// the page. Explicit website addresses retain their original browsing path.
+// Results from the first-party fallback retain ordinary browser links in
+// Scramjet mode when the proxy is offline. Full-web Scramjet search pages
+// route through the service-worker health check before navigation.
+// GUST's verified-admin renderer retains its own in-site navigation.
 function seussSearchResultLink(label, href) {
 	const link = seussSearchExternalLink(label, href);
 	link.addEventListener("click", event => {
@@ -1226,10 +1253,9 @@ function showSeussSearch(query, options = {}) {
 			"These are Seuss Search results fetched using GUST's libcurl connection. " +
 			"Sources include Wikipedia, Open Library and Stack Overflow. " +
 			"For broader web results, use the full-web provider links." :
-			settings.proxyEngine === "scramjet" ?
-			"Search results open here in Seuss Search instead of a /scramjet/ page that GitHub Pages may return as 404. " +
-			"Wikipedia, Open Library and Stack Overflow are specialized sources. " +
-			"Full-web search providers and result links open in your normal browser." :
+			options.proxyFailure ?
+			"Scramjet could not start, so Seuss Search is showing its own Wikipedia, books and programming results instead. " +
+			"The full-web provider links use normal browser tabs until Scramjet can start." :
 			"Browse Wikipedia, books and programming Q&A below. " +
 			"For full-web results, choose Brave, Google, Bing or DuckDuckGo in a new browser tab.");
 	const form = document.createElement("form");
@@ -1290,6 +1316,12 @@ function showSeussSearch(query, options = {}) {
 	more.classList.add("seuss-load-more");
 	more.hidden = true;
 	main.append(heading,explainer,form,pickerLabel,picker,actions,heading2,status,results,more);
+	if (options.proxyFailure) {
+		const failure = seussSearchNode("p","seuss-search-status",
+			"Scramjet initialization failed: " + String(options.proxyFailure).slice(0,220));
+		failure.setAttribute("role","alert");
+		explainer.after(failure);
+	}
 
 	// Additional source-specific results, using public browser-facing APIs.
 	// These are never represented as a full-web search index.
@@ -1895,19 +1927,18 @@ window.addEventListener("seuss-site-access-change", event => {
 
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
-	if (isSeussSearchQuery(input) &&
-		(options.forceLite || ["seusslite","gust","scramjet"].includes(settings.proxyEngine))) {
-		const useGust = !options.forceLite && !options.forceScramjet &&
+	if (!options.forceScramjet && isSeussSearchQuery(input) &&
+		(options.forceLite || ["seusslite","gust"].includes(settings.proxyEngine))) {
+		const useGust = !options.forceLite &&
 			settings.proxyEngine === "gust";
 		if (useGust && !await canLaunchGust()) {
 			showError("GUST search requires a verified site admin.",
 				"Choose another engine or sign in with your administrator account.");
 			return;
 		}
-		// Search phrases belong to Seuss Search's results UI. The
-		// GitHub Pages host has no static files at /scramjet/ URLs.
-		// A missing or stale worker must never turn a search into a 404.
-		// GUST supplies source JSON for verified admins as before.
+		// Lightweight and GUST searches use Seuss Search's results UI.
+		// Scramjet's full-web search path is validated by a real fetch
+		// probe before any encoded /scramjet/ navigation.
 		return showSeussSearch(input,{...options,gustData:useGust});
 	}
 	const url = toUrl(input);
@@ -1955,9 +1986,14 @@ async function go(input, options = {}) {
 	try {
 		await boot();
 	} catch (err) {
-		// A failed Wisp/service worker must not strand users with an empty page.
-		return showEmbeddingNotice(new URL(url), {
-			...options, proxyFailure:String(err && err.message || err)
+		// No encoded /scramjet/ navigation unless our worker actually
+		// intercepted the health probe. Avoid GitHub Pages' 404.
+		const detail = String(err?.message || err);
+		setStatus("bad","Scramjet could not start: " + detail.slice(0,180));
+		if (isSeussSearchQuery(input))
+			return showSeussSearch(input,{...options,proxyFailure:detail});
+		return showEmbeddingNotice(new URL(url),{
+			...options,proxyFailure:detail
 		});
 	}
 	tab.type = "web";
