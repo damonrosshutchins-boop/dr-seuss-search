@@ -183,3 +183,24 @@ The upstream GUST project is AGPL-3.0. See `gust/NOTICE.md` for attribution.
 The embedded engine is still subject to sandbox/browser support, individual
 website behavior and connection/relay availability. These changes do not
 guarantee that every destination can load.
+
+
+## Search phrases use Seuss Search results even with the GUST engine
+
+In administrator-only GUST mode, ordinary search phrases now render the
+first-party Seuss Search results layout rather than navigating to GUST's
+search bar or a GUST-proxied search-engine webpage. Wikipedia, Open Library
+and Stack Overflow results are fetched through a hidden, sandboxed GUST
+libcurl HTTP session using an explicitly restricted JSON-request bridge.
+The GUST data engine asks the Seuss Search parent for a server-backed
+site-domain decision on each request and redirect. The parent verifies the
+site-admin permission. Requests are limited to the three existing source
+API endpoints; arbitrary URLs and HTML are not exposed via the bridge.
+Navigation to an explicit website address still uses the GUST page-rendering
+engine inside the Seuss Search tab.
+
+These source indexes are specialized, not a general whole-web index. The
+first-party results page retains explicit full-web provider links for wider
+coverage. If the GUST connection or an API source fails, the results page
+shows a source-level error rather than opening the GUST browser. Existing
+Scramjet search behavior remains unchanged.
