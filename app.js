@@ -1051,7 +1051,7 @@ function ensureGustSearchEngine(tab) {
 			tab.gustReadyReject = null;
 			tab.gustReadyResolve = null;
 			reject(new Error("GUST connection timed out"));
-		}, 18000);
+		}, 24000);
 		tab.gustReadyResolve = () => { clearTimeout(expiry); resolve(); };
 		tab.gustReadyReject = error => { clearTimeout(expiry); reject(error); };
 	});
@@ -1275,7 +1275,8 @@ function showSeussSearch(query, options = {}) {
 	// These are never represented as a full-web search index.
 	const extraController = new AbortController();
 	tab.extraSearchAbort = extraController;
-	const extraTimeout = setTimeout(() => extraController.abort(), 11000);
+	const extraTimeout = setTimeout(
+		() => extraController.abort(), options.gustData ? 30000 : 11000);
 	const extraRoot = seussSearchNode("section", "seuss-search-extra");
 	const booksHeading = seussSearchNode("h2", "", "Books from Open Library");
 	const booksStatus = seussSearchNode("p", "seuss-search-status", "Searching books…");
@@ -1358,7 +1359,8 @@ function showSeussSearch(query, options = {}) {
 		if (tab.searchAbort) tab.searchAbort.abort();
 		const controller = new AbortController();
 		tab.searchAbort = controller;
-		const timeout = setTimeout(() => controller.abort(), 12000);
+		const timeout = setTimeout(
+			() => controller.abort(), options.gustData ? 30000 : 12000);
 		more.disabled = true;
 		more.hidden = true;
 		status.textContent = offset ? "Loading more Wikipedia articles…" : "Searching Wikipedia…";
