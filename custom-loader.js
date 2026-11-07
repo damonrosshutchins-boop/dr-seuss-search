@@ -37,9 +37,11 @@
       const key = a.name.toLowerCase(), value = a.value;
       if (ATTRS.has(key)) continue;
       if (tag === "a" && key === "href") {
+        // Do not retain an actual href: without the controller, links must
+        // be inert rather than navigating around the site's access policy.
         const url = resolved(value, base);
-        if (url) el.setAttribute("href", url);
-        else el.removeAttribute(a.name);
+        if (url) el.setAttribute("data-dss-href", url);
+        el.removeAttribute(a.name);
       } else if (tag === "img" && key === "src") {
         const url = resolved(value, base, true);
         if (url) el.setAttribute("src", url);
@@ -57,7 +59,13 @@
         el.removeAttribute(a.name);
       }
     }
-    if (tag === "a") el.setAttribute("rel", "noopener noreferrer");
+    if (tag === "a") {
+      if (el.hasAttribute("data-dss-href")) {
+        el.setAttribute("role", "link");
+        el.setAttribute("tabindex", "0");
+      }
+      el.setAttribute("rel", "noopener noreferrer");
+    }
     if (tag === "img") el.setAttribute("referrerpolicy", "no-referrer");
   }
   function makeDocument(html, rawUrl) {
@@ -70,7 +78,8 @@
     const bytes = new Uint8Array(18);
     crypto.getRandomValues(bytes);
     const token = [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
-    let styles = "";
+    let styles = '<style>a[data-dss-href]{color:#1456a0;text-decoration:underline;' +
+      'cursor:pointer}a[data-dss-href]:focus-visible{outline:2px solid currentColor}</style>';
     for (const link of [...parsed.head.querySelectorAll('link[rel~="stylesheet"]')].slice(0, 8)) {
       const href = resolved(link.getAttribute("href"), base, true);
       if (href) styles += '<link rel="stylesheet" href="' + escapeHTML(href) +
@@ -90,10 +99,13 @@
       "media-src " + base.origin
     ].join("; ");
     const navigatorScript = '(function(){document.addEventListener("click",function(e){' +
-      'var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;' +
+      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href]"):null;' +
       'if(!a)return;e.preventDefault();e.stopPropagation();' +
-      'parent.postMessage({type:"dss-custom-loader-navigate",url:a.href,' +
-      'token:"' + token + '"},"*");},true);})();';
+      'parent.postMessage({type:"dss-custom-loader-navigate",' +
+      'url:a.getAttribute("data-dss-href"),token:"' + token + '"},"*");},true);' +
+      'document.addEventListener("keydown",function(e){if(e.key!=="Enter")return;' +
+      'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href]"):null;' +
+      'if(a){e.preventDefault();a.click();}},true);})();';
     const title = (parsed.title || base.hostname).slice(0, 120);
     return {
       token, title,
