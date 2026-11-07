@@ -102,6 +102,96 @@ function adriftPortalURL(raw = settings.adriftServer) {
 }
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
+// Keep relay presets separate from the saved transport setting. Selecting
+// a preset changes only the Settings form until Save is pressed.
+const wispPresetSelect = $("s-wisp-preset");
+const wispUrlInput = $("s-wisp");
+const wispTestStatus = $("s-wisp-test-status");
+const wispTestButton = $("s-wisp-test");
+const WISP_PRESET_VALUES = [...wispPresetSelect.options]
+	.map(option => option.value).filter(value => value !== "custom");
+let cancelWispPresetTest = null;
+function clearWispPresetTest() {
+	if (cancelWispPresetTest) cancelWispPresetTest();
+	cancelWispPresetTest = null;
+	wispTestStatus.textContent = "";
+	wispTestButton.disabled = false;
+}
+function syncWispPreset() {
+	const value = wispUrlInput.value.trim();
+	wispPresetSelect.value = WISP_PRESET_VALUES.includes(value) ? value : "custom";
+}
+function validateWispAddress(input) {
+	try {
+		const url = new URL(String(input || "").trim());
+		if (url.protocol !== "wss:" || !url.hostname || url.username ||
+			url.password || url.hash) return null;
+		return url.href;
+	} catch { return null; }
+}
+wispPresetSelect.addEventListener("change", () => {
+	clearWispPresetTest();
+	wispUrlInput.setCustomValidity("");
+	if (wispPresetSelect.value !== "custom") wispUrlInput.value = wispPresetSelect.value;
+	else wispUrlInput.focus();
+});
+wispUrlInput.addEventListener("input", () => {
+	wispUrlInput.setCustomValidity("");
+	syncWispPreset();
+	clearWispPresetTest();
+});
+wispTestButton.addEventListener("click", () => {
+	clearWispPresetTest();
+	const address = validateWispAddress(wispUrlInput.value);
+	if (!address) {
+		wispTestStatus.textContent = "Enter a valid secure wss:// relay address.";
+		return;
+	}
+	let socket;
+	try {
+		socket = new WebSocket(address);
+		socket.binaryType = "arraybuffer";
+	} catch {
+		wispTestStatus.textContent = "Could not open a WebSocket to this relay.";
+		return;
+	}
+	let done = false;
+	let timer;
+	const finish = (message) => {
+		if (done) return;
+		done = true;
+		clearTimeout(timer);
+		try { socket.close(); } catch {}
+		wispTestButton.disabled = false;
+		wispTestStatus.textContent = message;
+		if (cancelWispPresetTest === cancel) cancelWispPresetTest = null;
+	};
+	const cancel = () => finish("");
+	cancelWispPresetTest = cancel;
+	wispTestButton.disabled = true;
+	wispTestStatus.textContent = "Connecting to relay…";
+	let opened = false;
+	timer = setTimeout(() => finish(opened
+		? "Connected, but no Wisp handshake was received."
+		: "Connection timed out. This relay may be unavailable."), 11000);
+	socket.addEventListener("open", () => {
+		if (done) return;
+		opened = true;
+		wispTestStatus.textContent = "WebSocket opened. Checking Wisp handshake…";
+	});
+	socket.addEventListener("message", event => {
+		if (done) return;
+		const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
+		const valid = bytes && bytes.length >= 5 && [3,5].includes(bytes[0]) &&
+			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0;
+		finish(valid ? "Wisp handshake received. Save to use this relay." :
+			"WebSocket replied without a valid Wisp handshake.");
+	});
+	socket.addEventListener("error", () => finish("WebSocket failed. Try another relay."));
+	socket.addEventListener("close", () => {
+		if (!done) finish("Connection closed before a Wisp handshake.");
+	});
+});
 function syncLabel() {
 	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
 		"Seuss Search" : (ENGINE_NAMES[settings.engine] || "custom engine");
@@ -116,6 +206,8 @@ function openSettings() {
 	$("s-adrift-url").value = settings.adriftServer || "";
 	$("s-transport").value = settings.transport;
 	$("s-wisp").value = settings.wisp;
+	syncWispPreset();
+	clearWispPresetTest();
 	$("s-background").value = settings.background || "";
 	$("s-accent").value = settings.accent || DEFAULTS.accent;
 	$("s-theme").value = settings.theme || "light";
@@ -133,6 +225,8 @@ $("s-reset").onclick = () => {
 	$("s-adrift-url").value = DEFAULTS.adriftServer;
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-wisp").value = DEFAULTS.wisp;
+	syncWispPreset();
+	clearWispPresetTest();
 	$("s-background").value = DEFAULTS.background;
 	$("s-accent").value = DEFAULTS.accent;
 	$("s-theme").value = DEFAULTS.theme;
@@ -156,8 +250,16 @@ $("settings-form").addEventListener("submit", async (event) => {
 		$("s-adrift-url").reportValidity();
 		return;
 	}
+	const selectedWisp = validateWispAddress(wispUrlInput.value);
+	if (!selectedWisp) {
+		event.preventDefault();
+		wispUrlInput.setCustomValidity("Enter a secure wss:// address without credentials or a URL fragment.");
+		wispUrlInput.reportValidity();
+		return;
+	}
+	wispUrlInput.setCustomValidity("");
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
-	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
+	const wispChanged = settings.wisp !== selectedWisp;
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
@@ -167,7 +269,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	settings.rammerheadServer = rawRammerheadServer;
 	settings.adriftServer = rawAdriftServer;
 	settings.transport = $("s-transport").value;
-	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
+	settings.wisp = selectedWisp;
 	settings.background = $("s-background").value.trim();
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
 	settings.theme = $("s-theme").value;
@@ -195,6 +297,13 @@ $("settings-form").addEventListener("submit", async (event) => {
 			try { await ready; await applyTransport(true); }
 			catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 		}
+	}
+	// Lightweight browsing can also launch Scramjet for iframe-blocked sites.
+	// If Scramjet is already initialized, update its relay even when the
+	// user leaves Seuss Browser selected as the default browsing engine.
+	if (settings.proxyEngine === "seusslite" && ready && (wispChanged || transportChanged)) {
+		try { await ready; await applyTransport(true); }
+		catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 	}
 });
 
