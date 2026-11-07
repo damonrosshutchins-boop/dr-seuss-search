@@ -120,7 +120,10 @@ original scripts, forms, embedded frames, and active content are removed.
 A nonce-authorized navigation controller operates inside an opaque-origin,
 CSP-restricted iframe; every requested navigation is checked against
 Seuss Search's existing website access policy. Internal tabs, browsing
-history, reload, and useful failure messages are supported.
+history, reload, and useful failure messages are supported. Requests time out after
+15 seconds, and downloaded HTML is capped at 1.5 MB even when the server does
+not send a Content-Length header. Responsive image `srcset` and common lazy
+image attributes are supported when their URLs stay HTTPS and same-origin.
 
 The new mode does not require a service worker and does not use BareMux
 or Wisp. Traffic is **not concealed or tunneled**: the browser and
