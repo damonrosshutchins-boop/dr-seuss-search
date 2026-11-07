@@ -133,3 +133,32 @@ breaking the whole page. Brave/Google/Bing/DuckDuckGo remain external browser
 links for genuine full-web results. These changes do not override network
 restrictions, make all sites embeddable, or modify the separately selected
 Scramjet and admin-only GUST engines.
+
+
+## Proxy and full-web search builds
+
+**Settings → Proxy and search build** groups the two real browsing builds first:
+- **Scramjet** — the service-worker-based browser and configured BareMux/Wisp transport.
+- **GUST** — an independent browser with its own libcurl HTTP session,
+  available only to users verified as Seuss Search site administrators.
+
+New accounts default to Scramjet; existing saved preferences are retained.
+Typing an ordinary search into Seuss Search uses the configured search-provider
+URL and opens that result in the **selected** build. Typing a direct HTTP(S)
+website address opens that address with the same build. The search bar inside
+the GUST browser has its own engine selection; the outer Seuss Search input
+continues to use its own search-engine preference.
+
+The GUST child now signals readiness only after the HTTPSession has been
+initialized; before this change, the enclosing SVG iframe's load event could
+trigger the first navigation too early. Failures are reported to the parent.
+The Seuss Search Back/Forward/Reload controls forward to the actual GUST
+session rather than the iframe shell. Site-admin authorization and
+server-backed domain policy checks remain required for GUST, including
+redirects and subrequests. Old native Seuss Browser and experimental options
+are still available under **Other modes**.
+
+This uses GUST's AGPL-3.0 source adapted under `gust/`, not a rewrite of
+Scramjet. Individual sites may still fail due to browser sandbox limitations,
+upstream network restrictions, relay availability, or unsupported features.
+No paid hosting service is required by these changes.

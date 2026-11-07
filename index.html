@@ -628,16 +628,20 @@
 					<option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
 				</select>
 			</label>
-			<label>Browsing engine
+			<label>Proxy and search build
 				<select id="s-proxy-engine">
-					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
-					<option value="scramjet">Scramjet (built in)</option>
-					<option value="gust" id="s-gust-option" disabled hidden>GUST (experimental · site admins only)</option>
-					<option value="rammerhead">Rammerhead (separate server)</option>
-					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
-					<option value="adrift">Adrift (experimental WebRTC portal)</option>
+					<optgroup label="Proxy + full-web search">
+						<option value="scramjet">Scramjet build — proxy + search</option>
+						<option value="gust" id="s-gust-option" disabled hidden>GUST build — browser + search (admins only)</option>
+					</optgroup>
+					<optgroup label="Other modes">
+						<option value="seusslite">Seuss Browser — built-in search + permitted embeds</option>
+						<option value="rammerhead">Rammerhead — separate server</option>
+						<option value="ultraviolet">Ultraviolet — unavailable here</option>
+						<option value="adrift">Adrift — experimental portal</option>
+					</optgroup>
 				</select>
-				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>GUST</strong> is a separate browser in an in-site tab, visible only to server-verified admins; its network requests still follow Seuss Search's blocked-domain rules. <strong>Ultraviolet</strong> remains unavailable on this origin.</small>
+				<small id="s-build-description">Scramjet and GUST are independent proxy and search builds. GUST remains restricted to server-verified site admins; website rules still apply.</small>
 			</label>
 			<input type="checkbox" id="s-embed-search" hidden aria-hidden="true" />
 			<small>Seuss Browser displays its own results for searches. Full-web engines use normal browser links, because their pages cannot reliably be embedded.</small>
@@ -747,7 +751,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-search404fix1"></script>
+	<script src="app.js?v=20261106-build-router2"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>

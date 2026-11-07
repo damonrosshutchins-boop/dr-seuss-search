@@ -20,7 +20,7 @@ const DEFAULTS = {
 	reducedMotion: false,
 	performanceMode: false,
 	embedSearchPages: false,
-	proxyEngine: "seusslite",
+	proxyEngine: "scramjet",
 	rammerheadServer: "",
 	adriftServer: "https://adrift-6c1f6.web.app/",
 };
@@ -206,9 +206,14 @@ wispTestButton.addEventListener("click", async () => {
 		}
 	}
 });
+function browserBuildName(build = settings.proxyEngine) {
+	return build === "gust" ? "GUST" :
+		build === "scramjet" ? "Scramjet" : "Seuss Browser";
+}
 function syncLabel() {
+	const engine = ENGINE_NAMES[settings.engine] || ENGINE_NAMES[DEFAULTS.engine];
 	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
-		"Seuss Search" : (ENGINE_NAMES[settings.engine] || "custom engine");
+		"Seuss Search" : engine + " · " + browserBuildName();
 }
 function openSettings() {
 	$("s-engine").value = settings.engine;
@@ -216,6 +221,7 @@ function openSettings() {
 	$("s-proxy-engine").value =
 		["seusslite","scramjet","rammerhead","ultraviolet","adrift","gust"].includes(settings.proxyEngine)
 			? settings.proxyEngine : "scramjet";
+	updateBuildSettingDescription();
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-adrift-url").value = settings.adriftServer || "";
 	$("s-transport").value = settings.transport;
@@ -236,6 +242,7 @@ $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
 	$("s-embed-search").checked = DEFAULTS.embedSearchPages;
 	$("s-proxy-engine").value = DEFAULTS.proxyEngine;
+	updateBuildSettingDescription();
 	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
 	$("s-adrift-url").value = DEFAULTS.adriftServer;
 	$("s-transport").value = DEFAULTS.transport;
@@ -248,6 +255,15 @@ $("s-reset").onclick = () => {
 	$("s-motion").checked = DEFAULTS.reducedMotion;
 	$("s-performance").checked = DEFAULTS.performanceMode;
 };
+function updateBuildSettingDescription() {
+	const mode = $("s-proxy-engine").value;
+	$("s-build-description").textContent = mode === "gust" ?
+		"GUST build: typed searches and URLs open in the independent GUST browser. Verified site admins only." :
+		mode === "scramjet" ?
+		"Scramjet build: typed searches and URLs use Scramjet, the configured full-web provider and the selected Wisp transport." :
+		"Other modes retain their original behavior. Seuss Browser offers native search results, not an unrestricted web index.";
+}
+$("s-proxy-engine").addEventListener("change", updateBuildSettingDescription);
 $("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
 $("s-adrift-url").addEventListener("input", () => $("s-adrift-url").setCustomValidity(""));
 $("settings-form").addEventListener("submit", async (event) => {
@@ -313,7 +329,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
 	} else if (settings.proxyEngine === "gust") {
-		setStatus("", "GUST is ready for verified site admins. Open a website to launch it; Seuss Search website rules still apply.");
+		setStatus("", "GUST build selected: searches and websites open inside GUST after admin and site-policy checks.");
 	} else if (settings.proxyEngine === "ultraviolet") {
 		setStatus("", "Ultraviolet is unavailable on this GitHub Pages deployment. A compatibility explanation will be shown instead of navigating to a broken proxy URL.");
 	} else if (settings.performanceMode && !ready) {
@@ -770,7 +786,7 @@ function activateSiteTab(id) {
 	for (const item of siteTabs) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
-	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine));
+	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine || tab.gust));
 	updateProxyLoadStats();
 	const uvBanner = $("uv-fallback-banner");
 	uvBanner.hidden = !tab.uvFallback || !!tab.uvFallbackDismissed;
@@ -1122,7 +1138,7 @@ function showSeussSearch(query, options = {}) {
 	attachSeussSearchSuggestions(input);
 	form.addEventListener("submit", event => {
 		event.preventDefault();
-		showSeussSearch(input.value);
+		go(input.value);
 	});
 	const pickerLabel = seussSearchNode("p", "seuss-engine-label", "Full-web search engine");
 	const picker = seussSearchNode("div", "seuss-engine-picker");
@@ -1355,7 +1371,7 @@ function showEmbeddingNotice(target, options = {}) {
 	form.append(input,submit);
 	form.addEventListener("submit", event => {
 		event.preventDefault();
-		showSeussSearch(input.value);
+		go(input.value);
 	});
 	main.append(form);
 	if (isYoutube) {
@@ -1593,6 +1609,11 @@ $("rammerhead-copy").addEventListener("click", async () => {
 
 
 /* ---------- GUST browser (verified admin, origin-isolated) ---------- */
+function sendGustCommand(tab, command) {
+	if (!tab?.gust || !tab.gustReady || !["back","forward","reload"].includes(command)) return;
+	try { tab.directFrame?.contentWindow?.postMessage(
+		{type:"dss-gust-command",command},"*"); } catch {}
+}
 function sendGustDestination(tab, url) {
 	try {
 		tab.directFrame?.contentWindow?.postMessage(
@@ -1616,7 +1637,7 @@ async function goGust(url, options = {}) {
 	tab.gustHost = new URL(url).hostname.toLowerCase();
 	if (tab.directFrame) {
 		activateSiteTab(tab.id);
-		sendGustDestination(tab, url);
+		if (tab.gustReady) sendGustDestination(tab, url);
 		return;
 	}
 	const pane = document.createElement("div");
@@ -1634,10 +1655,10 @@ async function goGust(url, options = {}) {
 	tab.pane = pane;
 	tab.directFrame = iframe;
 	tab.loading = true;
+	tab.gustReady = false;
 	iframe.addEventListener("load", () => {
 		if (!siteTabs.includes(tab) || tab.directFrame !== iframe) return;
-		tab.loading = false;
-		sendGustDestination(tab, tab.targetUrl);
+		// The SVG file is loaded, but the GUST HTTP session may not be ready.
 		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
 	});
 	iframe.addEventListener("error", () => {
@@ -1652,10 +1673,28 @@ async function goGust(url, options = {}) {
 // policy; GUST has no independent permission to fetch web destinations.
 window.addEventListener("message", async event => {
 	const data = event.data;
-	if (!data || !["dss-gust-policy","dss-gust-active"].includes(data.type)) return;
+	if (!data || !["dss-gust-policy","dss-gust-active",
+		"dss-gust-ready","dss-gust-error"].includes(data.type)) return;
 	const tab = siteTabs.find(item => item.gust &&
 		item.directFrame?.contentWindow === event.source);
 	if (!tab) return;
+	if (data.type === "dss-gust-ready") {
+		tab.gustReady = true;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+		sendGustDestination(tab, tab.targetUrl);
+		return;
+	}
+	if (data.type === "dss-gust-error") {
+		tab.gustReady = false;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			activateSiteTab(tab.id);
+			setStatus("bad", "GUST startup: " +
+				String(data.message || "Unknown error").slice(0,200));
+		}
+		return;
+	}
 	const host = typeof data.host === "string" ? data.host.toLowerCase() : "";
 	if (!host || host.length > 200 || !/^[a-z0-9.-]+$/.test(host) ||
 		!host.includes(".") || host.startsWith(".") || host.endsWith(".")) return;
@@ -1879,13 +1918,15 @@ $("b-home").onclick = goHome;
 $("b-back").onclick = () => {
 	const tab = currentSiteTab();
 	if (tab?.searchPage) { goHome(); return; }
-	if (tab?.liteEngine) navigateSeussLiteHistory(tab, -1);
+	if (tab?.gust) sendGustCommand(tab,"back");
+	else if (tab?.liteEngine) navigateSeussLiteHistory(tab,-1);
 	else if (tab?.frame) tab.frame.back();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.back(); } catch {} }
 };
 $("b-fwd").onclick = () => {
 	const tab = currentSiteTab();
-	if (tab?.liteEngine) navigateSeussLiteHistory(tab, 1);
+	if (tab?.gust) sendGustCommand(tab,"forward");
+	else if (tab?.liteEngine) navigateSeussLiteHistory(tab,1);
 	else if (tab?.frame) tab.frame.forward();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.forward(); } catch {} }
 };
@@ -1898,6 +1939,7 @@ $("b-reload").onclick = () => {
 		else showSeussSearch(tab.searchQuery);
 		return;
 	}
+	if (tab.gust) { sendGustCommand(tab,"reload"); return; }
 	if (tab.liteEngine) {
 		tab.loading = true;
 		loader.classList.add("on");
