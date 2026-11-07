@@ -8496,9 +8496,9 @@ parent.postMessage({ t: 'ready' }, '*');
       if (window._onLibcurlInitDone) window._onLibcurlInitDone();
 
       if (seussEngineView) {
-        // Seuss Search is the browser UI: do not restore GUST's own tabs or
-        // its homepage. Report readiness after initialization is finished.
-        if (window.parent !== window)
+        // Seuss Search is the browser UI: do not restore GUST's own tabs
+        // or homepage. Never claim ready unless HTTPSession exists.
+        if (window.parent !== window && curl)
           window.parent.postMessage({type:"dss-gust-ready"},"*");
       } else if (tabsLoaded) {
         const activeTab = getActiveTab();
