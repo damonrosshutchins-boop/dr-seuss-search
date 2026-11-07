@@ -1645,3 +1645,6 @@ body:not(.site-authenticated) #site-login:not([open]) {
   opacity: .6;
   cursor: wait;
 }
+
+/* Offer a proxied alternative when a direct browser frame is blocked. */
+.lite-helper #lite-try-scramjet { background:var(--sun); font-size:.82rem; padding:6px 10px; }
