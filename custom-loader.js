@@ -6,11 +6,14 @@
   const LIMIT = 1_500_000;
   const TIMEOUT_MS = 15_000;
   const MAX_NODES = 15_000;
-  const TAGS = new Set(("a abbr article aside b blockquote br caption code dd details " +
-    "div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i " +
-    "img kbd li main mark nav ol p pre q s samp section small span strong " +
-    "sub summary sup table tbody td tfoot th thead time tr u ul var").split(" "));
-  const ATTRS = new Set(("class id title lang dir role aria-label aria-hidden style").split(" "));
+  const MAX_STYLE_BLOCKS = 8;
+  const TAGS = new Set(("a abbr address article aside audio b bdi bdo blockquote br " +
+    "caption cite code data dd del details dfn div dl dt em figcaption figure footer " +
+    "h1 h2 h3 h4 h5 h6 header hgroup hr i img ins kbd li main mark menu meter nav " +
+    "ol p pre progress q s samp section small source span strong sub summary sup " +
+    "table tbody td tfoot th thead time tr track u ul var video wbr").split(" "));
+  const ATTRS = new Set(("class id title lang dir role aria-label aria-hidden " +
+    "aria-labelledby aria-describedby aria-current style").split(" "));
   const escapeHTML = value => String(value).replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -24,9 +27,9 @@
     if (!raw) return null;
     try {
       const url = new URL(raw, base);
-      if (!["https:", "http:"].includes(url.protocol) ||
+      if (url.protocol !== "https:" ||
           url.username || url.password ||
-          (sameOrigin && (url.origin !== base.origin || url.protocol !== "https:")))
+          (sameOrigin && url.origin !== base.origin))
         return null;
       return url.href;
     } catch { return null; }
@@ -48,6 +51,12 @@
     const tag = el.localName;
     const lazySrc = tag === "img" ? el.getAttribute("data-src") : null;
     const lazySrcset = tag === "img" ? el.getAttribute("data-srcset") : null;
+    // <picture> is a safe layout wrapper but <source> picture choices may
+    // reference other domains. Preserve the already-sanitized fallback <img>.
+    if (tag === "picture") { el.replaceWith(...el.childNodes); return; }
+    if (tag === "source" && el.parentElement?.localName === "picture") {
+      el.remove(); return;
+    }
     if (!TAGS.has(tag)) { el.remove(); return; }
     for (const a of [...el.attributes]) {
       const key = a.name.toLowerCase(), value = a.value;
@@ -68,7 +77,32 @@
         else el.removeAttribute(a.name);
       } else if (tag === "img" && ["alt", "loading"].includes(key)) {
         // Readable descriptions are preserved.
-      } else if (tag === "img" && ["width", "height"].includes(key) &&
+      } else if (["audio", "video"].includes(tag) && ["src", "poster"].includes(key)) {
+        const url = resolved(value, base, true);
+        if (url) el.setAttribute(a.name, url);
+        else el.removeAttribute(a.name);
+      } else if (["source", "track"].includes(tag) && key === "src") {
+        const url = resolved(value, base, true);
+        if (url) el.setAttribute("src", url);
+        else el.removeAttribute(a.name);
+      } else if (["audio", "video"].includes(tag) &&
+                 ["controls", "playsinline", "muted"].includes(key)) {
+        // Explicit playback controls are safe; autoplay is removed.
+      } else if (["audio", "video"].includes(tag) &&
+                 key === "preload" && ["metadata", "none"].includes(value)) {
+        // Avoid eager fetching of large media files.
+      } else if (tag === "source" && key === "type" &&
+                 /^(audio|video)\/[\w.+-]+$/i.test(value)) {
+        // Mime type for explicitly allowed source files.
+      } else if (tag === "track" && key === "kind" &&
+                 ["subtitles", "captions", "descriptions", "chapters", "metadata"].includes(value)) {
+        // Caption metadata has no script execution.
+      } else if (tag === "track" && ["srclang", "label"].includes(key) && value.length <= 80) {
+        // Human-readable caption label or language.
+      } else if (tag === "time" && key === "datetime" && value.length <= 80) {
+        // Keep structured publication dates.
+      } else if (["img", "video", "audio"].includes(tag) &&
+                 ["width", "height"].includes(key) &&
                  /^\d{1,4}$/.test(value)) {
         // Constrained dimensions are safe.
       } else if (["td", "th"].includes(tag) &&
@@ -85,6 +119,11 @@
         el.setAttribute("tabindex", "0");
       }
       el.setAttribute("rel", "noopener noreferrer");
+    }
+    if (["audio", "video"].includes(tag)) {
+      el.setAttribute("controls", "");
+      el.setAttribute("preload", "metadata");
+      el.setAttribute("referrerpolicy", "no-referrer");
     }
     if (tag === "img") {
       // Many modern sites keep image URLs in lazy-loading attributes.
@@ -106,23 +145,34 @@
     const nodes = [...parsed.body.querySelectorAll("*")];
     if (nodes.length > MAX_NODES) throw new Error("Page exceeds Custom Loader's HTML complexity limit.");
     for (const el of nodes.reverse()) cleanElement(el, base);
+    const articleIsEmpty = !parsed.body.textContent.trim() &&
+      !parsed.body.querySelector("img,video,audio,table");
+    if (articleIsEmpty) {
+      parsed.body.innerHTML = '<main style="max-width:42rem;margin:4rem auto;' +
+        'padding:1rem"><h2>This page requires JavaScript</h2><p>Custom Loader ' +
+        'does not run website scripts. Try a permitted static article or use ' +
+        'the original website directly.</p></main>';
+    }
     const bytes = new Uint8Array(18);
     crypto.getRandomValues(bytes);
     const token = [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
-    let styles = '<style>a[data-dss-href]{color:#1456a0;text-decoration:underline;' +
-      'cursor:pointer}a[data-dss-href]:focus-visible{outline:2px solid currentColor}</style>';
+    let styles = '<style>body{margin:1rem;font:16px/1.55 system-ui,sans-serif;' +
+      'overflow-wrap:break-word}img,video{max-width:100%;height:auto}' +
+      'pre{max-width:100%;overflow:auto}table{max-width:100%;overflow-x:auto}' +
+      'a[data-dss-href]{color:#1456a0;text-decoration:underline;cursor:pointer}' +
+      'a[data-dss-href]:focus-visible{outline:2px solid currentColor}</style>';
     for (const link of [...parsed.head.querySelectorAll('link[rel~="stylesheet"]')].slice(0, 8)) {
       const href = resolved(link.getAttribute("href"), base, true);
       if (href) styles += '<link rel="stylesheet" href="' + escapeHTML(href) +
         '" referrerpolicy="no-referrer">';
     }
-    for (const style of [...parsed.head.querySelectorAll("style")].slice(0, 6)) {
+    for (const style of [...parsed.head.querySelectorAll("style")].slice(0, MAX_STYLE_BLOCKS)) {
       styles += "<style>" + (style.textContent || "").slice(0, 60_000)
         .replace(/<\/style/gi, "/* removed terminator */") + "</style>";
     }
     const csp = [
       "default-src 'none'", "object-src 'none'", "frame-src 'none'",
-      "form-action 'none'", "base-uri 'none'", "connect-src 'none'",
+      "form-action 'none'", "base-uri " + base.origin, "connect-src 'none'",
       "script-src 'nonce-" + token + "'",
       "style-src 'unsafe-inline' " + base.origin,
       "img-src " + base.origin + " data:",
@@ -143,6 +193,9 @@
       html: '<!doctype html><html><head><meta charset="utf-8">' +
         '<meta name="referrer" content="no-referrer">' +
         '<meta http-equiv="Content-Security-Policy" content="' + escapeHTML(csp) + '">' +
+        // srcdoc otherwise resolves relative CSS URLs against GitHub Pages.
+        // Restrict the base to the visited site's HTTPS origin in CSP.
+        '<base href="' + escapeHTML(base.href) + '">' +
         '<title>' + escapeHTML(title) + '</title>' + styles +
         '<script nonce="' + token + '">' + navigatorScript + '<\/script>' +
         '</head><body>' + parsed.body.innerHTML + '</body></html>'
@@ -186,7 +239,10 @@
       let html = "";
       if (response.body && typeof response.body.getReader === "function") {
         const reader = response.body.getReader();
-        const decoder = new TextDecoder();
+        const charset = /charset\s*=\s*["']?([\w-]+)/i.exec(mime)?.[1] || "utf-8";
+        let decoder;
+        try { decoder = new TextDecoder(charset); }
+        catch { decoder = new TextDecoder(); }
         let received = 0;
         try {
           while (true) {
