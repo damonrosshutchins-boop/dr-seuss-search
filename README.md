@@ -66,7 +66,11 @@ The selector includes `anura.pro`, `wisp.mercurywork.shop`,
 `motor-cycle-part.org`, `mages.io`, `lichology.com`,
 `definitelyscience.com`, and `wisp.terbiumon.top`.
 Use **Test selected relay** to check a WebSocket Wisp handshake before saving.
-Endpoints are candidate addresses provided by the site owner, not guarantees of
-availability or compatibility. After saving, the selected relay is remembered in
-the browser and applied to the Scramjet transport, including when the default
-browsing engine is Seuss Browser. No automatic multi-relay probing occurs.
+If the selected relay fails, Scramjet tries `wss://mages.io/wisp/` as a backup.
+The backup is distinct from the existing `wss://mages.io/` preset and can also
+be selected manually. The user's preferred relay is kept in browser settings;
+the backup is a runtime fallback, not a permanent change. If neither responds,
+the site shows a connection error rather than claiming the proxy works.
+These candidate endpoints are not guaranteed to be available. A Wisp handshake
+does not establish that every destination website will load. The code does not
+automatically cycle through all seven presets.

@@ -31,6 +31,8 @@ const ENGINE_NAMES = {
 	"https://search.brave.com/search?q=%s": "Brave",
 };
 const TRANSPORTS = { libcurl: at("libcurl/index.mjs"), epoxy: at("epoxy/index.mjs") };
+// A backup endpoint, not a replacement for the user's saved preference.
+const WISP_FALLBACK = "wss://mages.io/wisp/";
 const TILES = [
 	["Google", "https://www.google.com", "#4285f4"],
 	["YouTube", "https://www.youtube.com", "#d8262f"],
@@ -140,57 +142,43 @@ wispUrlInput.addEventListener("input", () => {
 	syncWispPreset();
 	clearWispPresetTest();
 });
-wispTestButton.addEventListener("click", () => {
+wispTestButton.addEventListener("click", async () => {
 	clearWispPresetTest();
-	const address = validateWispAddress(wispUrlInput.value);
-	if (!address) {
+	const selected = validateWispAddress(wispUrlInput.value);
+	if (!selected) {
 		wispTestStatus.textContent = "Enter a valid secure wss:// relay address.";
 		return;
 	}
-	let socket;
-	try {
-		socket = new WebSocket(address);
-		socket.binaryType = "arraybuffer";
-	} catch {
-		wispTestStatus.textContent = "Could not open a WebSocket to this relay.";
-		return;
-	}
-	let done = false;
-	let timer;
-	const finish = (message) => {
-		if (done) return;
-		done = true;
-		clearTimeout(timer);
-		try { socket.close(); } catch {}
-		wispTestButton.disabled = false;
-		wispTestStatus.textContent = message;
-		if (cancelWispPresetTest === cancel) cancelWispPresetTest = null;
-	};
-	const cancel = () => finish("");
+	const controller = new AbortController();
+	const cancel = () => controller.abort();
 	cancelWispPresetTest = cancel;
 	wispTestButton.disabled = true;
-	wispTestStatus.textContent = "Connecting to relay…";
-	let opened = false;
-	timer = setTimeout(() => finish(opened
-		? "Connected, but no Wisp handshake was received."
-		: "Connection timed out. This relay may be unavailable."), 11000);
-	socket.addEventListener("open", () => {
-		if (done) return;
-		opened = true;
-		wispTestStatus.textContent = "WebSocket opened. Checking Wisp handshake…";
-	});
-	socket.addEventListener("message", event => {
-		if (done) return;
-		const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
-		const valid = bytes && bytes.length >= 5 && [3,5].includes(bytes[0]) &&
-			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0;
-		finish(valid ? "Wisp handshake received. Save to use this relay." :
-			"WebSocket replied without a valid Wisp handshake.");
-	});
-	socket.addEventListener("error", () => finish("WebSocket failed. Try another relay."));
-	socket.addEventListener("close", () => {
-		if (!done) finish("Connection closed before a Wisp handshake.");
-	});
+	wispTestStatus.textContent = "Checking selected Wisp relay…";
+	try {
+		await testWispHandshake(selected, { signal:controller.signal, timeoutMs:6500 });
+		if (!controller.signal.aborted)
+			wispTestStatus.textContent = "Selected relay responded to a Wisp handshake. Save to apply it.";
+	} catch (primaryError) {
+		if (controller.signal.aborted) return;
+		if (selected === WISP_FALLBACK) {
+			wispTestStatus.textContent = "Backup relay failed: " + primaryError.message;
+			return;
+		}
+		wispTestStatus.textContent = "Selected relay failed. Checking backup mages.io/wisp/…";
+		try {
+			await testWispHandshake(WISP_FALLBACK, { signal:controller.signal, timeoutMs:6500 });
+			if (!controller.signal.aborted)
+				wispTestStatus.textContent = "Selected relay failed; backup wss://mages.io/wisp/ responded. Save to use automatic fallback.";
+		} catch (backupError) {
+			if (!controller.signal.aborted)
+				wispTestStatus.textContent = "Selected relay and backup both failed. Try another relay.";
+		}
+	} finally {
+		if (cancelWispPresetTest === cancel) {
+			cancelWispPresetTest = null;
+			wispTestButton.disabled = false;
+		}
+	}
 });
 function syncLabel() {
 	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
@@ -447,20 +435,98 @@ function boot() {
 // Keep the BareMux worker synchronized with the locally saved address on every
 // page startup, even when the transport module is unchanged.
 let appliedTransportSettings = null;
-// Serialize transport changes: a network retry and Settings save must not
-// race and replace each other's working Wisp connection.
+let activeWispAddress = null;
+// Serialize transport updates so a Settings save cannot race proxy startup.
 let transportChangeQueue = Promise.resolve();
+
+// Validate a Wisp handshake instead of equating a WebSocket "open" with a
+// working relay. Used by both the UI tests and automatic backup selection.
+function testWispHandshake(address, { signal, timeoutMs = 6500 } = {}) {
+	return new Promise((resolve, reject) => {
+		const url = validateWispAddress(address);
+		if (!url) { reject(new Error("Invalid Wisp relay address")); return; }
+		if (signal?.aborted) { reject(new Error("Wisp check cancelled")); return; }
+		let socket, timer;
+		let finished = false;
+		const cleanup = () => {
+			clearTimeout(timer);
+			if (signal) signal.removeEventListener("abort", cancel);
+			try { socket?.close(); } catch {}
+		};
+		const finish = (error) => {
+			if (finished) return;
+			finished = true;
+			cleanup();
+			error ? reject(error) : resolve(true);
+		};
+		const cancel = () => finish(new Error("Wisp check cancelled"));
+		try {
+			socket = new WebSocket(url);
+			socket.binaryType = "arraybuffer";
+		} catch { reject(new Error("WebSocket could not start")); return; }
+		if (signal) signal.addEventListener("abort", cancel, { once:true });
+		timer = setTimeout(() => finish(new Error("No Wisp handshake received")), timeoutMs);
+		socket.addEventListener("message", event => {
+			if (finished) return;
+			const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
+			const valid = bytes && bytes.length >= 5 && [3,5].includes(bytes[0]) &&
+				bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0;
+			finish(valid ? null : new Error("Invalid Wisp handshake"));
+		});
+		socket.addEventListener("error", () => finish(new Error("WebSocket connection failed")));
+		socket.addEventListener("close", () => finish(new Error("WebSocket closed before handshake")));
+	});
+}
+async function chooseWispRelay(preferred) {
+	const primary = validateWispAddress(preferred);
+	if (!primary) throw new Error("Invalid preferred Wisp relay address");
+	try {
+		await testWispHandshake(primary);
+		return primary;
+	} catch (primaryError) {
+		if (primary === WISP_FALLBACK)
+			throw new Error("Backup Wisp relay did not respond: " + primaryError.message);
+	}
+	try {
+		await testWispHandshake(WISP_FALLBACK);
+		return WISP_FALLBACK;
+	} catch {
+		throw new Error("Neither the selected Wisp relay nor the backup wss://mages.io/wisp/ responded to a valid handshake.");
+	}
+}
 function applyTransport(force = false) {
-	const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
-	const path = TRANSPORTS[transport];
-	const opts = transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
-	const signature = JSON.stringify([path, opts]);
 	const task = transportChangeQueue.catch(() => {}).then(async () => {
 		if (!connection) throw new Error("The proxy transport has not initialized.");
-		if (force || signature !== appliedTransportSettings) {
-			await connection.setTransport(path, [opts]);
-			appliedTransportSettings = signature;
+		const preferred = settings.wisp;
+		const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
+		const path = TRANSPORTS[transport];
+		// Reuse a previously configured connection, unless the settings or
+		// an explicit retry request changed it.
+		if (!force && activeWispAddress && appliedTransportSettings) {
+			const expected = transport === "epoxy" ?
+				{wisp:activeWispAddress} : {websocket:activeWispAddress};
+			if (appliedTransportSettings === JSON.stringify([path,expected,preferred]))
+				return;
 		}
+		let chosen = await chooseWispRelay(preferred);
+		const connect = async (address) => {
+			const opts = transport === "epoxy" ? {wisp:address} : {websocket:address};
+			await connection.setTransport(path, [opts]);
+			activeWispAddress = address;
+			appliedTransportSettings = JSON.stringify([path,opts,preferred]);
+		};
+		try {
+			await connect(chosen);
+		} catch (primaryError) {
+			// Only fall back for a transport failure, never a service-worker
+			// registration failure (that is handled outside this function).
+			if (chosen === WISP_FALLBACK) throw primaryError;
+			await testWispHandshake(WISP_FALLBACK);
+			await connect(WISP_FALLBACK);
+			chosen = WISP_FALLBACK;
+		}
+		if (chosen === WISP_FALLBACK && preferred !== WISP_FALLBACK)
+			setStatus("", "Selected Wisp unavailable; Scramjet is using backup wss://mages.io/wisp/. Your preferred relay is still saved.");
 	});
 	transportChangeQueue = task.catch(() => {});
 	return task;
@@ -1666,78 +1732,21 @@ function setStatus(state, message) {
 // A Wisp v1 relay begins with CONTINUE (0x03) and v2 begins with INFO (0x05).
 // A WebSocket 'open' event alone does not confirm a working Wisp relay.
 let wispCheckSequence = 0;
-let wispCheckSocket = null;
-function checkWisp() {
+async function checkWisp() {
 	if (settings.proxyEngine === "rammerhead") return;
 	const sequence = ++wispCheckSequence;
-	if (wispCheckSocket) {
-		try { wispCheckSocket.close(); } catch {}
-		wispCheckSocket = null;
-	}
-	$("retry-wisp").disabled = false;
-	let address;
+	const preferred = settings.wisp;
+	setStatus("", "Checking selected Wisp relay…");
 	try {
-		address = new URL(settings.wisp);
-		if (!["wss:", "ws:"].includes(address.protocol)) throw new Error("Not a WebSocket address");
-		if (location.protocol === "https:" && address.protocol !== "wss:") {
-			throw new Error("An HTTPS website needs a secure wss:// relay");
-		}
-	} catch {
-		setStatus("bad", "Wisp address invalid. Check Settings for a valid wss:// address.");
-		return;
+		const chosen = await chooseWispRelay(preferred);
+		if (sequence !== wispCheckSequence) return;
+		setStatus("ok", chosen === WISP_FALLBACK && preferred !== WISP_FALLBACK
+			? "Preferred relay failed; backup mages.io/wisp/ passed its Wisp handshake (site loading not tested)."
+			: "Selected Wisp relay passed its handshake (site loading not tested).");
+	} catch (error) {
+		if (sequence !== wispCheckSequence) return;
+		setStatus("bad", error.message);
 	}
-
-	setStatus("", "Connecting to the Wisp relay…");
-	let socket;
-	try {
-		socket = new WebSocket(address.href);
-		socket.binaryType = "arraybuffer";
-	} catch {
-		setStatus("bad", "Couldn't start the WebSocket. Check the relay address in Settings.");
-		return;
-	}
-	wispCheckSocket = socket;
-	let opened = false;
-	let finished = false;
-	let timer;
-
-	function finish(state, message) {
-		if (finished || sequence !== wispCheckSequence) return;
-		finished = true;
-		clearTimeout(timer);
-		if (wispCheckSocket === socket) wispCheckSocket = null;
-		try { socket.close(); } catch {}
-		setStatus(state, message);
-	}
-	timer = setTimeout(() => {
-		finish("bad", opened
-			? "Wisp socket opened, but no handshake arrived. Relay may be unhealthy; retry."
-			: "Wisp timed out. Network restrictions or relay downtime may be responsible.");
-	}, 11000);
-	socket.addEventListener("open", () => {
-		if (sequence !== wispCheckSequence || finished) return;
-		opened = true;
-		setStatus("", "WebSocket connected. Checking Wisp handshake…");
-	});
-	socket.addEventListener("message", (event) => {
-		if (sequence !== wispCheckSequence || finished) return;
-		const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
-		// Both Wisp versions use five-byte headers; stream 0 is reserved for the handshake.
-		if (bytes && bytes.length >= 5 && [3, 5].includes(bytes[0]) &&
-			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0) {
-			finish("ok", "Wisp protocol response received from " + address.host + " (page loading not yet tested)");
-		} else {
-			finish("bad", "WebSocket responded, but not with a Wisp handshake. Check your relay URL.");
-		}
-	});
-	socket.addEventListener("error", () => {
-		finish("bad", "Wisp WebSocket failed. The relay may be down or restricted by this network.");
-	});
-	socket.addEventListener("close", (event) => {
-		if (sequence !== wispCheckSequence || finished) return;
-		const reason = event.code === 1006 ? "" : " (code " + event.code + ")";
-		finish("bad", "Wisp closed before replying" + reason + ". Retry or ask your network administrator.");
-	});
 }
 // Test the Wisp handshake independently of Scramjet so browser service
 // worker failures cannot be mistaken for blocked/broken WebSocket relays.
