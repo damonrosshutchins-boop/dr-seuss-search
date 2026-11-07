@@ -19,6 +19,7 @@ const DEFAULTS = {
 	theme: "light",
 	reducedMotion: false,
 	performanceMode: false,
+	embedSearchPages: false,
 	proxyEngine: "seusslite",
 	rammerheadServer: "",
 	adriftServer: "https://adrift-6c1f6.web.app/",
@@ -107,6 +108,7 @@ function syncLabel() {
 }
 function openSettings() {
 	$("s-engine").value = settings.engine;
+	$("s-embed-search").checked = !!settings.embedSearchPages;
 	$("s-proxy-engine").value =
 		["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
 			? settings.proxyEngine : "scramjet";
@@ -125,6 +127,7 @@ $("open-settings").onclick = openSettings;
 $("engine-label").onclick = openSettings;
 $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
+	$("s-embed-search").checked = DEFAULTS.embedSearchPages;
 	$("s-proxy-engine").value = DEFAULTS.proxyEngine;
 	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
 	$("s-adrift-url").value = DEFAULTS.adriftServer;
@@ -158,6 +161,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
+	settings.embedSearchPages = $("s-embed-search").checked;
 	settings.proxyEngine = ["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
 		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
@@ -544,6 +548,7 @@ function activateSiteTab(id) {
 	updateProxyLoadStats();
 	const liteHelper = $("lite-helper");
 	liteHelper.hidden = !tab.liteEngine || !!tab.liteTipDismissed || !!tab.searchPage;
+	$("lite-back-to-results").hidden = !tab.liteEngine || !tab.liteSearchQuery;
 	if (tab.liteEngine) {
 		$("lite-source-link").href = tab.url;
 		$("lite-helper-description").textContent =
@@ -813,7 +818,7 @@ function showSeussSearch(query, options = {}) {
 	activateSiteTab(tab.id);
 	const heading = seussSearchNode("h1", "", "Seuss Search");
 	const explainer = seussSearchNode("p", "seuss-search-note",
-		"Search articles here without embedding another website. For full-web or YouTube results, use the external search links below.");
+		"Read article results here or optionally try the selected search website inside an in-site tab. Sites that forbid embedding will still be blocked by Firefox.");
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
 	const input = document.createElement("input");
@@ -832,6 +837,11 @@ function showSeussSearch(query, options = {}) {
 	});
 	const actions = seussSearchNode("div", "seuss-search-actions");
 	actions.append(
+		seussSearchButton("Try embedding " + (ENGINE_NAMES[settings.engine] || "search") + " here", () => {
+			go(searchWebLink(q), {
+				forceLite:true, allowEmbeddedRestricted:true, newTab:true, embeddedQuery:q
+			});
+		}),
 		seussSearchExternalLink("Search the full web (new tab)", searchWebLink(q)),
 		seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q))
 	);
@@ -898,7 +908,10 @@ function showEmbeddingNotice(target, options = {}) {
 	const title = isYoutube ? "YouTube can't show its full site here" : "This search site can't be embedded";
 	main.append(
 		seussSearchNode("h1", "", title),
-		seussSearchNode("p", "seuss-search-note", "Firefox is respecting the website's embedding security policy. Seuss Search cannot override that policy, but you can open the website normally in a separate browser tab."),
+		seussSearchNode("p", "seuss-search-note", "Firefox is respecting the website's embedding security policy. Seuss Search cannot override it. You can try a normal iframe or open the website in a separate browser tab."),
+		seussSearchButton("Try embedding anyway (may be blocked)", () => {
+			go(target.href, { forceLite:true, allowEmbeddedRestricted:true, newTab:true });
+		}),
 		seussSearchExternalLink("Open original website (new tab)", target.href)
 	);
 	const form = document.createElement("form");
@@ -983,6 +996,8 @@ function openSeussLite(targetUrl, options = {}) {
 		tab.liteHistoryIndex = tab.liteHistory.length - 1;
 	}
 	tab.liteEngine = true;
+	tab.searchPage = false;
+	if (options.embeddedQuery) tab.liteSearchQuery = String(options.embeddedQuery).slice(0, 180);
 	tab.type = "direct";
 	tab.url = target.href;
 	tab.title = options.title || siteTabTitle(target.href);
@@ -1011,6 +1026,10 @@ $("lite-hide-tip").addEventListener("click", () => {
 	if (!tab?.liteEngine) return;
 	tab.liteTipDismissed = true;
 	$("lite-helper").hidden = true;
+});
+$("lite-back-to-results").addEventListener("click", () => {
+	const tab = currentSiteTab();
+	if (tab?.liteEngine && tab.liteSearchQuery) showSeussSearch(tab.liteSearchQuery);
 });
 
 /* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
@@ -1150,6 +1169,13 @@ async function go(input, options = {}) {
 	if (!options.forceScramjet &&
 		(options.forceLite || settings.proxyEngine === "seusslite") &&
 		isSeussSearchQuery(input)) {
+		if (!options.nativeSearch && settings.embedSearchPages) {
+			const q = String(input).trim().slice(0, 180);
+			return go(searchWebLink(q), {
+				...options, forceLite:true, allowEmbeddedRestricted:true,
+				embeddedQuery:q
+			});
+		}
 		return showSeussSearch(input, options);
 	}
 	const url = toUrl(input);
@@ -1162,7 +1188,7 @@ async function go(input, options = {}) {
 	}
 	if (options.forceLite || (!options.forceScramjet && settings.proxyEngine === "seusslite")) {
 		const u = new URL(url);
-		if (prefersSupportedExternalPage(u))
+		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted)
 			return showEmbeddingNotice(u, options);
 		return openSeussLite(url, options);
 	}
