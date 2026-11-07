@@ -630,12 +630,13 @@
 			<label>Browsing engine
 				<select id="s-proxy-engine">
 					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
+					<option value="customloader">Custom Loader (CORS HTML · no service worker)</option>
 					<option value="scramjet">Scramjet (built in)</option>
 					<option value="rammerhead">Rammerhead (separate server)</option>
 					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
 					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
+				<small><strong>Custom Loader</strong> uses regular HTTPS fetches to display CORS-permitted HTML with same-origin resource links and a sandboxed viewer. It needs no service worker or Wisp, but it cannot open sites that reject CORS; page scripts and forms are disabled. Direct resource requests remain visible to the browser and network. <strong>Seuss Browser</strong> uses ordinary embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
 			</label>
 			<label class="row"><input type="checkbox" id="s-embed-search" /> Try to embed search websites inside Seuss Browser</label>
 			<small>Optional. Search websites such as Google, Brave and YouTube may refuse embedding. Firefox will still enforce their security settings. Uncheck this to use Seuss Search's built-in article results.</small>
@@ -768,7 +769,8 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-primary-fallback-wisp1"></script>
+	<script src="custom-loader.js?v=20261106-custom-html1"></script>
+	<script src="app.js?v=20261106-custom-html1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
