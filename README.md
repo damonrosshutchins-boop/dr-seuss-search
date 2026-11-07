@@ -124,6 +124,15 @@ history, reload, and useful failure messages are supported. Requests time out af
 15 seconds, and downloaded HTML is capped at 1.5 MB even when the server does
 not send a Content-Length header. Responsive image `srcset` and common lazy
 image attributes are supported when their URLs stay HTTPS and same-origin.
+The viewer also preserves static picture fallbacks, semantic article elements,
+same-origin audio/video with user controls, responsive viewport metadata,
+safe body/html CSS classes, and relative CSS URLs resolved
+against the original HTTPS page rather than the GitHub Pages host (including
+permitted same-origin `<base href>` declarations). In-page anchors scroll
+without refetching, and a limited number of inline body styles are retained.
+A JavaScript-only empty page now displays a clear explanation. Back/Forward
+history moves only after a page successfully loads. These are best-effort
+HTML-reading improvements, not a replacement for the site's JavaScript engine.
 
 The new mode does not require a service worker and does not use BareMux
 or Wisp. Traffic is **not concealed or tunneled**: the browser and
