@@ -1606,3 +1606,42 @@ body:not(.site-authenticated) #site-login:not([open]) {
   outline: 3px solid var(--teal);
   outline-offset: 2px;
 }
+
+
+/* GUST-inspired search provider picker and paginated in-site article results. */
+.seuss-engine-label {
+  font: 900 .92rem var(--body);
+  color: var(--ink);
+  margin: 14px 0 7px;
+}
+.seuss-engine-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 11px;
+}
+.seuss-engine-picker .seuss-engine-chip {
+  padding: 8px 13px;
+  background: #fff;
+  border: 1.5px solid var(--ink);
+  box-shadow: none;
+}
+.seuss-engine-picker .seuss-engine-chip.active {
+  background: var(--sun);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.seuss-engine-picker .seuss-engine-chip:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+.seuss-search-content .seuss-load-more {
+  display: flex;
+  margin: 18px auto 0;
+}
+.seuss-search-content .seuss-load-more[hidden] {
+  display: none !important;
+}
+.seuss-search-content .seuss-load-more:disabled {
+  opacity: .6;
+  cursor: wait;
+}
