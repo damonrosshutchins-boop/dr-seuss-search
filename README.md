@@ -229,3 +229,22 @@ No website filter, server-side admin check or other safety rule is disabled.
 Unreliable relays, network restrictions and incompatible websites can still
 cause a load error; this is an interface isolation and error-handling fix,
 not a guarantee that all websites work.
+
+
+## Scramjet search 404 correction
+
+Plain search phrases entered while **Scramjet** is selected now open
+Seuss Search's own Wikipedia/Open Library/Stack Overflow results page,
+rather than trying to open a search-engine page in an encoded
+`/dr-seuss-search/scramjet/` path. GitHub Pages has no physical file
+at those encoded paths and returns its own 404 if a service worker
+does not intercept the request.
+
+Search result article links and full-web provider links in Scramjet
+mode open in ordinary browser tabs instead of silently using a proxy
+route that might return 404. Directly typed website URLs still follow
+the existing Scramjet path, subject to its existing worker setup and
+site-domain checks. This change does not install or circumvent network
+filters, bypass site safety policies, or claim that all external
+websites are embeddable. Other browsing engine modes and GUST's
+admin restrictions remain unchanged.

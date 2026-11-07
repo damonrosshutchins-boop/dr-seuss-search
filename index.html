@@ -631,7 +631,7 @@
 			<label>Proxy and search build
 				<select id="s-proxy-engine">
 					<optgroup label="Website loading methods">
-						<option value="scramjet">Scramjet build — proxy + search</option>
+						<option value="scramjet">Scramjet website loader + Seuss Search results</option>
 						<option value="gust" id="s-gust-option" disabled hidden>GUST loading method — Seuss Search UI (admins only)</option>
 					</optgroup>
 					<optgroup label="Other modes">
@@ -644,7 +644,7 @@
 				<small id="s-build-description">Choose the loading engine behind Dr. Seuss Search. Both use Seuss Search's own search bar, browser tabs and navigation controls. GUST remains admin-only and observes site rules.</small>
 			</label>
 			<input type="checkbox" id="s-embed-search" hidden aria-hidden="true" />
-			<small>Seuss Browser displays its own results for searches. Full-web engines use normal browser links, because their pages cannot reliably be embedded.</small>
+			<small>Seuss Browser, Scramjet and GUST modes show Seuss Search's built-in results for search phrases. Full-web provider links use regular browser tabs; external websites may not support embedded browsing.</small>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
@@ -751,7 +751,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-seuss-only2"></script>
+	<script src="app.js?v=20261106-scramjet-search404v2"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
