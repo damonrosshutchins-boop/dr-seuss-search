@@ -661,12 +661,13 @@
 					<option value="wss://anura.pro/">anura.pro</option>
 					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
 					<option value="wss://mages.io/">mages.io</option>
+					<option value="wss://mages.io/wisp/">mages.io/wisp/ (backup)</option>
 					<option value="wss://lichology.com/">lichology.com</option>
 					<option value="wss://definitelyscience.com/">definitelyscience.com</option>
 					<option value="wss://wisp.terbiumon.top/">wisp.terbiumon.top</option>
 					<option value="custom">Custom Wisp relay…</option>
 				</select>
-				<small>Choose a relay, or select Custom to enter your own. These are candidate addresses; availability and Wisp support have not been verified.</small>
+				<small>Choose a relay, or select Custom to enter your own. If the selected relay fails, Scramjet automatically tries wss://mages.io/wisp/ as its backup. Server availability is not guaranteed.</small>
 			</label>
 			<label>Selected Wisp address
 				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" required />
@@ -675,7 +676,7 @@
 				<button type="button" class="chip" id="s-wisp-test">Test selected relay</button>
 				<span role="status" aria-live="polite" id="s-wisp-test-status"></span>
 			</div>
-			<small>The test checks a Wisp WebSocket handshake, not whether a destination website loads. Press Save to apply your selection. Public relay operators may see traffic metadata, and some relays may reject connections.</small>
+			<small>The test checks your selected relay, then the backup if it fails. Save to apply your choice. A successful handshake doesn't guarantee website loading. Public relay operators may see traffic metadata.</small>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
 				<small>Use a direct image URL. Leave blank to use the default background.</small>
@@ -745,7 +746,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-wisp-picker1"></script>
+	<script src="app.js?v=20261106-wisp-backup1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
