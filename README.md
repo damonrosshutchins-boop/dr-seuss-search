@@ -54,3 +54,16 @@ The files in `scram/`, `baremux/`, `libcurl/`, and `epoxy/` are copied from the 
 ## License
 
 AGPL-3.0, the same license as Scramjet. "Dr. Seuss Search" is a fan-made name and is not affiliated with Dr. Seuss Enterprises.
+
+
+
+## Choosing a Wisp relay
+In Settings, choose a preset Wisp relay or enter a custom secure `wss://` URL.
+The selector includes `anura.pro`, `wisp.mercurywork.shop`,
+`motor-cycle-part.org`, `mages.io`, `lichology.com`,
+`definitelyscience.com`, and `wisp.terbiumon.top`.
+Use **Test selected relay** to check a WebSocket Wisp handshake before saving.
+Endpoints are candidate addresses provided by the site owner, not guarantees of
+availability or compatibility. After saving, the selected relay is remembered in
+the browser and applied to the Scramjet transport, including when the default
+browsing engine is Seuss Browser. No automatic multi-relay probing occurs.
