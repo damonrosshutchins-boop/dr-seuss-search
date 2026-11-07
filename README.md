@@ -67,3 +67,15 @@ Endpoints are candidate addresses provided by the site owner, not guarantees of
 availability or compatibility. After saving, the selected relay is remembered in
 the browser and applied to the Scramjet transport, including when the default
 browsing engine is Seuss Browser. No automatic multi-relay probing occurs.
+
+
+## Transport choices (existing modules)
+
+Settings now has four choices backed by the two locally installed Wisp
+transports, libcurl and Epoxy: libcurl (with its existing Epoxy startup
+fallback), Epoxy only, Automatic libcurl-then-Epoxy, and Automatic
+Epoxy-then-libcurl. Automatic entries are fallback strategies rather than
+new transports. They try one other bundled module only if initialization
+fails, never switch Wisp servers, and do not override website restrictions.
+The saved preference is not overwritten by fallback. Network availability
+and compatibility with external websites are not guaranteed.
