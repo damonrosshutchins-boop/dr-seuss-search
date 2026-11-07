@@ -649,10 +649,12 @@
 			</label>
 			<label>Scramjet transport
 				<select id="s-transport">
-					<option value="libcurl">libcurl.js (Wisp transport · recommended)</option>
-					<option value="epoxy">Epoxy (Wisp transport)</option>
+					<option value="libcurl">libcurl.js — existing, Epoxy fallback on startup failure</option>
+					<option value="epoxy">Epoxy — existing, no automatic fallback</option>
+					<option value="auto-libcurl">Automatic — libcurl first, then Epoxy</option>
+					<option value="auto-epoxy">Automatic — Epoxy first, then libcurl</option>
 				</select>
-				<small>libcurl.js is already included with Dr. Seuss Search. This option changes the Scramjet network transport; it is not GUST's standalone browser engine.</small>
+				<small>Two transport modules are installed: libcurl and Epoxy. Automatic options try the other module only if startup fails. All use the Wisp relay you selected and keep the site's access rules. To browse without Wisp, choose Seuss Browser above.</small>
 			</label>
 			<label>Wisp relay
 				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
@@ -744,7 +746,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-wisp-picker-restore1"></script>
+	<script src="app.js?v=20261106-transport-strategies1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
