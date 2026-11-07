@@ -248,3 +248,32 @@ site-domain checks. This change does not install or circumvent network
 filters, bypass site safety policies, or claim that all external
 websites are embeddable. Other browsing engine modes and GUST's
 admin restrictions remain unchanged.
+
+
+## Scramjet full-web search and real worker route validation
+
+Scramjet mode once again loads the configured full-web search engine and
+explicit website URLs through the existing Scramjet v1 service worker and
+BareMux transport (no new servers). GitHub Pages has no static files at
+encoded `/dr-seuss-search/scramjet/...` URLs, so a missing or stale service
+worker previously produced the GitHub Pages 404.
+
+The service worker now answers a reserved, local `__dss_worker_probe_v2`
+route with a no-store JSON response and a distinctive header. The browser
+performs an actual `fetch` against that URL after registration and the
+worker message handshake, before opening any encoded destination. It
+refuses to navigate if the worker cannot intercept that request. A stale
+configuration or failed network operation returns a first-party error page
+rather than fetching a nonexistent GitHub Pages file.
+
+If Scramjet cannot start, search phrases use the native Seuss Search results
+with an explicit startup error. Website addresses show a compatibility
+notice with the failure reason. It does not fake a working transport and
+cannot guarantee every destination loads. The existing verified-admin
+GUST restrictions and website-domain checks are preserved.
+
+
+For reused browser sessions, the client repeats the actual fetch-interception
+check before navigating. If it fails, the cached initialization promise is
+cleared so **Retry Scramjet** can re-register the worker; the user sees a
+first-party error rather than the incorrect iframe-blocking explanation.
