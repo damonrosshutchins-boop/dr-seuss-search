@@ -639,8 +639,8 @@
 				</select>
 				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>GUST</strong> is a separate browser in an in-site tab, visible only to server-verified admins; its network requests still follow Seuss Search's blocked-domain rules. <strong>Ultraviolet</strong> remains unavailable on this origin.</small>
 			</label>
-			<label class="row"><input type="checkbox" id="s-embed-search" /> Open full-web searches with Scramjet inside this site</label>
-			<small>Optional. Search engines refuse normal iframes, so this mode uses the existing proxied browser instead. Requires a working service worker and Wisp connection. Uncheck to use Seuss Search's built-in article results.</small>
+			<input type="checkbox" id="s-embed-search" hidden aria-hidden="true" />
+			<small>Seuss Browser displays its own results for searches. Full-web engines use normal browser links, because their pages cannot reliably be embedded.</small>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
@@ -747,7 +747,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-gustadmin1"></script>
+	<script src="app.js?v=20261106-search404fix1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>

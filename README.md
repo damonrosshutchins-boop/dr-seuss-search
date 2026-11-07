@@ -115,3 +115,21 @@ these or the selected relay are unavailable. The built-in browser sandbox may
 also restrict a few features. Admin-only visibility does not make
 GitHub Pages assets private, so the vendored engine independently requires
 authorization from the parent page before making web requests.
+
+
+## Seuss Browser search 404 repair
+
+Lightweight **Seuss Browser** now always shows its native results for plain
+search terms, instead of automatically routing provider search URLs into
+Scramjet's service-worker namespace (which could generate a GitHub Pages 404).
+It also shows an explanation for known iframe-blocking hosts rather than
+silently retrying through the proxy. The old embed-search preference is
+retained in a hidden field for compatibility with saved browser settings.
+
+Search results now include Wikipedia and optional specialized sections for
+Open Library books and Stack Overflow programming Q&A, using public JSON APIs
+after the existing domain-policy checks. Individual sources can fail without
+breaking the whole page. Brave/Google/Bing/DuckDuckGo remain external browser
+links for genuine full-web results. These changes do not override network
+restrictions, make all sites embeddable, or modify the separately selected
+Scramjet and admin-only GUST engines.
