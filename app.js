@@ -186,7 +186,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
 	} else if (settings.proxyEngine === "ultraviolet") {
-		setStatus("", "Ultraviolet is currently unavailable in a safe same-origin iframe. Browsing uses the Scramjet fallback.");
+		setStatus("", "Ultraviolet is unavailable on this GitHub Pages deployment. A compatibility explanation will be shown instead of navigating to a broken proxy URL.");
 	} else if (settings.performanceMode && !ready) {
 		setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 	} else if (wispChanged || transportChanged || proxyEngineChanged || (performanceChanged && !settings.performanceMode)) {
@@ -1063,16 +1063,50 @@ function goRammerhead(targetUrl) {
 	$("rammerhead-message").textContent = "If the embedded portal is blank or blocked, click Open Rammerhead directly.";
 }
 
-// Ultraviolet depends on a service worker controlling its navigated page.
-// Sandboxing the frame into an opaque origin safely isolates account tokens,
-// but also prevents the worker from controlling it. Without the worker GitHub
-// Pages returns HTTP 404 for /uv/service/ encoded URLs. Adding
-// "allow-same-origin" with "allow-scripts" would expose this site's Supabase
-// login storage to remote pages rewritten as same-origin content.
-// Keep the restriction and use the existing working Scramjet path instead.
-// Full Ultraviolet requires hosting the proxy on an isolated origin.
+// Ultraviolet requires a service worker for its /uv/service/* routes.
+// Its opaque sandbox preserves the site's login credentials, but prevents
+// its worker from controlling the iframe. Running the remote page as the
+// authenticated origin instead would be a security risk. The prior "fallback"
+// automatically used Scramjet, which can itself produce HTTP 404 when its
+// separate service worker fails. Never silently navigate to either broken
+// route: show a first-party compatibility view with safe, explicit choices.
 function goUltraviolet(targetUrl) {
-	return go(targetUrl, { forceScramjet:true, uvFallback:true });
+	if (!requireSeussAccount()) return;
+	const { tab, main } = createSeussSearchPane({
+		title: "Ultraviolet unavailable"
+	});
+	tab.uvFallback = true;
+	tab.uvFallbackDismissed = true;
+	tab.url = targetUrl;
+	tab.searchQuery = "";
+	tab.title = "Ultraviolet unavailable";
+	activateSiteTab(tab.id);
+	main.append(
+		seussSearchNode("h1", "", "Ultraviolet isn't available on this site"),
+		seussSearchNode("p", "seuss-search-note",
+			"Ultraviolet needs an isolated origin and a controlling service worker. " +
+			"This GitHub Pages deployment shares an origin with account sign-in, " +
+			"so it cannot safely run the Ultraviolet iframe here. The earlier " +
+			"automatic Scramjet fallback could still show a GitHub Pages 404."),
+		seussSearchNode("p", "seuss-search-note",
+			"Seuss Browser can load sites that permit embedding, without using " +
+			"Ultraviolet or Scramjet. Some websites and networks may restrict access.")
+	);
+	const actions = seussSearchNode("div", "seuss-search-actions");
+	actions.append(
+		seussSearchButton("Try with Seuss Browser", () => {
+			settings.proxyEngine = "seusslite";
+			save();
+			syncLabel();
+			$("retry-wisp").hidden = true;
+			$("retry-proxy").hidden = true;
+			setStatus("ok", "Seuss Browser selected. It uses direct, permitted browser loading.");
+			go(targetUrl, { forceLite:true, newTab:true });
+		}),
+		seussSearchButton("Select a different engine", openSettings),
+		seussSearchButton("Back to home", goHome)
+	);
+	main.append(actions);
 }
 $("uv-fallback-dismiss").addEventListener("click", () => {
 	const tab = currentSiteTab();
@@ -1334,6 +1368,7 @@ $("b-reload").onclick = () => {
 	const tab = currentSiteTab();
 	if (!tab) return;
 	if (tab.searchPage) {
+		if (tab.uvFallback) { goUltraviolet(tab.url); return; }
 		if (tab.sourceNotice) showEmbeddingNotice(new URL(tab.url));
 		else showSeussSearch(tab.searchQuery);
 		return;
@@ -1522,7 +1557,7 @@ if (settings.proxyEngine === "seusslite") {
 } else if (settings.proxyEngine === "adrift") {
 	setStatus("", "Adrift selected. Its remote portal must allow framing; moderator authorization is required.");
 } else if (settings.proxyEngine === "ultraviolet") {
-	setStatus("", "Ultraviolet selected: pages will use a secure Scramjet fallback to avoid GitHub Pages 404 errors.");
+	setStatus("", "Ultraviolet is unavailable in this hosting setup. Opening a page will show safe alternatives instead of a 404.");
 } else {
 	setStatus("", "Ready to connect. Proxy setup begins after account approval.");
 }
