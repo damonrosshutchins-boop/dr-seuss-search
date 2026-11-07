@@ -20,7 +20,7 @@ const DEFAULTS = {
 	reducedMotion: false,
 	performanceMode: false,
 	embedSearchPages: false,
-	proxyEngine: "scramjet",
+	proxyEngine: "seusslite",
 	rammerheadServer: "",
 	adriftServer: "https://adrift-6c1f6.web.app/",
 };
@@ -31,8 +31,6 @@ const ENGINE_NAMES = {
 	"https://search.brave.com/search?q=%s": "Brave",
 };
 const TRANSPORTS = { libcurl: at("libcurl/index.mjs"), epoxy: at("epoxy/index.mjs") };
-// A backup endpoint, not a replacement for the user's saved preference.
-const WISP_FALLBACK = "wss://mages.io/wisp/";
 const TILES = [
 	["Google", "https://www.google.com", "#4285f4"],
 	["YouTube", "https://www.youtube.com", "#d8262f"],
@@ -104,137 +102,26 @@ function adriftPortalURL(raw = settings.adriftServer) {
 }
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
-/* ---------- GUST: server-verified experimental admin engine ---------- */
-let gustAdminConfirmedUntil = 0;
-let gustAdminPending = null;
-async function canLaunchGust() {
-	if (!requireSeussAccount() || typeof window.seussCanUseExperimentalProxy !== "function") return false;
-	if (Date.now() < gustAdminConfirmedUntil) return true;
-	if (gustAdminPending) return gustAdminPending;
-	gustAdminPending = (async () => {
-		try {
-			const allowed = !!(await window.seussCanUseExperimentalProxy());
-			gustAdminConfirmedUntil = allowed ? Date.now() + 5000 : 0;
-			return allowed;
-		} catch { return false; }
-		finally { gustAdminPending = null; }
-	})();
-	return gustAdminPending;
-}
-async function revealGustChoice() {
-	const option = $("s-gust-option");
-	option.hidden = true;
-	option.disabled = true;
-	if (!await canLaunchGust() || !dlg.open) return;
-	option.hidden = false;
-	option.disabled = false;
-}
-
-// Keep relay presets separate from the saved transport setting. Selecting
-// a preset changes only the Settings form until Save is pressed.
-const wispPresetSelect = $("s-wisp-preset");
-const wispUrlInput = $("s-wisp");
-const wispTestStatus = $("s-wisp-test-status");
-const wispTestButton = $("s-wisp-test");
-const WISP_PRESET_VALUES = [...wispPresetSelect.options]
-	.map(option => option.value).filter(value => value !== "custom");
-let cancelWispPresetTest = null;
-function clearWispPresetTest() {
-	if (cancelWispPresetTest) cancelWispPresetTest();
-	cancelWispPresetTest = null;
-	wispTestStatus.textContent = "";
-	wispTestButton.disabled = false;
-}
-function syncWispPreset() {
-	const value = wispUrlInput.value.trim();
-	wispPresetSelect.value = WISP_PRESET_VALUES.includes(value) ? value : "custom";
-}
-function validateWispAddress(input) {
-	try {
-		const url = new URL(String(input || "").trim());
-		if (url.protocol !== "wss:" || !url.hostname || url.username ||
-			url.password || url.hash) return null;
-		return url.href;
-	} catch { return null; }
-}
-wispPresetSelect.addEventListener("change", () => {
-	clearWispPresetTest();
-	wispUrlInput.setCustomValidity("");
-	if (wispPresetSelect.value !== "custom") wispUrlInput.value = wispPresetSelect.value;
-	else wispUrlInput.focus();
-});
-wispUrlInput.addEventListener("input", () => {
-	wispUrlInput.setCustomValidity("");
-	syncWispPreset();
-	clearWispPresetTest();
-});
-wispTestButton.addEventListener("click", async () => {
-	clearWispPresetTest();
-	const selected = validateWispAddress(wispUrlInput.value);
-	if (!selected) {
-		wispTestStatus.textContent = "Enter a valid secure wss:// relay address.";
-		return;
-	}
-	const controller = new AbortController();
-	const cancel = () => controller.abort();
-	cancelWispPresetTest = cancel;
-	wispTestButton.disabled = true;
-	wispTestStatus.textContent = "Checking selected Wisp relay…";
-	try {
-		await testWispHandshake(selected, { signal:controller.signal, timeoutMs:6500 });
-		if (!controller.signal.aborted)
-			wispTestStatus.textContent = "Selected relay responded to a Wisp handshake. Save to apply it.";
-	} catch (primaryError) {
-		if (controller.signal.aborted) return;
-		if (selected === WISP_FALLBACK) {
-			wispTestStatus.textContent = "Backup relay failed: " + primaryError.message;
-			return;
-		}
-		wispTestStatus.textContent = "Selected relay failed. Checking backup mages.io/wisp/…";
-		try {
-			await testWispHandshake(WISP_FALLBACK, { signal:controller.signal, timeoutMs:6500 });
-			if (!controller.signal.aborted)
-				wispTestStatus.textContent = "Selected relay failed; backup wss://mages.io/wisp/ responded. Save to use automatic fallback.";
-		} catch (backupError) {
-			if (!controller.signal.aborted)
-				wispTestStatus.textContent = "Selected relay and backup both failed. Try another relay.";
-		}
-	} finally {
-		if (cancelWispPresetTest === cancel) {
-			cancelWispPresetTest = null;
-			wispTestButton.disabled = false;
-		}
-	}
-});
-function browserBuildName(build = settings.proxyEngine) {
-	return build === "gust" ? "GUST" :
-		build === "scramjet" ? "Scramjet" : "Seuss Browser";
-}
 function syncLabel() {
-	const engine = ENGINE_NAMES[settings.engine] || ENGINE_NAMES[DEFAULTS.engine];
 	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
-		"Seuss Search" : engine + " · " + browserBuildName();
+		"Seuss Search" : (ENGINE_NAMES[settings.engine] || "custom engine");
 }
 function openSettings() {
 	$("s-engine").value = settings.engine;
 	$("s-embed-search").checked = !!settings.embedSearchPages;
 	$("s-proxy-engine").value =
-		["seusslite","scramjet","rammerhead","ultraviolet","adrift","gust"].includes(settings.proxyEngine)
+		["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
 			? settings.proxyEngine : "scramjet";
-	updateBuildSettingDescription();
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-adrift-url").value = settings.adriftServer || "";
 	$("s-transport").value = settings.transport;
 	$("s-wisp").value = settings.wisp;
-	syncWispPreset();
-	clearWispPresetTest();
 	$("s-background").value = settings.background || "";
 	$("s-accent").value = settings.accent || DEFAULTS.accent;
 	$("s-theme").value = settings.theme || "light";
 	$("s-motion").checked = !!settings.reducedMotion;
 	$("s-performance").checked = !!settings.performanceMode;
 	if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
-	void revealGustChoice();
 }
 $("open-settings").onclick = openSettings;
 $("engine-label").onclick = openSettings;
@@ -242,41 +129,19 @@ $("s-reset").onclick = () => {
 	$("s-engine").value = DEFAULTS.engine;
 	$("s-embed-search").checked = DEFAULTS.embedSearchPages;
 	$("s-proxy-engine").value = DEFAULTS.proxyEngine;
-	updateBuildSettingDescription();
 	$("s-rammerhead-url").value = DEFAULTS.rammerheadServer;
 	$("s-adrift-url").value = DEFAULTS.adriftServer;
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-wisp").value = DEFAULTS.wisp;
-	syncWispPreset();
-	clearWispPresetTest();
 	$("s-background").value = DEFAULTS.background;
 	$("s-accent").value = DEFAULTS.accent;
 	$("s-theme").value = DEFAULTS.theme;
 	$("s-motion").checked = DEFAULTS.reducedMotion;
 	$("s-performance").checked = DEFAULTS.performanceMode;
 };
-function updateBuildSettingDescription() {
-	const mode = $("s-proxy-engine").value;
-	$("s-build-description").textContent = mode === "gust" ?
-		"Seuss Search keeps its own search bar, tabs, and navigation controls while GUST methods load the websites behind them. Verified site admins only." :
-		mode === "scramjet" ?
-		"Scramjet loads full-web search pages and website addresses in Seuss Search. An actual service-worker interception check prevents broken GitHub Pages routes. If startup fails, searches show safe built-in results." :
-		"Other modes retain their original behavior. Seuss Browser offers native search results, not an unrestricted web index.";
-}
-$("s-proxy-engine").addEventListener("change", updateBuildSettingDescription);
 $("s-rammerhead-url").addEventListener("input", () => $("s-rammerhead-url").setCustomValidity(""));
 $("s-adrift-url").addEventListener("input", () => $("s-adrift-url").setCustomValidity(""));
 $("settings-form").addEventListener("submit", async (event) => {
-	const gustRequested = $("s-proxy-engine").value === "gust";
-	if (gustRequested) {
-		// method=dialog would close the form before an asynchronous admin
-		// verification; prevent it until the server confirms permission.
-		event.preventDefault();
-		if (!await canLaunchGust()) {
-			setStatus("bad", "Only verified site admins can choose GUST.");
-			return;
-		}
-	}
 	const rawRammerheadServer = $("s-rammerhead-url").value.trim();
 	if (rawRammerheadServer && !rammerheadServerURL(rawRammerheadServer)) {
 		event.preventDefault();
@@ -291,26 +156,18 @@ $("settings-form").addEventListener("submit", async (event) => {
 		$("s-adrift-url").reportValidity();
 		return;
 	}
-	const selectedWisp = validateWispAddress(wispUrlInput.value);
-	if (!selectedWisp) {
-		event.preventDefault();
-		wispUrlInput.setCustomValidity("Enter a secure wss:// address without credentials or a URL fragment.");
-		wispUrlInput.reportValidity();
-		return;
-	}
-	wispUrlInput.setCustomValidity("");
 	const proxyEngineChanged = settings.proxyEngine !== $("s-proxy-engine").value;
-	const wispChanged = settings.wisp !== selectedWisp;
+	const wispChanged = settings.wisp !== ($("s-wisp").value.trim() || DEFAULTS.wisp);
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
 	settings.embedSearchPages = $("s-embed-search").checked;
-	settings.proxyEngine = ["seusslite","scramjet","rammerhead","ultraviolet","adrift","gust"].includes($("s-proxy-engine").value)
+	settings.proxyEngine = ["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
 		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
 	settings.adriftServer = rawAdriftServer;
 	settings.transport = $("s-transport").value;
-	settings.wisp = selectedWisp;
+	settings.wisp = $("s-wisp").value.trim() || DEFAULTS.wisp;
 	settings.background = $("s-background").value.trim();
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
 	settings.theme = $("s-theme").value;
@@ -320,7 +177,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	window.dispatchEvent(new Event("dss-performance-mode-change"));
 	save();
 	syncLabel();
-	$("retry-wisp").hidden = ["rammerhead","adrift","gust"].includes(settings.proxyEngine);
+	$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 	$("retry-proxy").hidden = $("retry-wisp").hidden;
 	if (settings.proxyEngine === "seusslite") {
 		setStatus("ok", "Seuss Browser ready. Native browser loading doesn't need Wisp or a service worker.");
@@ -328,8 +185,6 @@ $("settings-form").addEventListener("submit", async (event) => {
 		setStatus("", "Rammerhead uses your separately hosted server.");
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
-	} else if (settings.proxyEngine === "gust") {
-		setStatus("", "Seuss Search uses GUST methods to load websites behind its normal interface. Verified site admins only.");
 	} else if (settings.proxyEngine === "ultraviolet") {
 		setStatus("", "Ultraviolet is unavailable on this GitHub Pages deployment. A compatibility explanation will be shown instead of navigating to a broken proxy URL.");
 	} else if (settings.performanceMode && !ready) {
@@ -341,14 +196,6 @@ $("settings-form").addEventListener("submit", async (event) => {
 			catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 		}
 	}
-	// Lightweight browsing can also launch Scramjet for iframe-blocked sites.
-	// If Scramjet is already initialized, update its relay even when the
-	// user leaves Seuss Browser selected as the default browsing engine.
-	if (settings.proxyEngine === "seusslite" && ready && (wispChanged || transportChanged)) {
-		try { await ready; await applyTransport(true); }
-		catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
-	}
-	if (gustRequested && dlg.open) dlg.close();
 });
 
 
@@ -388,7 +235,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "scramjet-actual-route-probe-v2-20261106";
+const PROXY_WORKER_VERSION = "greeneggs-404fix-1";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -450,32 +297,6 @@ async function verifyProxyWorker() {
 		}
 	});
 }
-
-async function verifyScramjetFetchInterception() {
-	// This URL does NOT exist on GitHub Pages. Only the controlling
-	// service worker can return the expected JSON and response header.
-	const probe = new URL(at("scramjet/__dss_worker_probe_v2"), location.origin);
-	probe.searchParams.set("check", String(Date.now()));
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 8500);
-	try {
-		const response = await fetch(probe.href, {
-			method:"GET", credentials:"same-origin", cache:"no-store",
-			redirect:"error", signal:controller.signal
-		});
-		if (response.headers.get("x-dss-scramjet-worker") !== "active")
-			throw new Error("Scramjet did not intercept the browser route. GitHub Pages would return 404.");
-		const data = await response.json();
-		if (!response.ok || data.ok !== true || data.prefix !== at("scramjet/"))
-			throw new Error("Scramjet route configuration did not match the site path.");
-		return true;
-	} catch (error) {
-		throw new Error("Scramjet service-worker route check failed: " +
-			String(error?.message || error).slice(0,220));
-	} finally {
-		clearTimeout(timeout);
-	}
-}
 let ready = null;
 function boot() {
 	if (ready) return ready;
@@ -493,7 +314,6 @@ function boot() {
 		});
 		await navigator.serviceWorker.ready;
 		await verifyProxyWorker();
-		await verifyScramjetFetchInterception();
 		try {
 			await applyTransport();
 		} catch (primary) {
@@ -518,100 +338,19 @@ function boot() {
 // Keep the BareMux worker synchronized with the locally saved address on every
 // page startup, even when the transport module is unchanged.
 let appliedTransportSettings = null;
-let activeWispAddress = null;
-// Serialize transport updates so a Settings save cannot race proxy startup.
+// Serialize transport changes: a network retry and Settings save must not
+// race and replace each other's working Wisp connection.
 let transportChangeQueue = Promise.resolve();
-
-// Validate a Wisp handshake instead of equating a WebSocket "open" with a
-// working relay. Used by both the UI tests and automatic backup selection.
-function testWispHandshake(address, { signal, timeoutMs = 6500 } = {}) {
-	return new Promise((resolve, reject) => {
-		const url = validateWispAddress(address);
-		if (!url) { reject(new Error("Invalid Wisp relay address")); return; }
-		if (signal?.aborted) { reject(new Error("Wisp check cancelled")); return; }
-		let socket, timer;
-		let finished = false;
-		const cleanup = () => {
-			clearTimeout(timer);
-			if (signal) signal.removeEventListener("abort", cancel);
-			try { socket?.close(); } catch {}
-		};
-		const finish = (error) => {
-			if (finished) return;
-			finished = true;
-			cleanup();
-			error ? reject(error) : resolve(true);
-		};
-		const cancel = () => finish(new Error("Wisp check cancelled"));
-		try {
-			socket = new WebSocket(url);
-			socket.binaryType = "arraybuffer";
-		} catch { reject(new Error("WebSocket could not start")); return; }
-		if (signal) signal.addEventListener("abort", cancel, { once:true });
-		timer = setTimeout(() => finish(new Error("No Wisp handshake received")), timeoutMs);
-		socket.addEventListener("message", event => {
-			if (finished) return;
-			const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
-			const valid = bytes && bytes.length >= 5 && [3,5].includes(bytes[0]) &&
-				bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0;
-			finish(valid ? null : new Error("Invalid Wisp handshake"));
-		});
-		socket.addEventListener("error", () => finish(new Error("WebSocket connection failed")));
-		socket.addEventListener("close", () => finish(new Error("WebSocket closed before handshake")));
-	});
-}
-async function chooseWispRelay(preferred) {
-	const primary = validateWispAddress(preferred);
-	if (!primary) throw new Error("Invalid preferred Wisp relay address");
-	try {
-		await testWispHandshake(primary);
-		return primary;
-	} catch (primaryError) {
-		if (primary === WISP_FALLBACK)
-			throw new Error("Backup Wisp relay did not respond: " + primaryError.message);
-	}
-	try {
-		await testWispHandshake(WISP_FALLBACK);
-		return WISP_FALLBACK;
-	} catch {
-		throw new Error("Neither the selected Wisp relay nor the backup wss://mages.io/wisp/ responded to a valid handshake.");
-	}
-}
 function applyTransport(force = false) {
+	const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
+	const path = TRANSPORTS[transport];
+	const opts = transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
+	const signature = JSON.stringify([path, opts]);
 	const task = transportChangeQueue.catch(() => {}).then(async () => {
 		if (!connection) throw new Error("The proxy transport has not initialized.");
-		const preferred = validateWispAddress(settings.wisp);
-		if (!preferred) throw new Error("The configured Wisp URL is invalid.");
-		const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
-		const path = TRANSPORTS[transport];
-		// GUST-style connection ordering: configure the actual HTTP transport
-		// first. An additional short-lived Wisp diagnostic WebSocket must not
-		// prevent a working transport from loading pages.
-		if (!force && activeWispAddress && appliedTransportSettings) {
-			const currentOptions = transport === "epoxy" ?
-				{wisp:activeWispAddress} : {websocket:activeWispAddress};
-			if (appliedTransportSettings === JSON.stringify([path,currentOptions,preferred])) return;
-		}
-		const connect = async (address) => {
-			const opts = transport === "epoxy" ? {wisp:address} : {websocket:address};
+		if (force || signature !== appliedTransportSettings) {
 			await connection.setTransport(path, [opts]);
-			activeWispAddress = address;
-			appliedTransportSettings = JSON.stringify([path,opts,preferred]);
-		};
-		try {
-			await connect(preferred);
-		} catch (primaryError) {
-			if (preferred === WISP_FALLBACK) throw primaryError;
-			// If configuring the preferred transport actually fails, attempt
-			// the requested backup. Do not permanently change user settings.
-			try {
-				await connect(WISP_FALLBACK);
-				setStatus("", "Preferred transport failed; using backup mages.io/wisp/. Test Wisp to check connectivity.");
-			} catch (fallbackError) {
-				throw new Error("Preferred and backup transport setup both failed: " +
-					(primaryError?.message || primaryError) + "; " +
-					(fallbackError?.message || fallbackError));
-			}
+			appliedTransportSettings = signature;
 		}
 	});
 	transportChangeQueue = task.catch(() => {});
@@ -629,7 +368,7 @@ function toUrl(input) {
 	if (/^[^\s]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(q) || /^localhost(:\d+)?/.test(q)) {
 		try { return new URL("https://" + q).href; } catch {}
 	}
-	return searchWebLink(q);
+	return settings.engine.replace("%s", encodeURIComponent(q));
 }
 // Plain words are searches, NOT destinations to display in an iframe.
 // Browsers will reject embedded full search engines and YouTube pages.
@@ -642,10 +381,8 @@ function isSeussSearchQuery(input) {
 }
 function prefersSupportedExternalPage(url) {
 	const host = url.hostname.toLowerCase().replace(/^www\./, "");
-	return host === "reddit.com" || host.endsWith(".reddit.com") ||
-		["youtube.com", "m.youtube.com", "music.youtube.com", "google.com",
-		 "bing.com", "duckduckgo.com", "search.brave.com",
-		 "github.com", "discord.com"].includes(host);
+	return ["youtube.com", "m.youtube.com", "music.youtube.com",
+		"google.com", "bing.com", "duckduckgo.com", "search.brave.com"].includes(host);
 }
 
 /* ---------- Multi-tab browser view ---------- */
@@ -708,13 +445,8 @@ function stopBlockedProxyTab(tab) {
 // without a refresh or another click inside the frame.
 window.dssRecheckActiveSite = async () => {
 	const tab = currentSiteTab();
-	if (!tab || typeof window.dssSitePolicyCheck !== "function") return;
-	if (tab.gust && tab.gustHost) {
-		const allowed = await window.dssSitePolicyCheck("https://" + tab.gustHost + "/");
-		if (!allowed && siteTabs.includes(tab)) closeSiteTab(tab.id);
-		return;
-	}
-	if ((tab.type !== "web" && !tab.liteEngine) || !tab.url) return;
+	if (!tab || (tab.type !== "web" && !tab.liteEngine) || !tab.url ||
+		typeof window.dssSitePolicyCheck !== "function") return;
 	const url = tab.url;
 	const allowed = await window.dssSitePolicyCheck(url);
 	if (!allowed && tab.url === url) stopBlockedProxyTab(tab);
@@ -725,7 +457,6 @@ function publicActiveSiteView(tab = currentSiteTab()) {
 	if (tab.type === "talk") return "Seuss Talk";
 	if (tab.type === "admin") return "Admin Dashboard";
 	if (tab.type === "vm") return "VM";
-	if (tab.gust) return tab.gustHost || "GUST Browser";
 	if (tab.rammerhead) return "Rammerhead";
 	if (tab.searchPage) return tab.sourceNotice ? "External website notice" : "Seuss Search results";
 	if (tab.liteEngine) {
@@ -813,7 +544,7 @@ function activateSiteTab(id) {
 	for (const item of siteTabs) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
-	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine || tab.gust));
+	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine));
 	updateProxyLoadStats();
 	const uvBanner = $("uv-fallback-banner");
 	uvBanner.hidden = !tab.uvFallback || !!tab.uvFallbackDismissed;
@@ -827,7 +558,6 @@ function activateSiteTab(id) {
 	}
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value =
 		tab.searchPage ? (tab.searchQuery || tab.url || "") :
-		tab.gust ? (tab.targetUrl || "") :
 		tab.rammerhead || tab.adrift ? (tab.targetUrl || "") : (tab.url || "");
 	const rhHelper = $("rammerhead-helper");
 	const isPortal = !!(tab.rammerhead || tab.adrift);
@@ -864,8 +594,6 @@ function closeSiteTab(id) {
 	const tab = siteTabs[index];
 	if (tab.type === "talk") window.dispatchEvent(new Event("seuss-talk-tab-close"));
 	if (tab.searchAbort) tab.searchAbort.abort();
-	if (tab.extraSearchAbort) tab.extraSearchAbort.abort();
-	if (tab.gustSearchEngine) stopGustSearchEngine(tab);
 	if (tab.pane) tab.pane.remove();
 	const wasActive = activeSiteTabId === id;
 	siteTabs.splice(index, 1);
@@ -1046,114 +774,17 @@ function seussSearchExternalLink(label, href) {
 	link.textContent = label;
 	return link;
 }
-// Results from the first-party fallback retain ordinary browser links in
-// Scramjet mode when the proxy is offline. Full-web Scramjet search pages
-// route through the service-worker health check before navigation.
-// GUST's verified-admin renderer retains its own in-site navigation.
-function seussSearchResultLink(label, href) {
-	const link = seussSearchExternalLink(label, href);
-	link.addEventListener("click", event => {
-		if (event.defaultPrevented || event.button !== 0 ||
-			event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
-			!requireSeussAccount() ||
-			settings.proxyEngine !== "gust") return;
-		event.preventDefault();
-		void go(href, {newTab:true});
-	});
-	return link;
-}
 function seussSearchNode(tag, className, value) {
 	const el = document.createElement(tag);
 	if (className) el.className = className;
 	if (value != null) el.textContent = String(value);
 	return el;
 }
-
-/* ---------- GUST source fetching for Seuss Search's own result UI ---------- */
-let gustJsonSequence = 0;
-function stopGustSearchEngine(tab) {
-	if (tab.gustReadyReject) {
-		tab.gustReadyReject(new Error("Search closed"));
-		tab.gustReadyReject = null;
-		tab.gustReadyResolve = null;
-	}
-	if (tab.gustJsonPending) {
-		for (const entry of tab.gustJsonPending.values())
-			entry.finish(new Error("Search closed"));
-		tab.gustJsonPending.clear();
-	}
-}
-function ensureGustSearchEngine(tab) {
-	if (!tab.gustSearchEngine || !siteTabs.includes(tab))
-		return Promise.reject(new Error("The GUST results tab was closed"));
-	if (tab.gustReady) return Promise.resolve();
-	if (tab.gustReadyPromise) return tab.gustReadyPromise;
-	tab.gustJsonPending = new Map();
-	tab.gustReadyPromise = new Promise((resolve,reject) => {
-		const expiry = setTimeout(() => {
-			tab.gustReadyReject = null;
-			tab.gustReadyResolve = null;
-			reject(new Error("GUST connection timed out"));
-		}, 24000);
-		tab.gustReadyResolve = () => { clearTimeout(expiry); resolve(); };
-		tab.gustReadyReject = error => { clearTimeout(expiry); reject(error); };
-	});
-	// This iframe is an isolated HTTP engine only, never a displayed GUST
-	// browser or a second search page.
-	const frame = document.createElement("iframe");
-	frame.hidden = true;
-	frame.title = "Background GUST search data engine";
-	frame.setAttribute("sandbox","allow-scripts allow-forms");
-	frame.referrerPolicy = "no-referrer";
-	frame.style.display = "none";
-	tab.pane.append(frame);
-	tab.gust = true;
-	tab.gustReady = false;
-	tab.directFrame = frame;
-	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	frame.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
-	return tab.gustReadyPromise;
-}
-async function fetchSeussSourceJson(tab, url, signal) {
-	if (!tab.gustSearchEngine) {
-		const response = await fetch(url.href, {
-			method:"GET",credentials:"omit",mode:"cors",
-			referrerPolicy:"no-referrer",signal
-		});
-		if (!response.ok) throw new Error("Search source returned HTTP " + response.status);
-		return response.json();
-	}
-	if (signal?.aborted) throw new DOMException("Aborted","AbortError");
-	await ensureGustSearchEngine(tab);
-	if (signal?.aborted || !siteTabs.includes(tab))
-		throw new DOMException("Aborted","AbortError");
-	if (!tab.directFrame?.contentWindow) throw new Error("Search engine unavailable");
-	return new Promise((resolve,reject) => {
-		const id = "dss-json-" + (++gustJsonSequence);
-		const finish = (error,data) => {
-			clearTimeout(timeout);
-			signal?.removeEventListener("abort", abort);
-			tab.gustJsonPending?.delete(id);
-			if (error) reject(error); else resolve(data);
-		};
-		const abort = () => finish(new DOMException("Aborted","AbortError"));
-		const timeout = setTimeout(() => finish(new Error("Search source timed out")),12000);
-		if (signal) signal.addEventListener("abort",abort,{once:true});
-		tab.gustJsonPending.set(id,{finish});
-		try {
-			tab.directFrame.contentWindow.postMessage({
-				type:"dss-gust-json-request",id,url:url.href
-			},"*");
-		} catch(error) { finish(error); }
-	});
-}
 function createSeussSearchPane(options = {}) {
 	let tab = !options.newTab && (currentSiteTab()?.searchPage || currentSiteTab()?.liteEngine)
 		? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", "Seuss Search");
 	if (tab.searchAbort) tab.searchAbort.abort();
-	if (tab.extraSearchAbort) tab.extraSearchAbort.abort();
-	if (tab.gustSearchEngine) stopGustSearchEngine(tab);
 	if (tab.pane) tab.pane.remove();
 	const pane = document.createElement("div");
 	pane.className = "site-frame-pane seuss-native-search-pane";
@@ -1167,11 +798,6 @@ function createSeussSearchPane(options = {}) {
 	tab.pane = pane;
 	tab.frame = null;
 	tab.directFrame = null;
-	tab.gust = !!options.gustData;
-	tab.gustSearchEngine = !!options.gustData;
-	tab.gustReady = false;
-	tab.gustReadyPromise = null;
-	tab.gustJsonPending = null;
 	tab.searchPage = true;
 	tab.sourceNotice = false;
 	tab.liteEngine = false;
@@ -1179,85 +805,22 @@ function createSeussSearchPane(options = {}) {
 	activateSiteTab(tab.id);
 	return { tab, main };
 }
-// GUST-inspired engine URL selection and URL encoding.
-// Adapted from nautilus-os/GUST (AGPL-3.0); see its svg/static/js.js.
-function searchWebLink(query, template = settings.engine) {
-	const selected = Object.prototype.hasOwnProperty.call(ENGINE_NAMES, template)
-		? template : DEFAULTS.engine;
-	return selected.replace("%s", encodeURIComponent(String(query || "").trim()));
+function searchWebLink(query) {
+	return settings.engine.replace("%s", encodeURIComponent(query));
 }
 function youtubeSearchLink(query) {
 	return "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
 }
-let seussSuggestionCounter = 0;
-function attachSeussSearchSuggestions(input) {
-	// Wikipedia is used for suggestions only, not as a full-web search index.
-	const choices = document.createElement("datalist");
-	choices.id = "seuss-suggestions-" + (++seussSuggestionCounter);
-	input.setAttribute("list", choices.id);
-	input.insertAdjacentElement("afterend", choices);
-	let controller = null;
-	let timer = null;
-	let requestNumber = 0;
-	input.addEventListener("input", () => {
-		const current = ++requestNumber;
-		clearTimeout(timer);
-		if (controller) controller.abort();
-		choices.replaceChildren();
-		const term = input.value.trim().slice(0,100);
-		if (term.length < 3 || !isSeussSearchQuery(term) || !requireSeussAccount()) return;
-		timer = setTimeout(async () => {
-			if (!input.isConnected || current !== requestNumber) return;
-			controller = new AbortController();
-			const pending = controller;
-			try {
-				if (typeof window.dssSitePolicyCheck === "function" &&
-					!(await window.dssSitePolicyCheck("https://en.wikipedia.org/"))) return;
-				if (current !== requestNumber || pending.signal.aborted) return;
-				const url = new URL("https://en.wikipedia.org/w/api.php");
-				for (const [key,value] of Object.entries({
-					action:"opensearch", search:term, limit:"5", namespace:"0", format:"json", origin:"*"
-				})) url.searchParams.set(key,value);
-				const response = await fetch(url.href, {
-					credentials:"omit", mode:"cors", referrerPolicy:"no-referrer",
-					signal:pending.signal
-				});
-				if (!response.ok) return;
-				const json = await response.json();
-				if (!input.isConnected || current !== requestNumber || pending.signal.aborted) return;
-				const titles = Array.isArray(json?.[1]) ? json[1] : [];
-				for (const title of titles) {
-					if (typeof title !== "string" || title.length > 180) continue;
-					const option = document.createElement("option");
-					option.value = title;
-					choices.append(option);
-				}
-			} catch {
-				// Suggestions are optional; manual searching always remains available.
-			} finally {
-				if (controller === pending) controller = null;
-			}
-		}, 450);
-	});
-}
 function showSeussSearch(query, options = {}) {
 	if (!requireSeussAccount()) return;
-	const q = String(query || "").trim().slice(0,180);
+	const q = String(query || "").trim().slice(0, 180);
 	if (!q) return;
 	const {tab,main} = createSeussSearchPane({ ...options, title:"Search: " + q.slice(0,40) });
 	tab.searchQuery = q;
 	activateSiteTab(tab.id);
 	const heading = seussSearchNode("h1", "", "Seuss Search");
 	const explainer = seussSearchNode("p", "seuss-search-note",
-		options.gustData ?
-			"These are Seuss Search results fetched using GUST's libcurl connection. " +
-			"Sources include Wikipedia, Open Library and Stack Overflow. " +
-			"For broader web results, use the full-web provider links." :
-			options.proxyFailure ?
-			"Scramjet could not start, so Seuss Search is showing its own Wikipedia, books and programming results instead. " +
-			"The full-web provider links use normal browser tabs until Scramjet can start." :
-			"Browse Wikipedia, books and programming Q&A below. " +
-			"For full-web results, choose Brave, Google, Bing or DuckDuckGo in a new browser tab.");
+		"Read article results here or optionally try the selected search website inside an in-site tab. Sites that forbid embedding will still be blocked by Firefox.");
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
 	const input = document.createElement("input");
@@ -1270,205 +833,71 @@ function showSeussSearch(query, options = {}) {
 	button.type = "submit";
 	button.textContent = "Search";
 	form.append(input,button);
-	attachSeussSearchSuggestions(input);
 	form.addEventListener("submit", event => {
 		event.preventDefault();
-		go(input.value);
+		showSeussSearch(input.value);
 	});
-	const pickerLabel = seussSearchNode("p", "seuss-engine-label", "Full-web search engine");
-	const picker = seussSearchNode("div", "seuss-engine-picker");
-	picker.setAttribute("role", "group");
-	picker.setAttribute("aria-label", "Full-web search provider");
-	const providerButtons = [];
 	const actions = seussSearchNode("div", "seuss-search-actions");
-	const external = seussSearchExternalLink("Full web results (new browser tab)", searchWebLink(q));
-	const youtube = seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q));
-	const updateProviders = () => {
-		const name = ENGINE_NAMES[settings.engine] || ENGINE_NAMES[DEFAULTS.engine];
-		for (const [template,element] of providerButtons) {
-			const active = template === settings.engine;
-			element.classList.toggle("active", active);
-			element.setAttribute("aria-pressed", String(active));
-		}
-		external.href = searchWebLink(q);
-		external.textContent = "Search the full web with " + name + " (new tab)";
-	};
-	for (const [template,name] of Object.entries(ENGINE_NAMES)) {
-		const control = seussSearchButton(name, () => {
-			settings.engine = template;
-			save();
-			syncLabel();
-			updateProviders();
-		});
-		control.classList.add("seuss-engine-chip");
-		picker.append(control);
-		providerButtons.push([template,control]);
-	}
-	actions.append(external,youtube);
-	updateProviders();
+	actions.append(
+		seussSearchButton("Try embedding " + (ENGINE_NAMES[settings.engine] || "search") + " here", () => {
+			go(searchWebLink(q), {
+				forceLite:true, allowEmbeddedRestricted:true, newTab:true, embeddedQuery:q
+			});
+		}),
+		seussSearchExternalLink("Search the full web (new tab)", searchWebLink(q)),
+		seussSearchExternalLink("Search YouTube (new tab)", youtubeSearchLink(q))
+	);
 	const heading2 = seussSearchNode("h2", "", "Wikipedia article results");
 	const status = seussSearchNode("p", "seuss-search-status", "Searching Wikipedia…");
 	status.setAttribute("role", "status");
 	const results = seussSearchNode("div", "seuss-search-results");
-	const more = seussSearchButton("More Wikipedia results", () => {
-		if (nextOffset !== null) loadWikipediaPage(nextOffset);
-	});
-	more.classList.add("seuss-load-more");
-	more.hidden = true;
-	main.append(heading,explainer,form,pickerLabel,picker,actions,heading2,status,results,more);
-	if (options.proxyFailure) {
-		const failure = seussSearchNode("p","seuss-search-status",
-			"Scramjet initialization failed: " + String(options.proxyFailure).slice(0,220));
-		failure.setAttribute("role","alert");
-		explainer.after(failure);
-	}
-
-	// Additional source-specific results, using public browser-facing APIs.
-	// These are never represented as a full-web search index.
-	const extraController = new AbortController();
-	tab.extraSearchAbort = extraController;
-	const extraTimeout = setTimeout(
-		() => extraController.abort(), options.gustData ? 30000 : 11000);
-	const extraRoot = seussSearchNode("section", "seuss-search-extra");
-	const booksHeading = seussSearchNode("h2", "", "Books from Open Library");
-	const booksStatus = seussSearchNode("p", "seuss-search-status", "Searching books…");
-	const booksResults = seussSearchNode("div", "seuss-search-results");
-	const questionsHeading = seussSearchNode("h2", "", "Programming Q&A from Stack Overflow");
-	const questionsStatus = seussSearchNode("p", "seuss-search-status", "Searching questions…");
-	const questionsResults = seussSearchNode("div", "seuss-search-results");
-	extraRoot.append(booksHeading,booksStatus,booksResults,questionsHeading,questionsStatus,questionsResults);
-	main.append(extraRoot);
-	const stillActive = () => !extraController.signal.aborted && tab.extraSearchAbort === extraController;
-	const sourceJson = async url => {
-		if (typeof window.dssSitePolicyCheck === "function" &&
-			!(await window.dssSitePolicyCheck(url.origin + "/")))
-			throw new Error("Blocked under website rules");
-		if (!stillActive()) throw new Error("Search cancelled");
-		return fetchSeussSourceJson(tab,url,extraController.signal);
-	};
-	async function loadBooks() {
-		try {
-			const u = new URL("https://openlibrary.org/search.json");
-			for (const [key,value] of Object.entries({
-				q,limit:"6",fields:"key,title,author_name,first_publish_year"
-			})) u.searchParams.set(key,value);
-			const response = await sourceJson(u);
-			if (!stillActive()) return;
-			for (const book of (Array.isArray(response.docs)?response.docs:[]).slice(0,6)) {
-				if (typeof book.title !== "string" || typeof book.key !== "string" ||
-					!/^\/works\/OL\d+W$/.test(book.key)) continue;
-				const item = seussSearchNode("article","seuss-search-result");
-				item.append(seussSearchResultLink(book.title,"https://openlibrary.org" + book.key));
-				const authors = Array.isArray(book.author_name)
-					? book.author_name.filter(a=>typeof a==="string").slice(0,2).join(", ") : "";
-				const details = [authors,Number.isInteger(book.first_publish_year)
-					? String(book.first_publish_year):""].filter(Boolean).join(" · ");
-				if(details) item.append(seussSearchNode("p","",details));
-				booksResults.append(item);
-			}
-			booksStatus.textContent = booksResults.childElementCount
-				? booksResults.childElementCount + " book results" : "No matching books found.";
-		} catch {
-			if(stillActive()) booksStatus.textContent =
-				"Book results are unavailable on this connection. Full-web search links remain above.";
-		}
-	}
-	async function loadQuestions() {
-		try {
-			const u = new URL("https://api.stackexchange.com/2.3/search/advanced");
-			for(const [key,value] of Object.entries({
-				site:"stackoverflow",q,pagesize:"6",order:"desc",sort:"relevance"
-			})) u.searchParams.set(key,value);
-			const response = await sourceJson(u);
-			if(!stillActive()) return;
-			for(const question of (Array.isArray(response.items)?response.items:[]).slice(0,6)) {
-				if(!Number.isInteger(question.question_id) || question.question_id<=0 ||
-					typeof question.title!=="string") continue;
-				const item=seussSearchNode("article","seuss-search-result");
-				const cleanTitle=question.title.replace(/&amp;/g,"&").replace(/&lt;/g,"<")
-					.replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-				item.append(seussSearchResultLink(cleanTitle,
-					"https://stackoverflow.com/questions/"+question.question_id));
-				if(Array.isArray(question.tags))
-					item.append(seussSearchNode("p","",
-						question.tags.filter(t=>typeof t==="string").slice(0,4).join(" · ")));
-				questionsResults.append(item);
-			}
-			questionsStatus.textContent = questionsResults.childElementCount
-				? questionsResults.childElementCount + " Q&A results" : "No matching questions found.";
-		} catch {
-			if(stillActive()) questionsStatus.textContent =
-				"Programming Q&A results are unavailable on this connection.";
-		}
-	}
-	Promise.allSettled([loadBooks(),loadQuestions()]).finally(()=>{
-		clearTimeout(extraTimeout);
-		if(tab.extraSearchAbort===extraController) tab.extraSearchAbort=null;
-	});
-	let shown = 0;
-	let nextOffset = 0;
-	async function loadWikipediaPage(offset) {
-		if (tab.searchAbort) tab.searchAbort.abort();
-		const controller = new AbortController();
-		tab.searchAbort = controller;
-		const timeout = setTimeout(
-			() => controller.abort(), options.gustData ? 30000 : 12000);
-		more.disabled = true;
-		more.hidden = true;
-		status.textContent = offset ? "Loading more Wikipedia articles…" : "Searching Wikipedia…";
+	main.append(heading,explainer,form,actions,heading2,status,results);
+	tab.searchAbort = new AbortController();
+	const controller = tab.searchAbort;
+	const clock = setTimeout(() => controller.abort(), 12000);
+	const apiUrl = new URL("https://en.wikipedia.org/w/api.php");
+	for (const [key,value] of Object.entries({
+		action:"query", list:"search", srsearch:q, srlimit:"8", format:"json", origin:"*"
+	})) apiUrl.searchParams.set(key,value);
+	(async () => {
 		try {
 			if (typeof window.dssSitePolicyCheck === "function" &&
 				!(await window.dssSitePolicyCheck("https://en.wikipedia.org/"))) {
-				status.textContent = "Wikipedia isn't available under this site's rules.";
+				status.textContent = "Wikipedia results aren't available under this site's rules.";
 				return;
 			}
-			if (controller.signal.aborted || tab.searchAbort !== controller) return;
-			const apiUrl = new URL("https://en.wikipedia.org/w/api.php");
-			for (const [key,value] of Object.entries({
-				action:"query", list:"search", srsearch:q, srlimit:"10",
-				sroffset:String(offset), srprop:"snippet", format:"json", origin:"*"
-			})) apiUrl.searchParams.set(key,value);
-			const json = await fetchSeussSourceJson(tab,apiUrl,controller.signal);
+			const response = await fetch(apiUrl.href, {
+				method:"GET", credentials:"omit", mode:"cors",
+				referrerPolicy:"no-referrer", signal:controller.signal
+			});
+			if (!response.ok) throw new Error("Search server returned HTTP " + response.status);
+			const json = await response.json();
 			if (controller.signal.aborted || tab.searchAbort !== controller) return;
 			const hits = Array.isArray(json?.query?.search) ? json.query.search : [];
+			status.textContent = hits.length ?
+				hits.length + " Wikipedia results" : "No matching Wikipedia articles found.";
 			for (const hit of hits) {
 				if (typeof hit.title !== "string") continue;
 				const article = seussSearchNode("article", "seuss-search-result");
 				const linkUrl = "https://en.wikipedia.org/wiki/" +
 					encodeURIComponent(hit.title.replaceAll(" ", "_"));
-				article.append(seussSearchResultLink(hit.title, linkUrl));
+				article.append(seussSearchExternalLink(hit.title, linkUrl));
 				if (typeof hit.snippet === "string") {
-					// Search snippets are untrusted; display text, never HTML.
+					// Wikipedia snippets contain highlighting HTML. Display as
+					// plain text only; never inject third-party HTML.
 					const preview = hit.snippet.replace(/<[^>]*>/g, "").slice(0,350);
 					article.append(seussSearchNode("p", "", preview));
 				}
 				results.append(article);
-				shown++;
 			}
-			const total = Number(json?.query?.searchinfo?.totalhits);
-			status.textContent = shown ? "Showing " + shown +
-				(Number.isFinite(total) ? " of about " + total : "") +
-				" Wikipedia articles" : "No matching Wikipedia articles found.";
-			const following = Number(json?.continue?.sroffset);
-			nextOffset = hits.length && Number.isFinite(following) && following > offset
-				? following : null;
-			more.hidden = nextOffset === null;
-			more.disabled = nextOffset === null;
 		} catch (error) {
 			if (tab.searchAbort !== controller) return;
-			status.textContent = shown
-				? "More results could not load. You can retry or use a full-web search engine above."
-				: "Wikipedia could not load on this connection. Try a full-web search engine above.";
-			if (shown && nextOffset !== null) {
-				more.hidden = false;
-				more.disabled = false;
-			}
+			status.textContent = "Wikipedia results couldn't be loaded on this connection. You can still use the external search links above.";
 		} finally {
-			clearTimeout(timeout);
+			clearTimeout(clock);
 			if (tab.searchAbort === controller) tab.searchAbort = null;
 		}
-	}
-	loadWikipediaPage(0);
+	})();
 }
 function showEmbeddingNotice(target, options = {}) {
 	const {tab,main} = createSeussSearchPane({ ...options, title:target.hostname });
@@ -1478,26 +907,14 @@ function showEmbeddingNotice(target, options = {}) {
 	activateSiteTab(tab.id);
 	const host = target.hostname.toLowerCase().replace(/^www\./, "");
 	const isYoutube = ["youtube.com","m.youtube.com","music.youtube.com"].includes(host);
-	const title = options.proxyFailure ? "Scramjet could not start"
-		: isYoutube ? "YouTube refuses normal iframe embedding"
-		: host + " refuses normal iframe embedding";
+	const title = isYoutube ? "YouTube can't show its full site here" : "This search site can't be embedded";
 	main.append(
 		seussSearchNode("h1", "", title),
-		seussSearchNode("p", "seuss-search-note",
-			options.proxyFailure
-				? "The Scramjet service worker did not initialize or intercept the route. " +
-					"No encoded website URL was opened; GitHub Pages has no real page at that path."
-				: "Some websites forbid ordinary iframe embedding. The existing Scramjet " +
-					"browser is an alternative, but needs a working service worker and Wisp connection."),
-		...(options.proxyFailure ? [
-			seussSearchNode("p", "seuss-search-status",
-				"Proxy startup failed: " + options.proxyFailure.slice(0,240))
-		] : []),
-		seussSearchButton(options.proxyFailure ? "Retry Scramjet" :
-			"Try Scramjet inside Seuss Search", () => {
-			void go(target.href,{forceScramjet:true,newTab:true});
+		seussSearchNode("p", "seuss-search-note", "Firefox is respecting the website's embedding security policy. Seuss Search cannot override it. You can try a normal iframe or open the website in a separate browser tab."),
+		seussSearchButton("Try embedding anyway (may be blocked)", () => {
+			go(target.href, { forceLite:true, allowEmbeddedRestricted:true, newTab:true });
 		}),
-		seussSearchExternalLink("Open original website (new browser tab)", target.href)
+		seussSearchExternalLink("Open original website (new tab)", target.href)
 	);
 	const form = document.createElement("form");
 	form.className = "seuss-search-form";
@@ -1510,7 +927,7 @@ function showEmbeddingNotice(target, options = {}) {
 	form.append(input,submit);
 	form.addEventListener("submit", event => {
 		event.preventDefault();
-		go(input.value);
+		showSeussSearch(input.value);
 	});
 	main.append(form);
 	if (isYoutube) {
@@ -1615,11 +1032,6 @@ $("lite-hide-tip").addEventListener("click", () => {
 $("lite-back-to-results").addEventListener("click", () => {
 	const tab = currentSiteTab();
 	if (tab?.liteEngine && tab.liteSearchQuery) showSeussSearch(tab.liteSearchQuery);
-});
-$("lite-try-scramjet").addEventListener("click", () => {
-	const tab = currentSiteTab();
-	if (!tab?.liteEngine || !tab.url) return;
-	go(tab.url, { forceScramjet:true, newTab:true });
 });
 
 /* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
@@ -1746,204 +1158,19 @@ $("rammerhead-copy").addEventListener("click", async () => {
 	}
 });
 
-
-/* ---------- GUST browser (verified admin, origin-isolated) ---------- */
-function sendGustCommand(tab, command) {
-	if (!tab?.gust || !tab.gustReady || !["back","forward","reload"].includes(command)) return;
-	try { tab.directFrame?.contentWindow?.postMessage(
-		{type:"dss-gust-command",command},"*"); } catch {}
-}
-function sendGustDestination(tab, url) {
-	try {
-		tab.directFrame?.contentWindow?.postMessage(
-			{ type:"dss-gust-navigate", url }, "*");
-	} catch {}
-}
-async function goGust(url, options = {}) {
-	if (!requireSeussAccount()) return;
-	if (!await canLaunchGust()) {
-		showError("GUST requires a verified site admin.",
-			"The current site account does not have server-confirmed admin access.");
-		return;
-	}
-	let tab = !options.newTab && currentSiteTab()?.gust &&
-		!currentSiteTab()?.gustSearchEngine ? currentSiteTab() : null;
-	if (!tab) tab = createSiteTab("direct", siteTabTitle(url));
-	$("error").hidden = true;
-	tab.type = "direct";
-	tab.gust = true;
-	tab.title = siteTabTitle(url);
-	tab.targetUrl = url;
-	tab.url = url;
-	tab.gustHost = new URL(url).hostname.toLowerCase();
-	if (tab.directFrame) {
-		activateSiteTab(tab.id);
-		if (tab.gustReady) sendGustDestination(tab, url);
-		return;
-	}
-	const pane = document.createElement("div");
-	pane.className = "site-frame-pane";
-	pane.hidden = true;
-	const iframe = document.createElement("iframe");
-	iframe.title = "Seuss Search website viewer — GUST loading engine (admins only)";
-	// Keep the independent GUST runtime away from site login tokens and
-	// the parent page. No allow-same-origin or allow-top-navigation.
-	iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-downloads");
-	iframe.referrerPolicy = "no-referrer";
-	iframe.setAttribute("allow", "autoplay; fullscreen");
-	pane.append(iframe);
-	$("frame-host").append(pane);
-	tab.pane = pane;
-	tab.directFrame = iframe;
-	tab.loading = true;
-	tab.gustReady = false;
-	iframe.addEventListener("load", () => {
-		if (!siteTabs.includes(tab) || tab.directFrame !== iframe) return;
-		// The SVG file is loaded, but the GUST HTTP session may not be ready.
-		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
-	});
-	iframe.addEventListener("error", () => {
-		if (activeSiteTabId === tab.id) showError(
-			"Seuss Search's page loader couldn't start.",
-			"The website-rendering component failed to load.");
-	});
-	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	iframe.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
-	activateSiteTab(tab.id);
-}
-// Every request from the GUST shell must be allowed by the site's server
-// policy; GUST has no independent permission to fetch web destinations.
-window.addEventListener("message", async event => {
-	const data = event.data;
-	if (!data || !["dss-gust-policy","dss-gust-active","dss-gust-location",
-		"dss-gust-ready","dss-gust-error","dss-gust-json-result",
-		"dss-gust-page-loading","dss-gust-page-loaded","dss-gust-page-error"].includes(data.type)) return;
-	const tab = siteTabs.find(item => item.gust &&
-		item.directFrame?.contentWindow === event.source);
-	if (!tab) return;
-	if (data.type === "dss-gust-ready") {
-		tab.gustReady = true;
-		tab.loading = false;
-		if (tab.gustSearchEngine) {
-			tab.gustReadyResolve?.();
-			tab.gustReadyResolve = null;
-			tab.gustReadyReject = null;
-			return;
-		}
-		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
-		sendGustDestination(tab, tab.targetUrl);
-		return;
-	}
-	if (data.type === "dss-gust-json-result") {
-		if (!tab.gustSearchEngine || typeof data.id !== "string") return;
-		const entry = tab.gustJsonPending?.get(data.id);
-		if (!entry) return;
-		entry.finish(data.ok ? null : new Error(
-			String(data.error || "GUST source request failed").slice(0,160)),
-			data.ok ? data.data : null);
-		return;
-	}
-	if (data.type === "dss-gust-page-loading") {
-		if (tab.gustSearchEngine) return;
-		tab.loading = true;
-		if (activeSiteTabId === tab.id) {
-			$("error").hidden = true;
-			activateSiteTab(tab.id);
-		}
-		return;
-	}
-	if (data.type === "dss-gust-page-loaded") {
-		if (tab.gustSearchEngine) return;
-		tab.loading = false;
-		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
-		return;
-	}
-	if (data.type === "dss-gust-page-error") {
-		if (tab.gustSearchEngine) return;
-		tab.loading = false;
-		if (activeSiteTabId === tab.id) {
-			activateSiteTab(tab.id);
-			showError("This website couldn't be loaded in Seuss Search.",
-				String(data.message || "The connection or page failed.").slice(0,240));
-		}
-		return;
-	}
-	if (data.type === "dss-gust-error") {
-		tab.gustReady = false;
-		tab.loading = false;
-		if (tab.gustSearchEngine) {
-			tab.gustReadyReject?.(new Error(
-				String(data.message || "GUST could not connect").slice(0,160)));
-			tab.gustReadyResolve = null;
-			tab.gustReadyReject = null;
-			return;
-		}
-		if (activeSiteTabId === tab.id) {
-			activateSiteTab(tab.id);
-			showError("Seuss Search's loading engine couldn't start.",
-				String(data.message || "Unknown error").slice(0,200));
-			setStatus("bad", "Website loading engine failed to initialize.");
-		}
-		return;
-	}
-	if (data.type === "dss-gust-location") {
-		// Only the identified GUST frame can report a navigation. Keep full
-		// URLs in this tab, while ordinary site presence exposes only hosts.
-		if (typeof data.url !== "string" || data.url.length > 2048) return;
-		let locationUrl;
-		try {
-			locationUrl = new URL(data.url);
-			if (!["http:","https:"].includes(locationUrl.protocol) ||
-				locationUrl.username || locationUrl.password) return;
-		} catch { return; }
-		tab.url = locationUrl.href;
-		tab.targetUrl = locationUrl.href;
-		tab.gustHost = locationUrl.hostname.toLowerCase();
-		tab.title = siteTabTitle(locationUrl.href);
-		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
-		renderSiteTabs();
-		announceActiveSiteView();
-		return;
-	}
-	const host = typeof data.host === "string" ? data.host.toLowerCase() : "";
-	if (!host || host.length > 200 || !/^[a-z0-9.-]+$/.test(host) ||
-		!host.includes(".") || host.startsWith(".") || host.endsWith(".")) return;
-	if (data.type === "dss-gust-active") {
-		tab.gustHost = host;
-		if (activeSiteTabId === tab.id) announceActiveSiteView();
-		return;
-	}
-	if (typeof data.id !== "string" || !/^gust-policy-[0-9]+$/.test(data.id)) return;
-	let allowed = false;
-	try {
-		if (await canLaunchGust() && typeof window.dssSitePolicyCheck === "function")
-			allowed = !!(await window.dssSitePolicyCheck("https://" + host + "/"));
-	} catch {}
-	if (!siteTabs.includes(tab) || tab.directFrame?.contentWindow !== event.source) return;
-	try { event.source.postMessage({type:"dss-gust-policy-result",id:data.id,allowed},"*"); }
-	catch {}
-});
-window.addEventListener("seuss-site-access-change", event => {
-	gustAdminConfirmedUntil = 0;
-	if (event.detail?.state === "active") return;
-	for (const tab of [...siteTabs]) if (tab.gust) closeSiteTab(tab.id);
-});
-
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
-	if (!options.forceScramjet && isSeussSearchQuery(input) &&
-		(options.forceLite || ["seusslite","gust"].includes(settings.proxyEngine))) {
-		const useGust = !options.forceLite &&
-			settings.proxyEngine === "gust";
-		if (useGust && !await canLaunchGust()) {
-			showError("GUST search requires a verified site admin.",
-				"Choose another engine or sign in with your administrator account.");
-			return;
+	if (!options.forceScramjet &&
+		(options.forceLite || settings.proxyEngine === "seusslite") &&
+		isSeussSearchQuery(input)) {
+		if (!options.nativeSearch && settings.embedSearchPages) {
+			const q = String(input).trim().slice(0, 180);
+			return go(searchWebLink(q), {
+				...options, forceLite:true, allowEmbeddedRestricted:true,
+				embeddedQuery:q
+			});
 		}
-		// Lightweight and GUST searches use Seuss Search's results UI.
-		// Scramjet's full-web search path is validated by a real fetch
-		// probe before any encoded /scramjet/ navigation.
-		return showSeussSearch(input,{...options,gustData:useGust});
+		return showSeussSearch(input, options);
 	}
 	const url = toUrl(input);
 	if (!url) return;
@@ -1953,15 +1180,10 @@ async function go(input, options = {}) {
 		const allowed = await window.dssSitePolicyCheck(url);
 		if (!allowed) return;
 	}
-	if (!options.forceScramjet && !options.forceLite && settings.proxyEngine === "gust")
-		return goGust(url, options);
 	if (options.forceLite || (!options.forceScramjet && settings.proxyEngine === "seusslite")) {
 		const u = new URL(url);
-		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted) {
-			// A normal iframe cannot embed this site. Show a useful notice
-			// instead of silently sending users into a broken proxy route.
+		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted)
 			return showEmbeddingNotice(u, options);
-		}
 		return openSeussLite(url, options);
 	}
 	if (!options.forceScramjet) {
@@ -1988,23 +1210,10 @@ async function go(input, options = {}) {
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
 	try {
-		const wasInitialized = !!ready;
 		await boot();
-		// A tab can outlive the service worker that originally initialized
-		// it. Check the intercepted URL again before each later navigation.
-		if (wasInitialized) await verifyScramjetFetchInterception();
 	} catch (err) {
-		// Allow Retry Scramjet to register and recheck a newer worker.
-		ready = null;
-		// No encoded /scramjet/ navigation unless our worker actually
-		// intercepted the health probe. Avoid GitHub Pages' 404.
-		const detail = String(err?.message || err);
-		setStatus("bad","Scramjet could not start: " + detail.slice(0,180));
-		if (isSeussSearchQuery(input))
-			return showSeussSearch(input,{...options,proxyFailure:detail});
-		return showEmbeddingNotice(new URL(url),{
-			...options,proxyFailure:detail
-		});
+		showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err));
+		return;
 	}
 	tab.type = "web";
 	tab.uvFallback = !!options.uvFallback;
@@ -2063,7 +1272,6 @@ window.addEventListener("popstate", () => {
 });
 
 /* ---------- Wire up UI ---------- */
-attachSeussSearchSuggestions($("address"));
 $("search-form").addEventListener("submit", (e) => {
 	e.preventDefault();
 	go($("address").value);
@@ -2146,15 +1354,13 @@ $("b-home").onclick = goHome;
 $("b-back").onclick = () => {
 	const tab = currentSiteTab();
 	if (tab?.searchPage) { goHome(); return; }
-	if (tab?.gust) sendGustCommand(tab,"back");
-	else if (tab?.liteEngine) navigateSeussLiteHistory(tab,-1);
+	if (tab?.liteEngine) navigateSeussLiteHistory(tab, -1);
 	else if (tab?.frame) tab.frame.back();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.back(); } catch {} }
 };
 $("b-fwd").onclick = () => {
 	const tab = currentSiteTab();
-	if (tab?.gust) sendGustCommand(tab,"forward");
-	else if (tab?.liteEngine) navigateSeussLiteHistory(tab,1);
+	if (tab?.liteEngine) navigateSeussLiteHistory(tab, 1);
 	else if (tab?.frame) tab.frame.forward();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.forward(); } catch {} }
 };
@@ -2167,7 +1373,6 @@ $("b-reload").onclick = () => {
 		else showSeussSearch(tab.searchQuery);
 		return;
 	}
-	if (tab.gust) { sendGustCommand(tab,"reload"); return; }
 	if (tab.liteEngine) {
 		tab.loading = true;
 		loader.classList.add("on");
@@ -2219,26 +1424,83 @@ function setStatus(state, message) {
 // A Wisp v1 relay begins with CONTINUE (0x03) and v2 begins with INFO (0x05).
 // A WebSocket 'open' event alone does not confirm a working Wisp relay.
 let wispCheckSequence = 0;
-async function checkWisp() {
+let wispCheckSocket = null;
+function checkWisp() {
 	if (settings.proxyEngine === "rammerhead") return;
 	const sequence = ++wispCheckSequence;
-	const preferred = settings.wisp;
-	setStatus("", "Checking selected Wisp relay…");
-	try {
-		const chosen = await chooseWispRelay(preferred);
-		if (sequence !== wispCheckSequence) return;
-		setStatus("ok", chosen === WISP_FALLBACK && preferred !== WISP_FALLBACK
-			? "Preferred relay failed; backup mages.io/wisp/ passed its Wisp handshake (site loading not tested)."
-			: "Selected Wisp relay passed its handshake (site loading not tested).");
-	} catch (error) {
-		if (sequence !== wispCheckSequence) return;
-		setStatus("bad", error.message);
+	if (wispCheckSocket) {
+		try { wispCheckSocket.close(); } catch {}
+		wispCheckSocket = null;
 	}
+	$("retry-wisp").disabled = false;
+	let address;
+	try {
+		address = new URL(settings.wisp);
+		if (!["wss:", "ws:"].includes(address.protocol)) throw new Error("Not a WebSocket address");
+		if (location.protocol === "https:" && address.protocol !== "wss:") {
+			throw new Error("An HTTPS website needs a secure wss:// relay");
+		}
+	} catch {
+		setStatus("bad", "Wisp address invalid. Check Settings for a valid wss:// address.");
+		return;
+	}
+
+	setStatus("", "Connecting to the Wisp relay…");
+	let socket;
+	try {
+		socket = new WebSocket(address.href);
+		socket.binaryType = "arraybuffer";
+	} catch {
+		setStatus("bad", "Couldn't start the WebSocket. Check the relay address in Settings.");
+		return;
+	}
+	wispCheckSocket = socket;
+	let opened = false;
+	let finished = false;
+	let timer;
+
+	function finish(state, message) {
+		if (finished || sequence !== wispCheckSequence) return;
+		finished = true;
+		clearTimeout(timer);
+		if (wispCheckSocket === socket) wispCheckSocket = null;
+		try { socket.close(); } catch {}
+		setStatus(state, message);
+	}
+	timer = setTimeout(() => {
+		finish("bad", opened
+			? "Wisp socket opened, but no handshake arrived. Relay may be unhealthy; retry."
+			: "Wisp timed out. Network restrictions or relay downtime may be responsible.");
+	}, 11000);
+	socket.addEventListener("open", () => {
+		if (sequence !== wispCheckSequence || finished) return;
+		opened = true;
+		setStatus("", "WebSocket connected. Checking Wisp handshake…");
+	});
+	socket.addEventListener("message", (event) => {
+		if (sequence !== wispCheckSequence || finished) return;
+		const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : null;
+		// Both Wisp versions use five-byte headers; stream 0 is reserved for the handshake.
+		if (bytes && bytes.length >= 5 && [3, 5].includes(bytes[0]) &&
+			bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0 && bytes[4] === 0) {
+			finish("ok", "Wisp protocol response received from " + address.host + " (page loading not yet tested)");
+		} else {
+			finish("bad", "WebSocket responded, but not with a Wisp handshake. Check your relay URL.");
+		}
+	});
+	socket.addEventListener("error", () => {
+		finish("bad", "Wisp WebSocket failed. The relay may be down or restricted by this network.");
+	});
+	socket.addEventListener("close", (event) => {
+		if (sequence !== wispCheckSequence || finished) return;
+		const reason = event.code === 1006 ? "" : " (code " + event.code + ")";
+		finish("bad", "Wisp closed before replying" + reason + ". Retry or ask your network administrator.");
+	});
 }
 // Test the Wisp handshake independently of Scramjet so browser service
 // worker failures cannot be mistaken for blocked/broken WebSocket relays.
 async function reconnectConfiguredWisp() {
-	if (!["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
+	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
 	if (!requireSeussAccount()) return;
 	const retryButton = $("retry-proxy");
 	retryButton.disabled = true;
@@ -2246,9 +1508,7 @@ async function reconnectConfiguredWisp() {
 	try {
 		await boot();
 		await applyTransport(true);
-		setStatus("ok", "Scramjet worker and transport initialized. Relay: " +
-			(activeWispAddress || "not configured") +
-			". Select Test Wisp to check relay connectivity; loading a website is a separate test.");
+		setStatus("ok", "Scramjet worker and transport initialized. Select Test Wisp to check relay connectivity.");
 	} catch (err) {
 		setStatus("bad", "Scramjet initialization failed (not necessarily a Wisp failure): " +
 			(err && err.message || String(err)));
@@ -2258,15 +1518,15 @@ async function reconnectConfiguredWisp() {
 }
 $("retry-wisp").addEventListener("click", () => {
 	if (!requireSeussAccount()) return;
-	if (!["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine)) {
-		setStatus("", "Choose Seuss Browser or Scramjet to test Wisp.");
+	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) {
+		setStatus("", "Choose Scramjet or Ultraviolet to test Wisp.");
 		return;
 	}
 	checkWisp();
 });
 $("retry-proxy").addEventListener("click", reconnectConfiguredWisp);
 window.addEventListener("online", () => {
-	if (requireSeussAccount() && ["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine))
+	if (requireSeussAccount() && ["scramjet","ultraviolet"].includes(settings.proxyEngine))
 		checkWisp();
 });
 
@@ -2288,12 +1548,10 @@ try {
 /* ---------- Start ---------- */
 applyAppearance();
 syncLabel();
-$("retry-wisp").hidden = ["rammerhead","adrift","gust"].includes(settings.proxyEngine);
+$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 $("retry-proxy").hidden = $("retry-wisp").hidden;
 if (settings.proxyEngine === "seusslite") {
 	setStatus("ok", "Seuss Browser ready. Direct pages load without Wisp or a service worker.");
-} else if (settings.proxyEngine === "gust") {
-	setStatus("", "Seuss Search is using the GUST loading engine behind its normal interface. Site-admin authorization is required.");
 } else if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else if (settings.proxyEngine === "adrift") {
