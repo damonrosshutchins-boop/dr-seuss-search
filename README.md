@@ -104,3 +104,26 @@ does not replace Scramjet's request-intercepting service worker. The
 existing Seuss Browser mode does not use a worker or Wisp, but ordinary
 iframe restrictions still apply. This change does not remove Scramjet's
 service worker, add a workerless proxy, or circumvent network controls.
+
+
+## Optional Custom Loader (CORS HTML mode)
+
+**Settings → Browsing engine → Custom Loader** is a separate, opt-in
+worker-free HTML viewer. It uses the browser's normal HTTPS `fetch()`
+with `mode: "cors"`, omitted credentials/referrers, and rejected
+redirects. Only pages that **explicitly permit cross-origin reads** can
+load; it does not replace Scramjet or guarantee compatibility.
+
+The loaded HTML is reduced to a safe, readable set of elements. Basic
+links and same-origin images/stylesheets receive absolute URLs, while
+original scripts, forms, embedded frames, and active content are removed.
+A nonce-authorized navigation controller operates inside an opaque-origin,
+CSP-restricted iframe; every requested navigation is checked against
+Seuss Search's existing website access policy. Internal tabs, browsing
+history, reload, and useful failure messages are supported.
+
+The new mode does not require a service worker and does not use BareMux
+or Wisp. Traffic is **not concealed or tunneled**: the browser and
+network provider can still observe connections to permitted sites.
+The original Scramjet transport and primary/fallback Wisp settings
+remain available and unchanged.

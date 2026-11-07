@@ -298,7 +298,7 @@ function openSettings() {
 	$("s-engine").value = settings.engine;
 	$("s-embed-search").checked = !!settings.embedSearchPages;
 	$("s-proxy-engine").value =
-		["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
+		["seusslite","customloader","scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
 			? settings.proxyEngine : "scramjet";
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-adrift-url").value = settings.adriftServer || "";
@@ -384,7 +384,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
 	settings.embedSearchPages = $("s-embed-search").checked;
-	settings.proxyEngine = ["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
+	settings.proxyEngine = ["seusslite","customloader","scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
 		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
 	settings.adriftServer = rawAdriftServer;
@@ -405,6 +405,8 @@ $("settings-form").addEventListener("submit", async (event) => {
 	$("retry-proxy").hidden = $("retry-wisp").hidden;
 	if (settings.proxyEngine === "seusslite") {
 		setStatus("ok", "Seuss Browser ready. Native browser loading doesn't need Wisp or a service worker.");
+	} else if (settings.proxyEngine === "customloader") {
+		setStatus("ok", "Custom Loader ready: CORS-permitted HTTPS HTML, no service worker or Wisp.");
 	} else if (settings.proxyEngine === "rammerhead") {
 		setStatus("", "Rammerhead uses your separately hosted server.");
 	} else if (settings.proxyEngine === "adrift") {
@@ -707,12 +709,14 @@ function currentSiteTab() {
 	return siteTabs.find(tab => tab.id === activeSiteTabId) || null;
 }
 function stopBlockedProxyTab(tab) {
-	if (!tab || (tab.type !== "web" && !tab.liteEngine)) return;
+	if (!tab || (tab.type !== "web" && !tab.liteEngine && !tab.customEngine)) return;
+	if (tab.customAbort) tab.customAbort.abort();
 	if (tab.pane) tab.pane.remove();
 	tab.frame = null;
 	tab.directFrame = null;
 	tab.pane = null;
 	tab.liteEngine = false;
+	tab.customEngine = false;
 	tab.loading = false;
 	tab.type = "home";
 	tab.url = "";
@@ -724,7 +728,7 @@ function stopBlockedProxyTab(tab) {
 // without a refresh or another click inside the frame.
 window.dssRecheckActiveSite = async () => {
 	const tab = currentSiteTab();
-	if (!tab || (tab.type !== "web" && !tab.liteEngine) || !tab.url ||
+	if (!tab || (tab.type !== "web" && !tab.liteEngine && !tab.customEngine) || !tab.url ||
 		typeof window.dssSitePolicyCheck !== "function") return;
 	const url = tab.url;
 	const allowed = await window.dssSitePolicyCheck(url);
@@ -738,6 +742,10 @@ function publicActiveSiteView(tab = currentSiteTab()) {
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
 	if (tab.searchPage) return tab.sourceNotice ? "External website notice" : "Seuss Search results";
+	if (tab.customEngine) {
+		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
+		catch { return "Other site page"; }
+	}
 	if (tab.liteEngine) {
 		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
 		catch { return "Other site page"; }
@@ -823,7 +831,7 @@ function activateSiteTab(id) {
 	for (const item of siteTabs) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
-	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine));
+	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine || tab.customEngine));
 	updateProxyLoadStats();
 	const uvBanner = $("uv-fallback-banner");
 	uvBanner.hidden = !tab.uvFallback || !!tab.uvFallbackDismissed;
@@ -873,6 +881,7 @@ function closeSiteTab(id) {
 	const tab = siteTabs[index];
 	if (tab.type === "talk") window.dispatchEvent(new Event("seuss-talk-tab-close"));
 	if (tab.searchAbort) tab.searchAbort.abort();
+	if (tab.customAbort) tab.customAbort.abort();
 	if (tab.pane) tab.pane.remove();
 	const wasActive = activeSiteTabId === id;
 	siteTabs.splice(index, 1);
@@ -1313,6 +1322,101 @@ $("lite-back-to-results").addEventListener("click", () => {
 	if (tab?.liteEngine && tab.liteSearchQuery) showSeussSearch(tab.liteSearchQuery);
 });
 
+/* ---------- Custom Loader: worker-free CORS HTML viewer ----------
+ * This is not a Wisp tunnel, service-worker replacement or unrestricted
+ * proxy. Retrieved scripts and forms are removed, leaving a sandboxed
+ * static HTML page and a controlled, token-checked link handler.
+ */
+async function openCustomLoader(input, options = {}) {
+	if (!requireSeussAccount()) return;
+	let target;
+	try {
+		target = new URL(input);
+		if (target.protocol !== "https:" || target.username || target.password)
+			throw new Error("HTTPS required");
+	} catch {
+		showError("Custom Loader needs an HTTPS website address.",
+			"Use an HTTPS URL or choose another browsing engine.");
+		return;
+	}
+	if (typeof window.dssSitePolicyCheck !== "function" ||
+		!(await window.dssSitePolicyCheck(target.href))) return;
+	let tab = !options.newTab && currentSiteTab()?.customEngine ? currentSiteTab() : null;
+	if (!tab) tab = createSiteTab("direct", siteTabTitle(target.href));
+	if (tab.customAbort) tab.customAbort.abort();
+	const controller = new AbortController();
+	tab.customAbort = controller;
+	tab.customEngine = true;
+	tab.liteEngine = false;
+	tab.searchPage = false;
+	tab.type = "direct";
+	tab.loading = true;
+	tab.url = target.href;
+	tab.title = siteTabTitle(target.href);
+	const frame = createDirectFrameForTab(tab);
+	frame.title = "Custom Loader: CORS HTML viewer";
+	frame.setAttribute("sandbox", "allow-scripts");
+	frame.referrerPolicy = "no-referrer";
+	$("error").hidden = true;
+	activateSiteTab(tab.id);
+	try {
+		const page = await window.DSSCustomLoader.fetchPage(target.href, {
+			signal: controller.signal
+		});
+		if (!siteTabs.includes(tab) || tab.customAbort !== controller ||
+			controller.signal.aborted) return;
+		tab.customToken = page.token;
+		if (!options.fromHistory) {
+			tab.customHistory = (tab.customHistory || []).slice(0,
+				(tab.customHistoryIndex ?? -1) + 1);
+			tab.customHistory.push(target.href);
+			if (tab.customHistory.length > 30) tab.customHistory.shift();
+			tab.customHistoryIndex = tab.customHistory.length - 1;
+		}
+		frame.srcdoc = page.html;
+		setStatus("ok", "Custom Loader displayed CORS-permitted HTML. " +
+			"Original scripts and forms are disabled.");
+	} catch (error) {
+		if (error?.name === "AbortError" || controller.signal.aborted ||
+			!siteTabs.includes(tab) || tab.customAbort !== controller) return;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			activateSiteTab(tab.id);
+			showError("Custom Loader could not display this page.",
+				String(error?.message || error).slice(0,350) +
+				" This mode cannot load pages that disallow CORS.");
+		}
+	}
+}
+async function navigateCustomHistory(tab, direction) {
+	if (!tab?.customEngine || !Array.isArray(tab.customHistory)) return;
+	const next = (tab.customHistoryIndex ?? -1) + direction;
+	if (next < 0 || next >= tab.customHistory.length) return;
+	const url = tab.customHistory[next];
+	if (typeof window.dssSitePolicyCheck !== "function" ||
+		!(await window.dssSitePolicyCheck(url))) return;
+	tab.customHistoryIndex = next;
+	await openCustomLoader(url, { fromHistory:true });
+}
+// Only the intended sandboxed iframe can send a navigation request.
+// The parent's go() independently checks the requested site's rules.
+window.addEventListener("message", event => {
+	const data = event.data;
+	if (!data || data.type !== "dss-custom-loader-navigate" ||
+		typeof data.url !== "string" || typeof data.token !== "string" ||
+		!requireSeussAccount()) return;
+	const tab = siteTabs.find(t => t.customEngine && t.customToken === data.token &&
+		t.directFrame?.contentWindow === event.source);
+	if (!tab) return;
+	let url;
+	try {
+		url = new URL(data.url);
+		if (url.protocol !== "https:" || url.username || url.password) return;
+	} catch { return; }
+	activateSiteTab(tab.id);
+	void go(url.href);
+});
+
 /* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
 function goRammerhead(targetUrl) {
 	const base = rammerheadServerURL();
@@ -1440,7 +1544,7 @@ $("rammerhead-copy").addEventListener("click", async () => {
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
 	if (!options.forceScramjet &&
-		(options.forceLite || settings.proxyEngine === "seusslite") &&
+		(options.forceLite || ["seusslite","customloader"].includes(settings.proxyEngine)) &&
 		isSeussSearchQuery(input)) {
 		if (!options.nativeSearch && settings.embedSearchPages) {
 			const q = String(input).trim().slice(0, 180);
@@ -1459,6 +1563,8 @@ async function go(input, options = {}) {
 		const allowed = await window.dssSitePolicyCheck(url);
 		if (!allowed) return;
 	}
+	if (!options.forceLite && !options.forceScramjet &&
+		settings.proxyEngine === "customloader") return openCustomLoader(url, options);
 	if (options.forceLite || (!options.forceScramjet && settings.proxyEngine === "seusslite")) {
 		const u = new URL(url);
 		if (prefersSupportedExternalPage(u) && !options.allowEmbeddedRestricted)
@@ -1534,11 +1640,13 @@ function goHome() {
 	tab.title = "New Tab";
 	tab.url = "";
 	tab.loading = false;
+	if (tab.customAbort) tab.customAbort.abort();
 	if (tab.pane) tab.pane.remove();
 	tab.pane = null;
 	tab.frame = null;
 	tab.directFrame = null;
 	tab.liteEngine = false;
+	tab.customEngine = false;
 	tab.searchPage = false;
 	tab.uvFallback = false;
 	if (tab.searchAbort) tab.searchAbort.abort();
@@ -1633,13 +1741,15 @@ $("b-home").onclick = goHome;
 $("b-back").onclick = () => {
 	const tab = currentSiteTab();
 	if (tab?.searchPage) { goHome(); return; }
-	if (tab?.liteEngine) navigateSeussLiteHistory(tab, -1);
+	if (tab?.customEngine) navigateCustomHistory(tab, -1);
+	else if (tab?.liteEngine) navigateSeussLiteHistory(tab, -1);
 	else if (tab?.frame) tab.frame.back();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.back(); } catch {} }
 };
 $("b-fwd").onclick = () => {
 	const tab = currentSiteTab();
-	if (tab?.liteEngine) navigateSeussLiteHistory(tab, 1);
+	if (tab?.customEngine) navigateCustomHistory(tab, 1);
+	else if (tab?.liteEngine) navigateSeussLiteHistory(tab, 1);
 	else if (tab?.frame) tab.frame.forward();
 	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.forward(); } catch {} }
 };
@@ -1650,6 +1760,10 @@ $("b-reload").onclick = () => {
 		if (tab.uvFallback) { goUltraviolet(tab.url); return; }
 		if (tab.sourceNotice) showEmbeddingNotice(new URL(tab.url));
 		else showSeussSearch(tab.searchQuery);
+		return;
+	}
+	if (tab.customEngine) {
+		void openCustomLoader(tab.url, { fromHistory:true });
 		return;
 	}
 	if (tab.liteEngine) {
@@ -1838,6 +1952,8 @@ $("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngi
 $("retry-proxy").hidden = $("retry-wisp").hidden;
 if (settings.proxyEngine === "seusslite") {
 	setStatus("ok", "Seuss Browser ready. Direct pages load without Wisp or a service worker.");
+} else if (settings.proxyEngine === "customloader") {
+	setStatus("ok", "Custom Loader selected. CORS-permitted HTTPS HTML only; no worker or Wisp.");
 } else if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else if (settings.proxyEngine === "adrift") {
