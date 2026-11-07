@@ -186,7 +186,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
 	} else if (settings.proxyEngine === "ultraviolet") {
-		setStatus("", "Ultraviolet is an experimental built-in engine for moderators. Compatibility depends on browser service workers.");
+		setStatus("", "Ultraviolet is currently unavailable in a safe same-origin iframe. Browsing uses the Scramjet fallback.");
 	} else if (settings.performanceMode && !ready) {
 		setStatus("", "Performance Mode is on. The proxy engine will load when you browse.");
 	} else if (wispChanged || transportChanged || proxyEngineChanged || (performanceChanged && !settings.performanceMode)) {
@@ -546,6 +546,8 @@ function activateSiteTab(id) {
 	}
 	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine));
 	updateProxyLoadStats();
+	const uvBanner = $("uv-fallback-banner");
+	uvBanner.hidden = !tab.uvFallback || !!tab.uvFallbackDismissed;
 	const liteHelper = $("lite-helper");
 	liteHelper.hidden = !tab.liteEngine || !!tab.liteTipDismissed || !!tab.searchPage;
 	$("lite-back-to-results").hidden = !tab.liteEngine || !tab.liteSearchQuery;
@@ -1061,64 +1063,22 @@ function goRammerhead(targetUrl) {
 	$("rammerhead-message").textContent = "If the embedded portal is blank or blocked, click Open Rammerhead directly.";
 }
 
-// Ultraviolet is run under a dedicated service-worker scope and opaque
-// sandbox to prevent proxied scripts from accessing this site's login tokens.
-// Its URL-rewriting and CORS behaviour may be limited by that isolation.
-let uvReady = null;
-function loadUvScript(path) {
-	return new Promise((resolve, reject) => {
-		const script = document.createElement("script");
-		script.src = at(path);
-		script.onload = resolve;
-		script.onerror = () => reject(new Error("Ultraviolet runtime asset could not be loaded: " + path));
-		document.head.appendChild(script);
-	});
+// Ultraviolet depends on a service worker controlling its navigated page.
+// Sandboxing the frame into an opaque origin safely isolates account tokens,
+// but also prevents the worker from controlling it. Without the worker GitHub
+// Pages returns HTTP 404 for /uv/service/ encoded URLs. Adding
+// "allow-same-origin" with "allow-scripts" would expose this site's Supabase
+// login storage to remote pages rewritten as same-origin content.
+// Keep the restriction and use the existing working Scramjet path instead.
+// Full Ultraviolet requires hosting the proxy on an isolated origin.
+function goUltraviolet(targetUrl) {
+	return go(targetUrl, { forceScramjet:true, uvFallback:true });
 }
-async function bootUltraviolet() {
-	if (uvReady) return uvReady;
-	uvReady = (async () => {
-		await boot(); // shares the existing BareMux Wisp transport
-		if (!window.Ultraviolet) await loadUvScript("uv/uv.bundle.js");
-		if (!window.__uv$config) await loadUvScript("uv/uv.config.js");
-		if (!window.__uv$config || !window.__uv$config.encodeUrl) {
-			throw new Error("Ultraviolet URL codec is unavailable.");
-		}
-		const registration = await navigator.serviceWorker.register(at("uv/sw.js"), {
-			scope: at("uv/")
-		});
-		if (!registration.active) {
-			await new Promise((resolve, reject) => {
-				const worker = registration.installing || registration.waiting;
-				if (!worker) { reject(new Error("Ultraviolet worker is not available.")); return; }
-				const timeout = setTimeout(() => reject(new Error("Ultraviolet worker activation timed out.")), 12000);
-				worker.addEventListener("statechange", () => {
-					if (worker.state === "activated") {
-						clearTimeout(timeout);
-						resolve();
-					}
-				});
-			});
-		}
-	})();
-	uvReady.catch(() => {uvReady = null;});
-	return uvReady;
-}
-async function goUltraviolet(targetUrl) {
-	try {
-		await bootUltraviolet();
-		const tab = createSiteTab("direct", "Ultraviolet · " + siteTabTitle(targetUrl));
-		tab.ultraviolet = true;
-		tab.url = targetUrl;
-		tab.loading = true;
-		const iframe = createDirectFrameForTab(tab);
-		iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock");
-		iframe.referrerPolicy = "no-referrer";
-		iframe.src = window.__uv$config.prefix + window.__uv$config.encodeUrl(targetUrl);
-		activateSiteTab(tab.id);
-	} catch(error) {
-		showError("Ultraviolet could not start safely.", String(error && error.message || error));
-	}
-}
+$("uv-fallback-dismiss").addEventListener("click", () => {
+	const tab = currentSiteTab();
+	if (tab?.uvFallback) tab.uvFallbackDismissed = true;
+	$("uv-fallback-banner").hidden = true;
+});
 function goAdrift(targetUrl) {
 	const base = adriftPortalURL();
 	if (!base) {
@@ -1222,6 +1182,8 @@ async function go(input, options = {}) {
 		return;
 	}
 	tab.type = "web";
+	tab.uvFallback = !!options.uvFallback;
+	tab.uvFallbackDismissed = false;
 	tab.url = url;
 	tab.title = siteTabTitle(url);
 	tab.loading = true;
@@ -1265,6 +1227,7 @@ function goHome() {
 	tab.directFrame = null;
 	tab.liteEngine = false;
 	tab.searchPage = false;
+	tab.uvFallback = false;
 	if (tab.searchAbort) tab.searchAbort.abort();
 	activateSiteTab(tab.id);
 	$("address").focus();
@@ -1559,7 +1522,7 @@ if (settings.proxyEngine === "seusslite") {
 } else if (settings.proxyEngine === "adrift") {
 	setStatus("", "Adrift selected. Its remote portal must allow framing; moderator authorization is required.");
 } else if (settings.proxyEngine === "ultraviolet") {
-	setStatus("", "Ultraviolet selected (experimental, moderator-only). The engine loads when you browse.");
+	setStatus("", "Ultraviolet selected: pages will use a secure Scramjet fallback to avoid GitHub Pages 404 errors.");
 } else {
 	setStatus("", "Ready to connect. Proxy setup begins after account approval.");
 }
