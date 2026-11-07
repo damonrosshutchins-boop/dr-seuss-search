@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-embedfallback1" />
+	<link rel="stylesheet" href="style.css?v=20261106-litebrowser1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -172,6 +172,11 @@
 			<span id="proxy-load-elapsed">Elapsed: 0s</span>
 			<small>Exact network packets remaining and the finishing time cannot be measured by a web proxy.</small>
 		</div>
+		<div id="lite-helper" class="lite-helper" role="status" hidden>
+			<span id="lite-helper-description">Seuss Browser uses your browser's normal connection, not Wisp. Some games may block embedding.</span>
+			<a id="lite-source-link" href="#" target="_blank" rel="noopener noreferrer">Open original site</a>
+			<button id="lite-hide-tip" type="button" title="Hide this notice" aria-label="Hide browser notice">×</button>
+		</div>
 		<div id="frame-host" class="frame-host"></div>
 	</section>
 
@@ -263,10 +268,10 @@
 				<button type="button" class="chip" id="games-close">Close</button>
 			</div>
 			<div id="games-main-view">
-			<p class="library-note">Pick a game to open inside Seuss. Green Eggs and Ham opens a searchable in-site game collection, and the Offline Games Pack opens a separate catalog.</p>
+			<p class="library-note">Games open in optimized Seuss Browser tabs without a relay. Green Eggs and Ham offers quick search, and the Offline Games Pack opens its own catalog. Hosts that disallow embedding may not load.</p>
 			<div class="library-grid">
 				<button type="button" id="open-green-eggs" class="library-card green-eggs-launcher" aria-controls="green-eggs-view" aria-expanded="false">
-					<span class="library-icon green-eggs-launcher-icon">🥚</span><strong>Green Eggs and Ham</strong><span>15 games · Search &amp; play in the proxy</span>
+					<span class="library-icon green-eggs-launcher-icon">🥚</span><strong>Green Eggs and Ham</strong><span>15 games · Play in Seuss Browser</span>
 				</button>
 				<button type="button" class="library-card" data-proxy-url="https://heyitsheart.github.io/sm3das/64/">
 					<span class="library-icon" style="background:#e94b3c">64</span><strong>SM3DAS 64</strong><span>Open in proxy</span>
@@ -334,7 +339,7 @@
 						<span class="green-eggs-emoji" aria-hidden="true">🥚</span>
 						<div><p class="kicker">your in-site game shelf</p><h3>Green Eggs and Ham</h3></div>
 					</div>
-					<p>Search the collection and pick a game to play in a Seuss Search proxy tab.</p>
+					<p>Search the collection and open a game in a lightweight Seuss Browser tab.</p>
 				</div>
 				<label class="green-eggs-search" for="green-eggs-search">
 					<span>Search games</span>
@@ -419,7 +424,7 @@
 					</button>
 				</div>
 				<p class="green-eggs-empty" id="green-eggs-empty" hidden>No games match that search. Try another name.</p>
-				<p class="green-eggs-notice">These games are linked from their original websites and load through Scramjet inside this site. Some games may not work if their host or browser features are incompatible with the proxy.</p>
+				<p class="green-eggs-notice">Games open in Seuss Browser with native browser loading. An original game may be blank or blocked if its host disallows embedding or your network restricts it; this mode cannot override those restrictions.</p>
 			</section>
 		</div>
 	</dialog>
@@ -618,12 +623,13 @@
 			</label>
 			<label>Proxy engine
 				<select id="s-proxy-engine">
+					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
 					<option value="scramjet">Scramjet (built in)</option>
 					<option value="rammerhead">Rammerhead (separate server)</option>
 					<option value="ultraviolet">Ultraviolet (experimental)</option>
 					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small>Scramjet is the recommended, built-in engine. Ultraviolet is an experimental built-in engine. Rammerhead and Adrift open separately hosted portals inside a tab and may block embedding. Experimental engines are restricted to moderators because Seuss Search cannot reliably monitor their internal page navigations.</small>
+				<small><strong>Seuss Browser</strong> is an optimized, no-service-worker mode for websites that allow direct embedding. It doesn't route traffic through Wisp or bypass browser/network restrictions. Games Library selections use this mode by default. Other proxy engines remain available; their compatibility and moderator restrictions are unchanged. Navigation inside third-party frames may not be visible to Seuss Search moderators.</small>
 			</label>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
@@ -713,7 +719,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-wispdiagnostics1"></script>
+	<script src="app.js?v=20261106-litebrowser1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
