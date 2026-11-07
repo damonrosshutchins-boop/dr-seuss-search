@@ -19,7 +19,7 @@ const DEFAULTS = {
 	theme: "light",
 	reducedMotion: false,
 	performanceMode: false,
-	proxyEngine: "scramjet",
+	proxyEngine: "seusslite",
 	rammerheadServer: "",
 	adriftServer: "https://adrift-6c1f6.web.app/",
 };
@@ -105,7 +105,7 @@ function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.eng
 function openSettings() {
 	$("s-engine").value = settings.engine;
 	$("s-proxy-engine").value =
-		["scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
+		["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes(settings.proxyEngine)
 			? settings.proxyEngine : "scramjet";
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-adrift-url").value = settings.adriftServer || "";
@@ -155,7 +155,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	const transportChanged = settings.transport !== $("s-transport").value;
 	const performanceChanged = settings.performanceMode !== $("s-performance").checked;
 	settings.engine = $("s-engine").value;
-	settings.proxyEngine = ["scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
+	settings.proxyEngine = ["seusslite","scramjet","rammerhead","ultraviolet","adrift"].includes($("s-proxy-engine").value)
 		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
 	settings.adriftServer = rawAdriftServer;
@@ -172,7 +172,9 @@ $("settings-form").addEventListener("submit", async (event) => {
 	syncLabel();
 	$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 	$("retry-proxy").hidden = $("retry-wisp").hidden;
-	if (settings.proxyEngine === "rammerhead") {
+	if (settings.proxyEngine === "seusslite") {
+		setStatus("ok", "Seuss Browser ready. Native browser loading doesn't need Wisp or a service worker.");
+	} else if (settings.proxyEngine === "rammerhead") {
 		setStatus("", "Rammerhead uses your separately hosted server.");
 	} else if (settings.proxyEngine === "adrift") {
 		setStatus("", "Adrift opens a third-party WebRTC portal inside a site tab. It requires moderator access and may reject iframe embedding.");
@@ -405,10 +407,12 @@ function currentSiteTab() {
 	return siteTabs.find(tab => tab.id === activeSiteTabId) || null;
 }
 function stopBlockedProxyTab(tab) {
-	if (!tab || tab.type !== "web") return;
+	if (!tab || (tab.type !== "web" && !tab.liteEngine)) return;
 	if (tab.pane) tab.pane.remove();
 	tab.frame = null;
+	tab.directFrame = null;
 	tab.pane = null;
+	tab.liteEngine = false;
 	tab.loading = false;
 	tab.type = "home";
 	tab.url = "";
@@ -420,7 +424,7 @@ function stopBlockedProxyTab(tab) {
 // without a refresh or another click inside the frame.
 window.dssRecheckActiveSite = async () => {
 	const tab = currentSiteTab();
-	if (!tab || tab.type !== "web" || !tab.url ||
+	if (!tab || (tab.type !== "web" && !tab.liteEngine) || !tab.url ||
 		typeof window.dssSitePolicyCheck !== "function") return;
 	const url = tab.url;
 	const allowed = await window.dssSitePolicyCheck(url);
@@ -433,6 +437,10 @@ function publicActiveSiteView(tab = currentSiteTab()) {
 	if (tab.type === "admin") return "Admin Dashboard";
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
+	if (tab.liteEngine) {
+		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
+		catch { return "Other site page"; }
+	}
 	if (tab.adrift) return "Other site page";
 	if (tab.ultraviolet) {
 		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
@@ -514,8 +522,15 @@ function activateSiteTab(id) {
 	for (const item of siteTabs) {
 		if (item.pane) item.pane.hidden = item.id !== id;
 	}
-	loader.classList.toggle("on", !!tab.loading && tab.type === "web");
+	loader.classList.toggle("on", !!tab.loading && (tab.type === "web" || tab.liteEngine));
 	updateProxyLoadStats();
+	const liteHelper = $("lite-helper");
+	liteHelper.hidden = !tab.liteEngine || !!tab.liteTipDismissed;
+	if (tab.liteEngine) {
+		$("lite-source-link").href = tab.url;
+		$("lite-helper-description").textContent =
+			"Seuss Browser loads directly without Wisp. If the page is blank or blocked, its host may forbid embedding; this mode cannot override network restrictions.";
+	}
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value =
 		tab.rammerhead || tab.adrift ? (tab.targetUrl || "") : (tab.url || "");
 	const rhHelper = $("rammerhead-helper");
@@ -678,6 +693,14 @@ function createDirectFrameForTab(tab) {
 		}
 		renderSiteTabs();
 	});
+	iframe.addEventListener("error", () => {
+		if (!tab.liteEngine || activeSiteTabId !== tab.id) return;
+		tab.loading = false;
+		loader.classList.remove("on");
+		$("lite-helper").hidden = false;
+		$("lite-helper-description").textContent =
+			"The page could not load inside Seuss Browser. The host or your network may be blocking it.";
+	});
 	return iframe;
 }
 function openDirectSiteTab(inputUrl, title) {
@@ -699,6 +722,77 @@ function openDirectSiteTab(inputUrl, title) {
 	activateSiteTab(tab.id);
 }
 window.openDirectSiteTab = openDirectSiteTab;
+
+/* ---------- Seuss Browser (optimized native, permitted embedding) ----------
+   No relay, network rewriting, proxy URL, third-party library or additional
+   service worker. Native browser caching and media loading are preserved.
+   The external page remains subject to its own CSP/X-Frame-Options and the
+   network's ordinary restrictions. A restrictive sandbox prevents top-level
+   navigation, popups, and access to the site's signed-in storage.
+*/
+function seussLiteFrame(tab) {
+	const frame = createDirectFrameForTab(tab);
+	frame.title = tab.title || "Seuss Browser page";
+	frame.setAttribute("sandbox", "allow-scripts allow-forms allow-pointer-lock allow-modals allow-downloads");
+	frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
+	frame.setAttribute("allowfullscreen", "");
+	frame.referrerPolicy = "strict-origin-when-cross-origin";
+	return frame;
+}
+function openSeussLite(targetUrl, options = {}) {
+	if (!requireSeussAccount()) return;
+	let target;
+	try {
+		target = new URL(targetUrl);
+		if (!["https:","http:"].includes(target.protocol) || target.username ||
+			target.password || !target.hostname) throw new Error("Invalid site address");
+	} catch {
+		showError("Invalid website address.", "Seuss Browser supports normal HTTP and HTTPS pages.");
+		return;
+	}
+	let tab = !options.newTab && currentSiteTab()?.liteEngine ? currentSiteTab() : null;
+	if (!tab) tab = createSiteTab("direct", options.title || siteTabTitle(target.href));
+	if (!Array.isArray(tab.liteHistory)) {
+		tab.liteHistory = [];
+		tab.liteHistoryIndex = -1;
+	}
+	if (!options.fromHistory) {
+		tab.liteHistory = tab.liteHistory.slice(0, tab.liteHistoryIndex + 1);
+		tab.liteHistory.push(target.href);
+		// Keep only the latest 30 top-level destinations to minimize memory.
+		if (tab.liteHistory.length > 30) tab.liteHistory.shift();
+		tab.liteHistoryIndex = tab.liteHistory.length - 1;
+	}
+	tab.liteEngine = true;
+	tab.type = "direct";
+	tab.url = target.href;
+	tab.title = options.title || siteTabTitle(target.href);
+	tab.loading = true;
+	tab.liteTipDismissed = false;
+	$("error").hidden = true;
+	const frame = seussLiteFrame(tab);
+	// Setting src starts the normal browser load without downloading Scramjet.
+	frame.src = target.href;
+	activateSiteTab(tab.id);
+}
+async function navigateSeussLiteHistory(tab, change) {
+	if (!tab?.liteEngine || !Array.isArray(tab.liteHistory)) return;
+	const next = tab.liteHistoryIndex + change;
+	if (next < 0 || next >= tab.liteHistory.length) return;
+	const destination = tab.liteHistory[next];
+	if (typeof window.dssSitePolicyCheck === "function") {
+		const allowed = await window.dssSitePolicyCheck(destination);
+		if (!allowed) return;
+	}
+	tab.liteHistoryIndex = next;
+	openSeussLite(destination, { fromHistory:true });
+}
+$("lite-hide-tip").addEventListener("click", () => {
+	const tab = currentSiteTab();
+	if (!tab?.liteEngine) return;
+	tab.liteTipDismissed = true;
+	$("lite-helper").hidden = true;
+});
 
 /* ---------- Rammerhead portal launch (requires separately hosted Node server) ---------- */
 function goRammerhead(targetUrl) {
@@ -842,6 +936,9 @@ async function go(input, options = {}) {
 		const allowed = await window.dssSitePolicyCheck(url);
 		if (!allowed) return;
 	}
+	if (options.forceLite || (!options.forceScramjet && settings.proxyEngine === "seusslite")) {
+		return openSeussLite(url, options);
+	}
 	if (!options.forceScramjet) {
 		if (settings.proxyEngine === "rammerhead") return goRammerhead(url);
 		if (["ultraviolet","adrift"].includes(settings.proxyEngine)) {
@@ -913,6 +1010,7 @@ function goHome() {
 	tab.pane = null;
 	tab.frame = null;
 	tab.directFrame = null;
+	tab.liteEngine = false;
 	activateSiteTab(tab.id);
 	$("address").focus();
 }
@@ -933,9 +1031,8 @@ $("open-games").addEventListener("click", () => gamesDialog.showModal());
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
-// Green Eggs and Ham lives inside the Games dialog, with instant filtering.
-// Every game tile is also a regular data-proxy-url button, so the common
-// launch handler below opens a Scramjet tab without leaving Seuss Search.
+// Green Eggs and Ham has instant filtering. Library games use the lean
+// native Seuss Browser frame; the original host must allow embedding.
 const greenEggsMain = $("games-main-view");
 const greenEggsView = $("green-eggs-view");
 const greenEggsSearch = $("green-eggs-search");
@@ -977,58 +1074,66 @@ greenEggsSearch.addEventListener("input", filterGreenEggs);
 gamesDialog.addEventListener("close", () => showRegularGames(false));
 filterGreenEggs();
 
-function launchLibraryGame(event, url, useLibcurl = false, forceScramjet = false) {
+function launchLibraryGame(event, url) {
 	event.preventDefault();
 	event.stopPropagation();
 	if (!requireSeussAccount()) return;
+	const gameTitle = event.currentTarget?.querySelector("strong")?.textContent?.trim() || siteTabTitle(url);
 	gamesDialog.close();
-	const newTab = !!(event.currentTarget && event.currentTarget.closest("#green-eggs-grid"));
-	if (useLibcurl && settings.proxyEngine !== "rammerhead") {
-		settings.transport = "libcurl";
-		save();
-		boot().then(() => applyTransport(true)).then(() => go(url, { forceScramjet, newTab })).catch((err) =>
-			showError("The proxy connection could not be prepared.", String(err && err.stack || err)));
-		return;
-	}
-	go(url, { forceScramjet, newTab });
+	// All Games Library tiles (including Green Eggs and Ham) open in a new
+	// Seuss Browser tab, independently of the general search engine choice.
+	// go() still checks site policy BEFORE the native iframe is created.
+	go(url, { forceLite:true, newTab:true, title:gameTitle });
 }
-document.querySelectorAll("[data-proxy-url]").forEach((button) => {
-	button.addEventListener("click", (event) =>
-		launchLibraryGame(event, button.dataset.proxyUrl, false, button.dataset.forceSeussProxy === "true"));
+document.querySelectorAll("[data-proxy-url]").forEach(button => {
+	button.addEventListener("click", event => launchLibraryGame(event, button.dataset.proxyUrl));
 });
-document.querySelectorAll("[data-local-url]").forEach((button) => {
-	button.addEventListener("click", (event) => {
-		event.preventDefault();
-		event.stopPropagation();
-		gamesDialog.close();
-		const title = button.querySelector("strong")?.textContent?.trim() || "Game";
-		openDirectSiteTab(button.dataset.localUrl, title);
+document.querySelectorAll("[data-local-url]").forEach(button => {
+	button.addEventListener("click", event => {
+		const url = new URL(button.dataset.localUrl, BASE).href;
+		launchLibraryGame(event, url);
 	});
 });
-
-async function launchWithEpoxy(event, url) {
-	event.preventDefault();
-	event.stopPropagation();
-	gamesDialog.close();
-	if (settings.proxyEngine === "rammerhead") return go(url);
-	settings.transport = "epoxy";
-	save();
-	try {
-		await boot();
-		await applyTransport(true);
-		go(url);
-	} catch (err) {
-		showError("The proxy couldn't switch to the alternate connection.", String(err && err.stack || err));
-	}
-}
-$("library-nowgg").addEventListener("click", (event) =>
-	launchWithEpoxy(event, "https://now.gg/"));
-$("library-geforce").addEventListener("click", (event) =>
-	launchWithEpoxy(event, "https://play.geforcenow.com/"));
+// Remote cloud sites may refuse embedding or require approved streaming
+// integrations; don't pretend an iframe can remove their restrictions.
+$("library-nowgg").addEventListener("click", event => launchLibraryGame(event, "https://now.gg/"));
+$("library-geforce").addEventListener("click", event => launchLibraryGame(event, "https://play.geforcenow.com/"));
 $("b-home").onclick = goHome;
-$("b-back").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.back(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.back(); };
-$("b-fwd").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) tab.frame.forward(); else if (tab && tab.directFrame) tab.directFrame.contentWindow.history.forward(); };
-$("b-reload").onclick = () => { const tab = currentSiteTab(); if (tab && tab.frame) { tab.loading = true; tab.loadStartedAt = Date.now(); tab.loadStartHandled = proxyRequestSnapshot.handled; loader.classList.add("on"); updateProxyLoadStats(); tab.frame.reload(); } else if (tab && tab.directFrame) { tab.loading = true; loader.classList.add("on"); tab.directFrame.contentWindow.location.reload(); } };
+$("b-back").onclick = () => {
+	const tab = currentSiteTab();
+	if (tab?.liteEngine) navigateSeussLiteHistory(tab, -1);
+	else if (tab?.frame) tab.frame.back();
+	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.back(); } catch {} }
+};
+$("b-fwd").onclick = () => {
+	const tab = currentSiteTab();
+	if (tab?.liteEngine) navigateSeussLiteHistory(tab, 1);
+	else if (tab?.frame) tab.frame.forward();
+	else if (tab?.directFrame) { try { tab.directFrame.contentWindow.history.forward(); } catch {} }
+};
+$("b-reload").onclick = () => {
+	const tab = currentSiteTab();
+	if (!tab) return;
+	if (tab.liteEngine) {
+		tab.loading = true;
+		loader.classList.add("on");
+		tab.directFrame.src = tab.url;
+		return;
+	}
+	if (tab.frame) {
+		tab.loading = true;
+		tab.loadStartedAt = Date.now();
+		tab.loadStartHandled = proxyRequestSnapshot.handled;
+		loader.classList.add("on");
+		updateProxyLoadStats();
+		tab.frame.reload();
+	} else if (tab.directFrame) {
+		tab.loading = true;
+		loader.classList.add("on");
+		try { tab.directFrame.contentWindow.location.reload(); }
+		catch { tab.directFrame.src = tab.url; }
+	}
+};
 $("b-full").onclick = () => { const el = $("frame-host"); (el.requestFullscreen || el.webkitRequestFullscreen).call(el); };
 
 const tiles = $("tiles");
@@ -1186,7 +1291,9 @@ applyAppearance();
 syncLabel();
 $("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
 $("retry-proxy").hidden = $("retry-wisp").hidden;
-if (settings.proxyEngine === "rammerhead") {
+if (settings.proxyEngine === "seusslite") {
+	setStatus("ok", "Seuss Browser ready. Direct pages load without Wisp or a service worker.");
+} else if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else if (settings.proxyEngine === "adrift") {
 	setStatus("", "Adrift selected. Its remote portal must allow framing; moderator authorization is required.");
