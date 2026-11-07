@@ -162,3 +162,24 @@ This uses GUST's AGPL-3.0 source adapted under `gust/`, not a rewrite of
 Scramjet. Individual sites may still fail due to browser sandbox limitations,
 upstream network restrictions, relay availability, or unsupported features.
 No paid hosting service is required by these changes.
+
+
+## GUST loading engine inside the Seuss Search interface
+
+When a verified site admin selects **Seuss Search — GUST loading engine**
+from Settings, Seuss Search's own search box, address bar, tabs and toolbar
+remain visible. The existing GUST libcurl request/rewriting runtime loads
+websites behind that interface; its separate GUST browser chrome and new-tab
+page are hidden. The Scramjet engine and native search mode remain selectable.
+
+GUST's SVG viewer receives `seuss=1` to activate a presentation-only view.
+Its network stack remains unchanged. Startup waits for GUST's internal
+initialization to finish before accepting Seuss Search's first navigation,
+and the child reports website navigations and redirects to keep the
+Seuss Search address bar and tab title current. All network requests
+still require the site's existing verified-admin and domain checks.
+
+The upstream GUST project is AGPL-3.0. See `gust/NOTICE.md` for attribution.
+The embedded engine is still subject to sandbox/browser support, individual
+website behavior and connection/relay availability. These changes do not
+guarantee that every destination can load.
