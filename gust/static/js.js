@@ -8458,6 +8458,10 @@ parent.postMessage({ t: 'ready' }, '*');
         libcurl.set_websocket(WISP);
         curl = new libcurl.HTTPSession();
         curl.set_connections(MAX_CONCURRENT, MAX_CONCURRENT, MAX_CONCURRENT);
+        // The SVG iframe loading is not proof that this session is ready.
+        // Only now tell Seuss Search that it can send the first navigation.
+        if(window.parent !== window)
+          window.parent.postMessage({type:"dss-gust-ready"},"*");
         log(
           `<i class="fas fa-circle-check" style="color:var(--ok)"></i><span style="color:var(--ok)">libcurl initialized successfully</span>`,
           "ok",
@@ -8469,6 +8473,8 @@ parent.postMessage({ t: 'ready' }, '*');
       } catch (e) {
         const reason = e.message || "Unknown error";
         console.error("[GUST] libcurl failed to initialize:", reason, e);
+        if(window.parent !== window)
+          window.parent.postMessage({type:"dss-gust-error",message:reason},"*");
         log("libcurl failed to initialize: " + reason, "err");
         log("Waiting for user to choose how to proceed...", "warn");
         await showOverlayError(reason);
@@ -8507,6 +8513,8 @@ parent.postMessage({ t: 'ready' }, '*');
       }
     } catch (e) {
       log("Init failed: " + e.message, "err");
+      if(window.parent !== window)
+        window.parent.postMessage({type:"dss-gust-error",message:e.message},"*");
       showOverlay("Error: " + e.message);
       if (window._onLibcurlInitDone) window._onLibcurlInitDone();
     }
@@ -10830,6 +10838,16 @@ parent.postMessage({ t: 'ready' }, '*');
   }, 400);
   // ─────────────────────────────────────────────────────────────────
 
+  // The surrounding Seuss Search toolbar controls the GUST session's
+  // internal history, not the SVG iframe's document navigation.
+  window.addEventListener("message", event => {
+    if(window.parent === window || event.source !== window.parent ||
+       event.data?.type !== "dss-gust-command" || !curl) return;
+    const button = event.data.command === "back" ? $("back") :
+      event.data.command === "forward" ? $("fwd") :
+      event.data.command === "reload" ? $("reload") : null;
+    if(button && !button.disabled) button.click();
+  });
   // Let Seuss Search send a destination after GUST's own libcurl starts.
   window.addEventListener("message", event => {
     if (window.parent === window || event.source !== window.parent ||
@@ -10841,13 +10859,13 @@ parent.postMessage({ t: 'ready' }, '*');
       parsed = new URL(input);
       if(!["http:","https:"].includes(parsed.protocol)) return;
     } catch { return; }
-    if(curl) { void go(parsed.href); return; }
-    const timer = setInterval(()=>{
-      if(!curl) return;
-      clearInterval(timer);
-      void go(parsed.href);
-    },250);
-    setTimeout(()=>clearInterval(timer),18000);
+    if(!curl) {
+      window.parent.postMessage({
+        type:"dss-gust-error", message:"GUST HTTP session is not ready"
+      },"*");
+      return;
+    }
+    void go(parsed.href);
   });
   init();
 })();
