@@ -65,7 +65,7 @@
         // Do not retain an actual href: without the controller, links must
         // be inert rather than navigating around the site's access policy.
         const rawHref = value.trim();
-        if (/^#[^#]/.test(rawHref)) {
+        if (rawHref.startsWith("#")) {
           el.setAttribute("data-dss-fragment", rawHref.slice(1, 256));
         } else {
           const url = resolved(value, base);
@@ -148,9 +148,16 @@
     const base = normalize(rawUrl);
     const parsed = new DOMParser().parseFromString(html, "text/html");
     if (!parsed.body || !parsed.head) throw new Error("No HTML document body.");
+    const siteBase = parsed.head.querySelector('base[href]')?.getAttribute("href");
+    const permittedBase = siteBase ? resolved(siteBase, base, true) : null;
+    const assetBase = permittedBase ? new URL(permittedBase) : base;
+    // A few publishers ship essential CSS in the body. Capture it before
+    // removing all original <style> nodes; it remains constrained by CSP.
+    const bodyCSS = [...parsed.body.querySelectorAll("style")].slice(0, 4)
+      .map(el => (el.textContent || "").slice(0, 50_000));
     const nodes = [...parsed.body.querySelectorAll("*")];
     if (nodes.length > MAX_NODES) throw new Error("Page exceeds Custom Loader's HTML complexity limit.");
-    for (const el of nodes.reverse()) cleanElement(el, base);
+    for (const el of nodes.reverse()) cleanElement(el, assetBase);
     const articleIsEmpty = !parsed.body.textContent.trim() &&
       !parsed.body.querySelector("img,video,audio,table");
     if (articleIsEmpty) {
@@ -168,13 +175,16 @@
       'a[data-dss-href],a[data-dss-fragment]{color:#1456a0;text-decoration:underline;cursor:pointer}' +
       'a[data-dss-href]:focus-visible,a[data-dss-fragment]:focus-visible{outline:2px solid currentColor}</style>';
     for (const link of [...parsed.head.querySelectorAll('link[rel~="stylesheet"]')].slice(0, 8)) {
-      const href = resolved(link.getAttribute("href"), base, true);
+      const href = resolved(link.getAttribute("href"), assetBase, true);
       if (href) styles += '<link rel="stylesheet" href="' + escapeHTML(href) +
         '" referrerpolicy="no-referrer">';
     }
     for (const style of [...parsed.head.querySelectorAll("style")].slice(0, MAX_STYLE_BLOCKS)) {
       styles += "<style>" + (style.textContent || "").slice(0, 60_000)
         .replace(/<\/style/gi, "/* removed terminator */") + "</style>";
+    }
+    for (const css of bodyCSS) {
+      styles += "<style>" + css.replace(/<\/style/gi, "/* removed terminator */") + "</style>";
     }
     const csp = [
       "default-src 'none'", "object-src 'none'", "frame-src 'none'",
@@ -189,7 +199,8 @@
       'var a=e.target&&e.target.closest?e.target.closest("a[data-dss-href],a[data-dss-fragment]"):null;' +
       'if(!a)return;e.preventDefault();e.stopPropagation();' +
       'var hash=a.getAttribute("data-dss-fragment");' +
-      'if(hash){try{var id=decodeURIComponent(hash);var el=document.getElementById(id);' +
+      'if(hash!==null){if(!hash){window.scrollTo(0,0);return;}' +
+      'try{var id=decodeURIComponent(hash);var el=document.getElementById(id);' +
       'if(el)el.scrollIntoView({block:"start",behavior:"auto"});}catch(_){ }return;}' +
       'parent.postMessage({type:"dss-custom-loader-navigate",' +
       'url:a.getAttribute("data-dss-href"),token:"' + token + '"},"*");},true);' +
@@ -204,7 +215,7 @@
         '<meta http-equiv="Content-Security-Policy" content="' + escapeHTML(csp) + '">' +
         // srcdoc otherwise resolves relative CSS URLs against GitHub Pages.
         // Restrict the base to the visited site's HTTPS origin in CSP.
-        '<base href="' + escapeHTML(base.href) + '">' +
+        '<base href="' + escapeHTML(assetBase.href) + '">' +
         '<title>' + escapeHTML(title) + '</title>' + styles +
         '<script nonce="' + token + '">' + navigatorScript + '<\/script>' +
         '</head><body>' + parsed.body.innerHTML + '</body></html>'
