@@ -733,7 +733,13 @@ window.openDirectSiteTab = openDirectSiteTab;
 function seussLiteFrame(tab) {
 	const frame = createDirectFrameForTab(tab);
 	frame.title = tab.title || "Seuss Browser page";
-	frame.setAttribute("sandbox", "allow-scripts allow-forms allow-pointer-lock allow-modals allow-downloads");
+	// The first-party offline catalog is maintained as part of this site's
+	// trusted code and needs its own normal origin for loading game assets.
+	// All third-party game pages stay in an opaque-origin sandbox.
+	const trustedCatalog = tab.url === new URL("offline-pack.html", BASE).href;
+	frame.setAttribute("sandbox", trustedCatalog
+		? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals allow-downloads"
+		: "allow-scripts allow-forms allow-pointer-lock allow-modals allow-downloads");
 	frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
 	frame.setAttribute("allowfullscreen", "");
 	frame.referrerPolicy = "strict-origin-when-cross-origin";
