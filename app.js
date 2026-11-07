@@ -101,7 +101,10 @@ function adriftPortalURL(raw = settings.adriftServer) {
 }
 /* ---------- Settings dialog ---------- */
 const dlg = $("settings");
-function syncLabel() { $("engine-label").textContent = ENGINE_NAMES[settings.engine] || "custom engine"; }
+function syncLabel() {
+	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
+		"Seuss Search" : (ENGINE_NAMES[settings.engine] || "custom engine");
+}
 function openSettings() {
 	$("s-engine").value = settings.engine;
 	$("s-proxy-engine").value =
@@ -807,6 +810,7 @@ function showSeussSearch(query, options = {}) {
 	if (!q) return;
 	const {tab,main} = createSeussSearchPane({ ...options, title:"Search: " + q.slice(0,40) });
 	tab.searchQuery = q;
+	activateSiteTab(tab.id);
 	const heading = seussSearchNode("h1", "", "Seuss Search");
 	const explainer = seussSearchNode("p", "seuss-search-note",
 		"Search articles here without embedding another website. For full-web or YouTube results, use the external search links below.");
@@ -888,6 +892,7 @@ function showEmbeddingNotice(target, options = {}) {
 	tab.sourceNotice = true;
 	tab.url = target.href;
 	tab.searchQuery = "";
+	activateSiteTab(tab.id);
 	const host = target.hostname.toLowerCase().replace(/^www\./, "");
 	const isYoutube = ["youtube.com","m.youtube.com","music.youtube.com"].includes(host);
 	const title = isYoutube ? "YouTube can't show its full site here" : "This search site can't be embedded";
