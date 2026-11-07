@@ -31,6 +31,16 @@ const ENGINE_NAMES = {
 	"https://search.brave.com/search?q=%s": "Brave",
 };
 const TRANSPORTS = { libcurl: at("libcurl/index.mjs"), epoxy: at("epoxy/index.mjs") };
+// Only two transport implementations are bundled. Automatic options
+// select fallback order; they are not additional network engines.
+const TRANSPORT_OPTIONS = ["libcurl", "epoxy", "auto-libcurl", "auto-epoxy"];
+const TRANSPORT_LABELS = { libcurl:"libcurl", epoxy:"Epoxy" };
+function transportPreference() {
+	return TRANSPORT_OPTIONS.includes(settings.transport) ? settings.transport : "libcurl";
+}
+function preferredTransport() {
+	return ["epoxy", "auto-epoxy"].includes(transportPreference()) ? "epoxy" : "libcurl";
+}
 const TILES = [
 	["Google", "https://www.google.com", "#4285f4"],
 	["YouTube", "https://www.youtube.com", "#d8262f"],
@@ -204,7 +214,7 @@ function openSettings() {
 			? settings.proxyEngine : "scramjet";
 	$("s-rammerhead-url").value = settings.rammerheadServer || "";
 	$("s-adrift-url").value = settings.adriftServer || "";
-	$("s-transport").value = settings.transport;
+	$("s-transport").value = transportPreference();
 	$("s-wisp").value = settings.wisp;
 	syncWispPreset();
 	clearWispPresetTest();
@@ -268,7 +278,8 @@ $("settings-form").addEventListener("submit", async (event) => {
 		? $("s-proxy-engine").value : "scramjet";
 	settings.rammerheadServer = rawRammerheadServer;
 	settings.adriftServer = rawAdriftServer;
-	settings.transport = $("s-transport").value;
+	settings.transport = TRANSPORT_OPTIONS.includes($("s-transport").value)
+		? $("s-transport").value : DEFAULTS.transport;
 	settings.wisp = selectedWisp;
 	settings.background = $("s-background").value.trim();
 	settings.accent = $("s-accent").value || DEFAULTS.accent;
@@ -294,7 +305,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	} else if (wispChanged || transportChanged || proxyEngineChanged || (performanceChanged && !settings.performanceMode)) {
 		checkWisp();
 		if (ready) {
-			try { await ready; await applyTransport(true); }
+			try { await ready; await configureTransport(true); }
 			catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 		}
 	}
@@ -302,7 +313,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	// If Scramjet is already initialized, update its relay even when the
 	// user leaves Seuss Browser selected as the default browsing engine.
 	if (settings.proxyEngine === "seusslite" && ready && (wispChanged || transportChanged)) {
-		try { await ready; await applyTransport(true); }
+		try { await ready; await configureTransport(true); }
 		catch (err) { setStatus("bad", "Couldn't update the proxy connection: " + (err && err.message || String(err))); }
 	}
 });
@@ -423,22 +434,7 @@ function boot() {
 		});
 		await navigator.serviceWorker.ready;
 		await verifyProxyWorker();
-		try {
-			await applyTransport();
-		} catch (primary) {
-			// Epoxy is a separate Wisp transport already bundled with the site.
-			// Fall back only when the configured transport cannot initialize.
-			if (settings.transport !== "libcurl") throw primary;
-			settings.transport = "epoxy";
-			try {
-				await applyTransport(true);
-				save();
-				setStatus("", "libcurl could not start; switched to Epoxy. Loading websites may now work more reliably.");
-			} catch {
-				settings.transport = "libcurl";
-				throw primary;
-			}
-		}
+		await configureTransport();
 	})();
 	ready.catch(() => { ready = null; });
 	return ready;
@@ -450,8 +446,9 @@ let appliedTransportSettings = null;
 // Serialize transport changes: a network retry and Settings save must not
 // race and replace each other's working Wisp connection.
 let transportChangeQueue = Promise.resolve();
-function applyTransport(force = false) {
-	const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
+function applyTransport(force = false, requestedTransport = preferredTransport()) {
+	const transport = Object.hasOwn(TRANSPORTS, requestedTransport)
+		? requestedTransport : "libcurl";
 	const path = TRANSPORTS[transport];
 	const opts = transport === "epoxy" ? { wisp: settings.wisp } : { websocket: settings.wisp };
 	const signature = JSON.stringify([path, opts]);
@@ -464,6 +461,30 @@ function applyTransport(force = false) {
 	});
 	transportChangeQueue = task.catch(() => {});
 	return task;
+}
+// Fallback only upon a transport initialization failure. Never switch the
+// saved Wisp endpoint or site access policy, and never promise a working
+// destination merely because an initialization call completed.
+async function configureTransport(force = false) {
+	const preference = transportPreference();
+	const first = preferredTransport();
+	try {
+		await applyTransport(force, first);
+		return first;
+	} catch (primary) {
+		if (preference === "epoxy") throw primary;
+		const backup = first === "libcurl" ? "epoxy" : "libcurl";
+		try {
+			await applyTransport(true, backup);
+		} catch (secondary) {
+			throw new Error(TRANSPORT_LABELS[first] + " and " +
+				TRANSPORT_LABELS[backup] + " could not initialize: " +
+				String(secondary?.message || secondary).slice(0,160));
+		}
+		setStatus("", TRANSPORT_LABELS[first] + " failed to initialize; using " +
+			TRANSPORT_LABELS[backup] + " with the selected Wisp relay.");
+		return backup;
+	}
 }
 
 /* ---------- URL / search parsing ---------- */
@@ -1616,8 +1637,9 @@ async function reconnectConfiguredWisp() {
 	setStatus("", "Checking the Scramjet service worker and configured transport…");
 	try {
 		await boot();
-		await applyTransport(true);
-		setStatus("ok", "Scramjet worker and transport initialized. Select Test Wisp to check relay connectivity.");
+		const chosen = await configureTransport(true);
+		setStatus("ok", "Scramjet initialized with " + TRANSPORT_LABELS[chosen] +
+			". Select Test Wisp to check relay connectivity.");
 	} catch (err) {
 		setStatus("bad", "Scramjet initialization failed (not necessarily a Wisp failure): " +
 			(err && err.message || String(err)));
