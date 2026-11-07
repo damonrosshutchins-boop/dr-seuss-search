@@ -204,3 +204,28 @@ first-party results page retains explicit full-web provider links for wider
 coverage. If the GUST connection or an API source fails, the results page
 shows a source-level error rather than opening the GUST browser. Existing
 Scramjet search behavior remains unchanged.
+
+
+## GUST loading method never displays the GUST browser UI
+
+The previous engine-only CSS missed GUST's separate `.navbar`, leaving
+GUST's own address bar visible when users opened a website. The embedded
+entrypoint now starts with `seuss-engine-view` on its XHTML body before
+external scripts load. Strict structural CSS paints **only** GUST's page
+iframe, not its navigation bar, tabs, new-tab homepage, bookmarks, developer
+panels, splash or vendor error screen. The user sees Seuss Search's search
+bar, tabs, address bar, back/forward/reload and own error messages.
+
+The GUST runtime still implements HTTP requests and page rewriting via
+libcurl and Wisp, behind the isolated iframe. When that runtime fails, its
+error flows to Seuss Search and fails closed, rather than opening a hidden
+vendor action dialog. Seuss Search receives explicit page-loading,
+page-loaded and page-error messages to update its first-party UI.
+Search-result links (Wikipedia, books and programming Q&A) now open in
+Seuss Search's own tab when Scramjet or GUST mode is selected; the site
+applies the usual admin and blocked-domain checks before navigating.
+
+No website filter, server-side admin check or other safety rule is disabled.
+Unreliable relays, network restrictions and incompatible websites can still
+cause a load error; this is an interface isolation and error-handling fix,
+not a guarantee that all websites work.

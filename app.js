@@ -1019,6 +1019,21 @@ function seussSearchExternalLink(label, href) {
 	link.textContent = label;
 	return link;
 }
+// Search results open in a Seuss Search tab when a full site engine is
+// selected. External provider links explicitly labeled "new tab" retain
+// their ordinary behavior. Domain and admin checks still run in go().
+function seussSearchResultLink(label, href) {
+	const link = seussSearchExternalLink(label, href);
+	link.addEventListener("click", event => {
+		if (event.defaultPrevented || event.button !== 0 ||
+			event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
+			!requireSeussAccount() ||
+			!["gust","scramjet"].includes(settings.proxyEngine)) return;
+		event.preventDefault();
+		void go(href, {newTab:true});
+	});
+	return link;
+}
 function seussSearchNode(tag, className, value) {
 	const el = document.createElement(tag);
 	if (className) el.className = className;
@@ -1068,7 +1083,7 @@ function ensureGustSearchEngine(tab) {
 	tab.gustReady = false;
 	tab.directFrame = frame;
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	frame.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
+	frame.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
 	return tab.gustReadyPromise;
 }
 async function fetchSeussSourceJson(tab, url, signal) {
@@ -1306,7 +1321,7 @@ function showSeussSearch(query, options = {}) {
 				if (typeof book.title !== "string" || typeof book.key !== "string" ||
 					!/^\/works\/OL\d+W$/.test(book.key)) continue;
 				const item = seussSearchNode("article","seuss-search-result");
-				item.append(seussSearchExternalLink(book.title,"https://openlibrary.org" + book.key));
+				item.append(seussSearchResultLink(book.title,"https://openlibrary.org" + book.key));
 				const authors = Array.isArray(book.author_name)
 					? book.author_name.filter(a=>typeof a==="string").slice(0,2).join(", ") : "";
 				const details = [authors,Number.isInteger(book.first_publish_year)
@@ -1335,7 +1350,7 @@ function showSeussSearch(query, options = {}) {
 				const item=seussSearchNode("article","seuss-search-result");
 				const cleanTitle=question.title.replace(/&amp;/g,"&").replace(/&lt;/g,"<")
 					.replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-				item.append(seussSearchExternalLink(cleanTitle,
+				item.append(seussSearchResultLink(cleanTitle,
 					"https://stackoverflow.com/questions/"+question.question_id));
 				if(Array.isArray(question.tags))
 					item.append(seussSearchNode("p","",
@@ -1384,7 +1399,7 @@ function showSeussSearch(query, options = {}) {
 				const article = seussSearchNode("article", "seuss-search-result");
 				const linkUrl = "https://en.wikipedia.org/wiki/" +
 					encodeURIComponent(hit.title.replaceAll(" ", "_"));
-				article.append(seussSearchExternalLink(hit.title, linkUrl));
+				article.append(seussSearchResultLink(hit.title, linkUrl));
 				if (typeof hit.snippet === "string") {
 					// Search snippets are untrusted; display text, never HTML.
 					const preview = hit.snippet.replace(/<[^>]*>/g, "").slice(0,350);
@@ -1713,6 +1728,7 @@ async function goGust(url, options = {}) {
 	let tab = !options.newTab && currentSiteTab()?.gust &&
 		!currentSiteTab()?.gustSearchEngine ? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", siteTabTitle(url));
+	$("error").hidden = true;
 	tab.type = "direct";
 	tab.gust = true;
 	tab.title = siteTabTitle(url);
@@ -1746,11 +1762,12 @@ async function goGust(url, options = {}) {
 		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
 	});
 	iframe.addEventListener("error", () => {
-		if (activeSiteTabId === tab.id) showError("GUST could not start.",
-			"The local GUST browser interface failed to load.");
+		if (activeSiteTabId === tab.id) showError(
+			"Seuss Search's page loader couldn't start.",
+			"The website-rendering component failed to load.");
 	});
 	const relay = validateWispAddress(settings.wisp) || DEFAULTS.wisp;
-	iframe.src = at("gust/site.svg") + "?seuss=1&wisp=" + encodeURIComponent(relay);
+	iframe.src = at("gust/site.svg") + "?seuss=1&build=seuss-only2&wisp=" + encodeURIComponent(relay);
 	activateSiteTab(tab.id);
 }
 // Every request from the GUST shell must be allowed by the site's server
@@ -1758,7 +1775,8 @@ async function goGust(url, options = {}) {
 window.addEventListener("message", async event => {
 	const data = event.data;
 	if (!data || !["dss-gust-policy","dss-gust-active","dss-gust-location",
-		"dss-gust-ready","dss-gust-error","dss-gust-json-result"].includes(data.type)) return;
+		"dss-gust-ready","dss-gust-error","dss-gust-json-result",
+		"dss-gust-page-loading","dss-gust-page-loaded","dss-gust-page-error"].includes(data.type)) return;
 	const tab = siteTabs.find(item => item.gust &&
 		item.directFrame?.contentWindow === event.source);
 	if (!tab) return;
@@ -1784,6 +1802,31 @@ window.addEventListener("message", async event => {
 			data.ok ? data.data : null);
 		return;
 	}
+	if (data.type === "dss-gust-page-loading") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = true;
+		if (activeSiteTabId === tab.id) {
+			$("error").hidden = true;
+			activateSiteTab(tab.id);
+		}
+		return;
+	}
+	if (data.type === "dss-gust-page-loaded") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) activateSiteTab(tab.id);
+		return;
+	}
+	if (data.type === "dss-gust-page-error") {
+		if (tab.gustSearchEngine) return;
+		tab.loading = false;
+		if (activeSiteTabId === tab.id) {
+			activateSiteTab(tab.id);
+			showError("This website couldn't be loaded in Seuss Search.",
+				String(data.message || "The connection or page failed.").slice(0,240));
+		}
+		return;
+	}
 	if (data.type === "dss-gust-error") {
 		tab.gustReady = false;
 		tab.loading = false;
@@ -1796,8 +1839,9 @@ window.addEventListener("message", async event => {
 		}
 		if (activeSiteTabId === tab.id) {
 			activateSiteTab(tab.id);
-			setStatus("bad", "Seuss Search (GUST engine): " +
+			showError("Seuss Search's loading engine couldn't start.",
 				String(data.message || "Unknown error").slice(0,200));
+			setStatus("bad", "Website loading engine failed to initialize.");
 		}
 		return;
 	}

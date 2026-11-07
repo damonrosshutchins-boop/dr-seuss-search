@@ -5962,6 +5962,8 @@ parent.postMessage({ t: 'ready' }, '*');
       const loadedTab = tabs.find((t) => t.id === initiatorTabId);
       if (loadedTab) loadedTab.blobSrc = blobUrl;
       frame.onload = null;
+      if (seussEngineView && window.parent !== window)
+        window.parent.postMessage({type:"dss-gust-page-loaded"},"*");
     };
     setTimeout(() => {
       frame.style.transition = "opacity 0.2s ease-out";
@@ -6003,6 +6005,11 @@ parent.postMessage({ t: 'ready' }, '*');
     url = normUrl(url);
     if (!url) {
       log("Invalid URL", "err");
+      return;
+    }
+    if (seussEngineView && !/^https?:\/\//i.test(url)) {
+      // The embedding page is a renderer, not a second GUST browser.
+      // Never open GUST home, settings or other vendor-only pages.
       return;
     }
     if (url === HOME_INTERNAL) {
@@ -6057,6 +6064,8 @@ parent.postMessage({ t: 'ready' }, '*');
     }
 
     isErrorPage = false;
+    if (seussEngineView && window.parent !== window)
+      window.parent.postMessage({type:"dss-gust-page-loading"},"*");
 
     const prevCtrl = tabAbortControllers.get(initiatorTabId);
     if (prevCtrl) prevCtrl.abort();
@@ -6827,6 +6836,8 @@ parent.postMessage({ t: 'ready' }, '*');
           loadedTab.blobSrc = newBlobUrl;
         }
         frame.onload = null;
+        if (seussEngineView && window.parent !== window)
+          window.parent.postMessage({type:"dss-gust-page-loaded"},"*");
       };
       setTimeout(() => {
         frame.style.transition = "opacity 0.2s ease-out";
@@ -7094,6 +7105,16 @@ parent.postMessage({ t: 'ready' }, '*');
       log("Failed: " + e.message, "err");
       progressBar.classList.add("error");
       hideOverlay();
+      if (seussEngineView) {
+        // Visible errors are handled by the Seuss Search parent UI.
+        // Don't render the separate GUST-branded error page.
+        if (window.parent !== window)
+          window.parent.postMessage({
+            type:"dss-gust-page-error",
+            message:String(e?.message || e).slice(0,240)
+          },"*");
+        return;
+      }
       setStatus("error", "Error");
       setTabTitle("Error");
       currentDoc = null;
@@ -8481,6 +8502,13 @@ parent.postMessage({ t: 'ready' }, '*');
         if(window.parent !== window)
           window.parent.postMessage({type:"dss-gust-error",message:reason},"*");
         log("libcurl failed to initialize: " + reason, "err");
+        if (seussEngineView) {
+          // Fail closed instead of displaying a hidden vendor dialog
+          // or switching to an uncontrolled direct network fetch.
+          curl = null;
+          hideOverlay();
+          return;
+        }
         log("Waiting for user to choose how to proceed...", "warn");
         await showOverlayError(reason);
         log(
