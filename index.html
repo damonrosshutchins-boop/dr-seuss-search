@@ -632,11 +632,12 @@
 				<select id="s-proxy-engine">
 					<option value="seusslite">Seuss Browser (lightweight · no relay)</option>
 					<option value="scramjet">Scramjet (built in)</option>
+					<option value="gust" id="s-gust-option" disabled hidden>GUST (experimental · site admins only)</option>
 					<option value="rammerhead">Rammerhead (separate server)</option>
 					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
 					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
+				<small><strong>Seuss Browser</strong> opens websites that permit embedding without Wisp. <strong>GUST</strong> is a separate browser in an in-site tab, visible only to server-verified admins; its network requests still follow Seuss Search's blocked-domain rules. <strong>Ultraviolet</strong> remains unavailable on this origin.</small>
 			</label>
 			<label class="row"><input type="checkbox" id="s-embed-search" /> Open full-web searches with Scramjet inside this site</label>
 			<small>Optional. Search engines refuse normal iframes, so this mode uses the existing proxied browser instead. Requires a working service worker and Wisp connection. Uncheck to use Seuss Search's built-in article results.</small>
@@ -746,7 +747,7 @@
 		</form>
 	</dialog>
 
-	<script src="app.js?v=20261106-connectionfix1"></script>
+	<script src="app.js?v=20261106-gustadmin1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
