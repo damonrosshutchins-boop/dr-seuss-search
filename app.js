@@ -171,6 +171,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	save();
 	syncLabel();
 	$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
+	$("retry-proxy").hidden = $("retry-wisp").hidden;
 	if (settings.proxyEngine === "rammerhead") {
 		setStatus("", "Rammerhead uses your separately hosted server.");
 	} else if (settings.proxyEngine === "adrift") {
@@ -1132,32 +1133,37 @@ function checkWisp() {
 		finish("bad", "Wisp closed before replying" + reason + ". Retry or ask your network administrator.");
 	});
 }
-// A standalone WebSocket probe does not reconfigure the transport the proxy
-// actually uses. Retry refreshes that transport first, then checks the relay.
+// Test the Wisp handshake independently of Scramjet so browser service
+// worker failures cannot be mistaken for blocked/broken WebSocket relays.
 async function reconnectConfiguredWisp() {
 	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
-	const retryButton = $("retry-wisp");
+	if (!requireSeussAccount()) return;
+	const retryButton = $("retry-proxy");
 	retryButton.disabled = true;
-	setStatus("", "Refreshing Scramjet's saved Wisp connection…");
+	setStatus("", "Checking the Scramjet service worker and configured transport…");
 	try {
 		await boot();
 		await applyTransport(true);
-		checkWisp();
+		setStatus("ok", "Scramjet worker and transport initialized. Select Test Wisp to check relay connectivity.");
 	} catch (err) {
-		setStatus("bad", "Scramjet connection setup failed: " + (err && err.message || String(err)));
+		setStatus("bad", "Scramjet initialization failed (not necessarily a Wisp failure): " +
+			(err && err.message || String(err)));
 	} finally {
 		retryButton.disabled = false;
 	}
 }
 $("retry-wisp").addEventListener("click", () => {
+	if (!requireSeussAccount()) return;
 	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) {
-		setStatus("", "Choose Scramjet or Ultraviolet to test the shared Wisp connection.");
+		setStatus("", "Choose Scramjet or Ultraviolet to test Wisp.");
 		return;
 	}
-	reconnectConfiguredWisp();
+	checkWisp();
 });
+$("retry-proxy").addEventListener("click", reconnectConfiguredWisp);
 window.addEventListener("online", () => {
-	if (["scramjet","ultraviolet"].includes(settings.proxyEngine)) reconnectConfiguredWisp();
+	if (requireSeussAccount() && ["scramjet","ultraviolet"].includes(settings.proxyEngine))
+		checkWisp();
 });
 
 /* ---------- First-visit guide ---------- */
@@ -1179,6 +1185,7 @@ try {
 applyAppearance();
 syncLabel();
 $("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
+$("retry-proxy").hidden = $("retry-wisp").hidden;
 if (settings.proxyEngine === "rammerhead") {
 	setStatus("", "Rammerhead is selected. Configure its server in Settings.");
 } else if (settings.proxyEngine === "adrift") {
