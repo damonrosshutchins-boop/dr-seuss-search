@@ -1448,6 +1448,9 @@ async function openCustomLoader(input, options = {}) {
 	let tab = !options.newTab && currentSiteTab()?.customEngine ? currentSiteTab() : null;
 	if (!tab) tab = createSiteTab("direct", siteTabTitle(target.href));
 	if (tab.customAbort) tab.customAbort.abort();
+	// Invalidate navigation messages from the old document while a new
+	// navigation is pending. A stale frame must not change tab history.
+	tab.customToken = "";
 	const controller = new AbortController();
 	tab.customAbort = controller;
 	tab.customEngine = true;
@@ -1470,7 +1473,10 @@ async function openCustomLoader(input, options = {}) {
 		if (!siteTabs.includes(tab) || tab.customAbort !== controller ||
 			controller.signal.aborted) return;
 		tab.customToken = page.token;
-		if (!options.fromHistory) {
+		tab.title = page.title || siteTabTitle(target.href);
+		if (Number.isInteger(options.historyIndex)) {
+			tab.customHistoryIndex = options.historyIndex;
+		} else if (!options.fromHistory) {
 			tab.customHistory = (tab.customHistory || []).slice(0,
 				(tab.customHistoryIndex ?? -1) + 1);
 			tab.customHistory.push(target.href);
@@ -1497,10 +1503,9 @@ async function navigateCustomHistory(tab, direction) {
 	const next = (tab.customHistoryIndex ?? -1) + direction;
 	if (next < 0 || next >= tab.customHistory.length) return;
 	const url = tab.customHistory[next];
-	if (typeof window.dssSitePolicyCheck !== "function" ||
-		!(await window.dssSitePolicyCheck(url))) return;
-	tab.customHistoryIndex = next;
-	await openCustomLoader(url, { fromHistory:true });
+	// The index changes only after a successful fetch. A denied or failed
+	// destination should not corrupt Back/Forward navigation state.
+	await openCustomLoader(url, { fromHistory:true, historyIndex:next });
 }
 // Only the intended sandboxed iframe can send a navigation request.
 // The parent's go() independently checks the requested site's rules.
