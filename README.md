@@ -125,7 +125,8 @@ history, reload, and useful failure messages are supported. Requests time out af
 not send a Content-Length header. Responsive image `srcset` and common lazy
 image attributes are supported when their URLs stay HTTPS and same-origin.
 The viewer also preserves static picture fallbacks, semantic article elements,
-same-origin audio/video with user controls, and relative CSS URLs resolved
+same-origin audio/video with user controls, responsive viewport metadata,
+safe body/html CSS classes, and relative CSS URLs resolved
 against the original HTTPS page rather than the GitHub Pages host (including
 permitted same-origin `<base href>` declarations). In-page anchors scroll
 without refetching, and a limited number of inline body styles are retained.
