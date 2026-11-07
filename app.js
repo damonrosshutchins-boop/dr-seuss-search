@@ -1484,14 +1484,18 @@ function showEmbeddingNotice(target, options = {}) {
 	main.append(
 		seussSearchNode("h1", "", title),
 		seussSearchNode("p", "seuss-search-note",
-			"Some websites forbid ordinary iframe embedding. The existing Scramjet " +
-			"browser is an alternative, but needs a working service worker and Wisp connection."),
+			options.proxyFailure
+				? "The Scramjet service worker did not initialize or intercept the route. " +
+					"No encoded website URL was opened; GitHub Pages has no real page at that path."
+				: "Some websites forbid ordinary iframe embedding. The existing Scramjet " +
+					"browser is an alternative, but needs a working service worker and Wisp connection."),
 		...(options.proxyFailure ? [
 			seussSearchNode("p", "seuss-search-status",
 				"Proxy startup failed: " + options.proxyFailure.slice(0,240))
 		] : []),
-		seussSearchButton("Try Scramjet inside Seuss Search", () => {
-			go(target.href, { forceScramjet:true, newTab:true });
+		seussSearchButton(options.proxyFailure ? "Retry Scramjet" :
+			"Try Scramjet inside Seuss Search", () => {
+			void go(target.href,{forceScramjet:true,newTab:true});
 		}),
 		seussSearchExternalLink("Open original website (new browser tab)", target.href)
 	);
@@ -1984,8 +1988,14 @@ async function go(input, options = {}) {
 	if (!tab || (tab.type !== "home" && tab.type !== "web")) tab = createSiteTab("home", "New Tab");
 	$("error").hidden = true;
 	try {
+		const wasInitialized = !!ready;
 		await boot();
+		// A tab can outlive the service worker that originally initialized
+		// it. Check the intercepted URL again before each later navigation.
+		if (wasInitialized) await verifyScramjetFetchInterception();
 	} catch (err) {
+		// Allow Retry Scramjet to register and recheck a newer worker.
+		ready = null;
 		// No encoded /scramjet/ navigation unless our worker actually
 		// intercepted the health probe. Avoid GitHub Pages' 404.
 		const detail = String(err?.message || err);
