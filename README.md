@@ -54,3 +54,7 @@ The files in `scram/`, `baremux/`, `libcurl/`, and `epoxy/` are copied from the 
 ## License
 
 AGPL-3.0, the same license as Scramjet. "Dr. Seuss Search" is a fan-made name and is not affiliated with Dr. Seuss Enterprises.
+
+
+## Websites that refuse to connect
+The lightweight Seuss Browser is a normal sandboxed iframe. Sites such as Reddit can prohibit iframe embedding with CSP or X-Frame-Options; the error does not mean the site is down. Common frame-blocking hosts are now routed to the existing Scramjet option, and other direct-browser pages offer **Try with Scramjet**. Search pages use Scramjet when in-site search is enabled. Scramjet requires its service worker and Wisp connection; if either fails, an in-site explanation and an external link are offered. This does not guarantee that every site or network will allow loading.
