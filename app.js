@@ -267,7 +267,7 @@ $("settings-form").addEventListener("submit", async (event) => {
 	window.dispatchEvent(new Event("dss-performance-mode-change"));
 	save();
 	syncLabel();
-	$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
+	$("retry-wisp").hidden = ["rammerhead","adrift"].includes(settings.proxyEngine);
 	$("retry-proxy").hidden = $("retry-wisp").hidden;
 	if (settings.proxyEngine === "seusslite") {
 		setStatus("ok", "Seuss Browser ready. Native browser loading doesn't need Wisp or a service worker.");
@@ -332,7 +332,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-404fix-1";
+const PROXY_WORKER_VERSION = "connection-startup-fix-20261106";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -497,18 +497,18 @@ async function chooseWispRelay(preferred) {
 function applyTransport(force = false) {
 	const task = transportChangeQueue.catch(() => {}).then(async () => {
 		if (!connection) throw new Error("The proxy transport has not initialized.");
-		const preferred = settings.wisp;
+		const preferred = validateWispAddress(settings.wisp);
+		if (!preferred) throw new Error("The configured Wisp URL is invalid.");
 		const transport = settings.transport === "epoxy" ? "epoxy" : "libcurl";
 		const path = TRANSPORTS[transport];
-		// Reuse a previously configured connection, unless the settings or
-		// an explicit retry request changed it.
+		// GUST-style connection ordering: configure the actual HTTP transport
+		// first. An additional short-lived Wisp diagnostic WebSocket must not
+		// prevent a working transport from loading pages.
 		if (!force && activeWispAddress && appliedTransportSettings) {
-			const expected = transport === "epoxy" ?
+			const currentOptions = transport === "epoxy" ?
 				{wisp:activeWispAddress} : {websocket:activeWispAddress};
-			if (appliedTransportSettings === JSON.stringify([path,expected,preferred]))
-				return;
+			if (appliedTransportSettings === JSON.stringify([path,currentOptions,preferred])) return;
 		}
-		let chosen = await chooseWispRelay(preferred);
 		const connect = async (address) => {
 			const opts = transport === "epoxy" ? {wisp:address} : {websocket:address};
 			await connection.setTransport(path, [opts]);
@@ -516,17 +516,20 @@ function applyTransport(force = false) {
 			appliedTransportSettings = JSON.stringify([path,opts,preferred]);
 		};
 		try {
-			await connect(chosen);
+			await connect(preferred);
 		} catch (primaryError) {
-			// Only fall back for a transport failure, never a service-worker
-			// registration failure (that is handled outside this function).
-			if (chosen === WISP_FALLBACK) throw primaryError;
-			await testWispHandshake(WISP_FALLBACK);
-			await connect(WISP_FALLBACK);
-			chosen = WISP_FALLBACK;
+			if (preferred === WISP_FALLBACK) throw primaryError;
+			// If configuring the preferred transport actually fails, attempt
+			// the requested backup. Do not permanently change user settings.
+			try {
+				await connect(WISP_FALLBACK);
+				setStatus("", "Preferred transport failed; using backup mages.io/wisp/. Test Wisp to check connectivity.");
+			} catch (fallbackError) {
+				throw new Error("Preferred and backup transport setup both failed: " +
+					(primaryError?.message || primaryError) + "; " +
+					(fallbackError?.message || fallbackError));
+			}
 		}
-		if (chosen === WISP_FALLBACK && preferred !== WISP_FALLBACK)
-			setStatus("", "Selected Wisp unavailable; Scramjet is using backup wss://mages.io/wisp/. Your preferred relay is still saved.");
 	});
 	transportChangeQueue = task.catch(() => {});
 	return task;
@@ -1751,7 +1754,7 @@ async function checkWisp() {
 // Test the Wisp handshake independently of Scramjet so browser service
 // worker failures cannot be mistaken for blocked/broken WebSocket relays.
 async function reconnectConfiguredWisp() {
-	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
+	if (!["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine)) return;
 	if (!requireSeussAccount()) return;
 	const retryButton = $("retry-proxy");
 	retryButton.disabled = true;
@@ -1759,7 +1762,9 @@ async function reconnectConfiguredWisp() {
 	try {
 		await boot();
 		await applyTransport(true);
-		setStatus("ok", "Scramjet worker and transport initialized. Select Test Wisp to check relay connectivity.");
+		setStatus("ok", "Scramjet worker and transport initialized. Relay: " +
+			(activeWispAddress || "not configured") +
+			". Select Test Wisp to check relay connectivity; loading a website is a separate test.");
 	} catch (err) {
 		setStatus("bad", "Scramjet initialization failed (not necessarily a Wisp failure): " +
 			(err && err.message || String(err)));
@@ -1769,15 +1774,15 @@ async function reconnectConfiguredWisp() {
 }
 $("retry-wisp").addEventListener("click", () => {
 	if (!requireSeussAccount()) return;
-	if (!["scramjet","ultraviolet"].includes(settings.proxyEngine)) {
-		setStatus("", "Choose Scramjet or Ultraviolet to test Wisp.");
+	if (!["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine)) {
+		setStatus("", "Choose Seuss Browser or Scramjet to test Wisp.");
 		return;
 	}
 	checkWisp();
 });
 $("retry-proxy").addEventListener("click", reconnectConfiguredWisp);
 window.addEventListener("online", () => {
-	if (requireSeussAccount() && ["scramjet","ultraviolet"].includes(settings.proxyEngine))
+	if (requireSeussAccount() && ["seusslite","scramjet","ultraviolet"].includes(settings.proxyEngine))
 		checkWisp();
 });
 
@@ -1799,7 +1804,7 @@ try {
 /* ---------- Start ---------- */
 applyAppearance();
 syncLabel();
-$("retry-wisp").hidden = !["scramjet","ultraviolet"].includes(settings.proxyEngine);
+$("retry-wisp").hidden = ["rammerhead","adrift"].includes(settings.proxyEngine);
 $("retry-proxy").hidden = $("retry-wisp").hidden;
 if (settings.proxyEngine === "seusslite") {
 	setStatus("ok", "Seuss Browser ready. Direct pages load without Wisp or a service worker.");
