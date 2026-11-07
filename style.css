@@ -1606,3 +1606,17 @@ body:not(.site-authenticated) #site-login:not([open]) {
   outline: 3px solid var(--teal);
   outline-offset: 2px;
 }
+
+
+
+/* Wisp relay chooser with an on-demand WebSocket handshake test. */
+.wisp-relay-test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.wisp-relay-test span { flex: 1 1 180px; font: 700 .82rem/1.4 var(--body); color: var(--ink-soft); }
+.wisp-relay-test button:disabled { opacity: .65; cursor: wait; }
+.settings #s-wisp-preset { width: 100%; min-width: 0; }
+.settings #s-wisp { width: 100%; min-width: 0; box-sizing: border-box; }
