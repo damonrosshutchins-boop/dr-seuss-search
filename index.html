@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261107-retro-ui1" />
+	<link rel="stylesheet" href="style.css?v=20261107-ddg-offlinefix3" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -274,15 +274,19 @@
 				<button type="button" class="chip" id="games-close">Close</button>
 			</div>
 			<div id="games-main-view">
-			<p class="library-note">Five built-in arcade games can run without Wi-Fi. You can also save individual games from the 352-game collection. Other featured titles open from external websites and still require internet.</p>
+			<p class="library-note">28 self-contained arcade/homebrew games can run without Wi-Fi once their pages are saved. You can also save individual games from the 352-game collection. Other featured titles open from external websites and still require internet.</p>
       <div class="library-offline-tools" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">
         <button class="chip" id="library-enable-offline" type="button">Enable offline access</button>
+        <a href="offline-games.html">Open 28-game offline hub</a>
         <a href="offline-arcade.html">Open arcade directly</a>
         <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download standalone arcade</a>
         <a href="offline-pack.html">Open saved games directly</a>
-        <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache both game pages. Save catalog games one at a time.</span>
+        <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache the game pages. Bookmark the offline hub to use it when the main site is unavailable.</span>
       </div>
 			<div class="library-grid">
+        <button type="button" class="library-card" data-local-url="offline-games.html">
+          <span class="library-icon" style="background:#236454;color:#e4fff1">28</span><strong>Offline Retro Games</strong><span>Direct hub · cached without Wi-Fi</span>
+        </button>
         <button type="button" class="library-card" data-local-url="console-emulators.html">
           <span class="library-icon" style="background:#385d81;color:#fff">64</span>
           <strong>NES / N64 / PS1</strong><span>45 homebrew games and demo selections</span>
@@ -371,6 +375,7 @@
     <div class="retro-shortcuts">
       <a href="retro-arcade.html" download="Seuss-Retro-Arcade.html">Download 22-game arcade</a>
       <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download five-game arcade</a>
+      <a href="offline-games.html">Open the full offline game hub</a>
       <a href="offline-pack.html">Saved HTML games catalog (up to 352)</a>
     </div>
     <label class="retro-search-label">Search offline games
@@ -687,7 +692,7 @@
 	<dialog id="settings" class="settings">
 		<form method="dialog" id="settings-form">
 			<h2>Settings</h2>
-			<label>Search engine
+			<label>Search engine (other browsing modes)
 				<select id="s-engine">
 					<option value="https://search.brave.com/search?q=%s">Brave</option>
 					<option value="https://www.bing.com/search?q=%s">Bing</option>
@@ -704,10 +709,10 @@
 					<option value="ultraviolet">Ultraviolet (unavailable on this site)</option>
 					<option value="adrift">Adrift (experimental WebRTC portal)</option>
 				</select>
-				<small><strong>Custom Loader</strong> uses regular HTTPS fetches to display CORS-permitted HTML with same-origin resource links and a sandboxed viewer. It needs no service worker or Wisp, but it cannot open sites that reject CORS; page scripts and forms are disabled. Direct resource requests remain visible to the browser and network. <strong>Seuss Browser</strong> uses ordinary embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
+				<small><strong>Custom Loader</strong> searches with DuckDuckGo instead of Seuss Search. Full DuckDuckGo search results may not load inside a frame, so a direct DuckDuckGo results link is provided. Website URLs still use CORS-permitted HTTPS HTML in a sandboxed viewer without a service worker or Wisp; page scripts and forms are disabled. <strong>Seuss Browser</strong> uses ordinary embedding without Wisp. <strong>Ultraviolet</strong> cannot run securely on this login-hosting origin. Selecting it now shows an explanation and a direct Seuss Browser option, rather than navigating to an Ultraviolet or Scramjet 404. Existing moderator permissions are unchanged.</small>
 			</label>
 			<label class="row"><input type="checkbox" id="s-embed-search" /> Try to embed search websites inside Seuss Browser</label>
-			<small>Optional. Search websites such as Google, Brave and YouTube may refuse embedding. Firefox will still enforce their security settings. Uncheck this to use Seuss Search's built-in article results.</small>
+			<small>Optional for Seuss Browser. DuckDuckGo and other search websites may refuse embedding; browser protections are respected. Custom Loader text searches always open the DuckDuckGo search pane.</small>
 			<label>Rammerhead server URL
 				<input type="url" id="s-rammerhead-url" placeholder="https://your-rammerhead-server.example/" spellcheck="false" />
 				<small>Use the HTTPS address of a Rammerhead server you trust. Its session links are private; never share them.</small>
@@ -848,7 +853,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261107-expanded-console-2"></script>
+	<script src="app.js?v=20261107-ddg-offlinefix3"></script>
   <script src="retro-ui.js?v=20261107-expanded-console-2"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
