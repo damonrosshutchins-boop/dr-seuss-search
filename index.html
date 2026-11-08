@@ -283,6 +283,10 @@
         <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache both game pages. Save catalog games one at a time.</span>
       </div>
 			<div class="library-grid">
+        <button type="button" class="library-card" data-local-url="console-emulators.html">
+          <span class="library-icon" style="background:#385d81;color:#fff">64</span>
+          <strong>NES / N64 / PS1</strong><span>Homebrew games · emulator previews</span>
+        </button>
         <button type="button" class="library-card retro-launcher" id="open-retro" aria-controls="retro-view" aria-expanded="false">
           <span class="library-icon" style="background:#23465c;color:#a3f0d7">🕹️</span><strong>Retro Arcade &amp; Emulators</strong><span>27 offline games · 5 ready-to-play DOS classics</span>
         </button>
@@ -360,6 +364,7 @@
   <div class="retro-categories" role="group" aria-label="Retro arcade subcategories">
     <button type="button" class="retro-category" data-retro-category="offline" aria-pressed="true"><strong>Offline Arcade</strong><span>27 ready-to-play games</span></button>
     <button type="button" class="retro-category" data-retro-category="emulators" aria-pressed="false"><strong>Ready-to-Play Emulators</strong><span>7 emulator choices · no files to upload</span></button>
+    <button type="button" class="retro-category" data-retro-category="consoles" aria-pressed="false"><strong>Console Games</strong><span>NES · N64 · PlayStation 1</span></button>
   </div>
   <section id="retro-offline-section" aria-label="Offline arcade games">
     <p class="retro-note"><strong>No Wi-Fi required after saving the page.</strong> Play instantly, select Enable offline access in Games while connected, or download the single-file game page. Neither arcade requires a ROM, BIOS, or online service.</p>
@@ -381,6 +386,19 @@
     <p id="retro-cache-status" class="retro-counter" role="status" aria-live="polite">First online visit: prepare the DOS assets here to use the separate DOS Arcade page offline.</p>
     <div class="retro-grid" id="retro-emulator-grid"></div>
     <p class="retro-note"><strong>Offline note:</strong> You can save the DOSBox assets and bundled games while connected, but the regular VM interface and some browser emulator features may still need an online session. The dedicated DOS Arcade page provides a simpler offline launch option.</p>
+  </section>
+  <section id="retro-console-section" aria-label="NES Nintendo 64 PlayStation 1 emulator games" hidden>
+    <p class="retro-note"><strong>Play without supplying a ROM:</strong> NES LJ65 is embedded and works fully offline. Nintendo 64 has a free CC0 homebrew sample, and PlayStation has an official online homebrew demo collection. Other emulator samples use EmulatorJS and need a first online load.</p>
+    <div class="retro-shortcuts">
+      <a href="console-emulators.html">Open all three consoles</a>
+      <a href="nes-homebrew.html" download="NES-LJ65-Offline.html">Save fully offline NES emulator + game</a>
+    </div>
+    <div class="retro-grid" id="retro-console-grid"></div>
+    <div class="retro-shortcuts">
+      <button type="button" class="chip" id="retro-cache-console">Prepare offline console files</button>
+    </div>
+    <p id="retro-cache-console-status" class="retro-counter" role="status" aria-live="polite">Optional: saves supported NES/N64/PS1 browser cores and free sample files. PS1 hosted demos still need internet; offline console emulation is experimental.</p>
+    <p class="retro-note"><strong>No setup needed:</strong> NES LJ65 launches directly. The official PS1 demo disc also starts without any BIOS or game upload, but its external host requires internet. N64 homebrew needs its emulator core downloaded first.</p>
   </section>
 </section>
 
@@ -826,8 +844,8 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261107-retro-arcade1"></script>
-  <script src="retro-ui.js?v=20261107-arcade-category1"></script>
+	<script src="app.js?v=20261107-nes-n64-ps1-1"></script>
+  <script src="retro-ui.js?v=20261107-nes-n64-ps1-1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
