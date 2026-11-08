@@ -2074,8 +2074,9 @@ function addOriginalGameLinks() {
 		// WASM.RIP games launch in the actual Scramjet proxy by default.
 		// Users can still try direct embedding in a separate in-site tab,
 		// which may work better for large WebAssembly/browser-storage games.
+		let embed = null;
 		if (card.classList.contains("wasm-rip-game")) {
-			const embed = document.createElement("button");
+			embed = document.createElement("button");
 			embed.type = "button";
 			embed.className = "game-embed-link";
 			embed.textContent = "Try direct embed (no proxy)";
@@ -2085,7 +2086,6 @@ function addOriginalGameLinks() {
 					title:card.querySelector("strong")?.textContent?.trim()
 				});
 			});
-			group.append(card, embed);
 		}
 		const fallback = document.createElement("a");
 		fallback.className = "game-original-link";
@@ -2110,8 +2110,11 @@ function addOriginalGameLinks() {
 					"Please retry when the site's safety checks are available.");
 			}
 		});
+		// Replace the mounted card before moving it into the wrapper.
+		// Moving it first detaches it, making replaceWith() a no-op.
 		card.replaceWith(group);
-		if (!group.contains(card)) group.append(card);
+		group.append(card);
+		if (embed) group.append(embed);
 		group.append(fallback);
 	}
 }
