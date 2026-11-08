@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#fff5df">
+<title>Seuss Offline Arcade · Five Games</title>
+<style>
+:root{--ink:#25221e;--red:#d82f37;--yellow:#ffbf4b;--teal:#078e88;--paper:#fff6e8;--card:#fffef9}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 10% 10%,#ffe2c4 0,transparent 40%),radial-gradient(circle at 90% 90%,#d3f5e8 0,transparent 35%),var(--paper);color:var(--ink);font:500 16px/1.45 system-ui,-apple-system,sans-serif}
+button,a{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
+a{color:#155a8a}header{padding:20px clamp(16px,4vw,36px);background:#fff0cf;border-bottom:3px solid var(--ink)}
+.top{max-width:1050px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:.74rem;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#995329}
+h1{font-size:clamp(1.6rem,4vw,2.4rem);line-height:1.1;letter-spacing:-.045em;margin:4px 0}header p{margin:6px 0 0}
+.pill{display:inline-flex;padding:8px 12px;background:#fff;border:2px solid var(--ink);border-radius:40px;font-size:.84rem;font-weight:800;text-decoration:none}
+main{max-width:1050px;margin:auto;padding:20px clamp(14px,4vw,32px) 40px}
+.games{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.pick{border:2px solid #ab9f8d;border-radius:16px;background:#fff;min-width:0;padding:12px 6px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;font-weight:850}
+.pick span{font-size:1.55rem}.pick[aria-pressed=true]{background:var(--yellow);border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.shell{padding:16px;background:var(--card);border:3px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink)}
+.headline{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px}
+h2{font-size:clamp(1.2rem,3vw,1.6rem);margin:0 0 4px}.hint{color:#60594f;margin:0 0 12px;font-size:.92rem}
+.btn{border:2px solid var(--ink);background:var(--yellow);border-radius:12px;padding:9px 15px;font-weight:850;box-shadow:2px 2px 0 var(--ink)}
+#status{display:block;font-weight:850;margin:6px 0 14px;min-height:24px;color:#155b52}
+#stage{min-height:305px;display:grid;place-items:center;overflow:hidden}
+canvas{width:100%;max-width:480px;aspect-ratio:auto;touch-action:none;border-radius:14px;display:block;background:#182f35}
+.pad{display:none;justify-content:center;gap:7px;flex-wrap:wrap;margin:16px auto 0}
+.pad.visible{display:flex}.pad button{width:62px;height:54px;border:2px solid var(--ink);border-radius:12px;background:#d8f1eb;font-size:1.3rem;font-weight:900;cursor:pointer}
+.tile-grid{width:min(100%,390px);aspect-ratio:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:9px;background:#9b8e81;border-radius:16px}
+.tile{display:grid;place-items:center;border-radius:10px;background:#cfc5b9;font-size:clamp(1.2rem,5vw,2rem);font-weight:900;min-width:0;user-select:none}
+.tile.filled{background:#ffdd99}.tile.v16{background:#ffb875}.tile.v64{background:#f78a68;color:white}.tile.v256{background:#d64549;color:white}.tile.v1024{background:#255a5d;color:white;font-size:1.3rem}
+.memory-grid,.slide-grid{width:min(100%,390px);display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.memory-card,.slide-tile{min-height:72px;aspect-ratio:1;border:2px solid var(--ink);border-radius:12px;display:grid;place-items:center;font-size:clamp(1.3rem,5vw,2rem);font-weight:900;background:#ffe5a8}
+.memory-card.hidden-card{background:#178a85;color:#fff}.memory-card.matched{background:#d3eedb;border-color:#4a8872}
+.slide-tile{background:#ffc367}.slide-tile.blank{visibility:hidden}
+.instructions{font-size:.87rem;color:#625b51;margin:14px 0 0}
+footer{font-size:.9rem;color:#585246;margin:20px 0;text-align:center}footer a{font-weight:800}
+@media(max-width:690px){.games{grid-template-columns:repeat(3,minmax(0,1fr))}.pick{font-size:.87rem}.shell{padding:12px}#stage{min-height:245px}.memory-card,.slide-tile{min-height:50px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header><div class="top"><div><div class="eyebrow">Dr. Seuss Search · no Wi-Fi required</div><h1>Offline Arcade</h1><p>Five complete games. No logins, external scripts, servers or downloads while playing.</p></div><a class="pill" href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Save standalone HTML</a></div></header>
+<main>
+<nav class="games" aria-label="Choose a game">
+<button type="button" class="pick" data-game="snake" aria-pressed="true"><span>🐍</span>Snake</button>
+<button type="button" class="pick" data-game="merge" aria-pressed="false"><span>🔢</span>Merge Tiles</button>
+<button type="button" class="pick" data-game="pong" aria-pressed="false"><span>🏓</span>Paddle Rally</button>
+<button type="button" class="pick" data-game="memory" aria-pressed="false"><span>🃏</span>Memory</button>
+<button type="button" class="pick" data-game="slide" aria-pressed="false"><span>🧩</span>15 Puzzle</button>
+</nav>
+<section class="shell" aria-label="Offline game">
+<div class="headline"><div><h2 id="game-name">Snake</h2><p class="hint" id="game-hint">Collect fruit without running into yourself.</p></div><button class="btn" id="restart" type="button">New game</button></div>
+<div id="status" role="status" aria-live="polite">Ready</div>
+<div id="stage"></div>
+<div class="pad" id="direction-pad" aria-label="Game controls">
+<button type="button" data-direction="up" aria-label="Up">↑</button>
+<button type="button" data-direction="left" aria-label="Left">←</button>
+<button type="button" data-direction="down" aria-label="Down">↓</button>
+<button type="button" data-direction="right" aria-label="Right">→</button>
+</div>
+<p class="instructions" id="instructions">Use arrow keys, WASD, or the buttons to steer. On touchscreens, swipe the board.</p>
+</section>
+<footer>Built into this page, so the games themselves never need a network connection. To open the page with Wi-Fi off, save the standalone HTML file or enable offline access in the Games Library. <a href="offline-pack.html">352-game catalog</a></footer>
+</main>
+<script>
+(function(){
+"use strict";
+const byId=id=>document.getElementById(id);
+const stage=byId("stage"),status=byId("status"),pad=byId("direction-pad"),hint=byId("game-hint"),instructions=byId("instructions");
+const buttons=[...document.querySelectorAll("[data-game]")];
+const titles={snake:"Snake",merge:"Merge Tiles",pong:"Paddle Rally",memory:"Memory Match",slide:"15 Puzzle"};
+const help={
+ snake:["Collect fruit without running into yourself.","Arrow keys, WASD, or the direction buttons. Swipe on mobile."],
+ merge:["Combine matching numbers to reach 2048.","Arrow keys, WASD, or the direction buttons move all tiles."],
+ pong:["Keep the ball in play against the computer. First to seven wins.","Move your pointer up and down, or use W/S or ↑/↓."],
+ memory:["Match all eight pairs using as few turns as possible.","Select two cards at a time. Remember where each picture is."],
+ slide:["Slide the fifteen numbered tiles into the correct order.","Tap a tile beside the empty square, or use arrow keys."]
+};
+let current="snake",session=null;
+const point=(a,min,max)=>Math.max(min,Math.min(max,a));
+const rand=n=>Math.floor(Math.random()*n);
+const make=(tag,cls)=>{const el=document.createElement(tag);if(cls)el.className=cls;return el};
+function setStatus(message){status.textContent=message;}
+function drawText(ctx,str,x,y,size=18){ctx.fillStyle="#fff";ctx.font="bold "+size+"px system-ui";ctx.fillText(str,x,y)}
+function canvas(w,h){const el=make("canvas");el.width=w;el.height=h;stage.append(el);return el}
+function launch(id){
+ if(!titles[id])return;
+ if(session&&session.stop)session.stop();
+ session=null;current=id;stage.replaceChildren();
+ for(const b of buttons)b.setAttribute("aria-pressed",String(b.dataset.game===id));
+ byId("game-name").textContent=titles[id];hint.textContent=help[id][0];instructions.textContent=help[id][1];
+ pad.classList.toggle("visible",["snake","merge","pong"].includes(id));
+ session=({snake,merge,pong,memory,slide})[id]();
+}
+buttons.forEach(b=>b.addEventListener("click",()=>launch(b.dataset.game)));
+byId("restart").addEventListener("click",()=>launch(current));
+document.querySelectorAll("[data-direction]").forEach(b=>b.addEventListener("click",()=>session?.direction?.(b.dataset.direction)));
+document.addEventListener("keydown",e=>{
+ if(e.altKey||e.ctrlKey||e.metaKey||["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName))return;
+ if(session&&session.key&&session.key(e.key)){e.preventDefault();}
+});
+function snake(){
+ const el=canvas(400,400),ctx=el.getContext("2d");
+ const cell=20,count=20;let body=[{x:7,y:10},{x:6,y:10},{x:5,y:10}],dir="right",next="right",fruit=null,points=0,dead=false;
+ const delta={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+ function place(){const vacant=[];for(let y=0;y<count;y++)for(let x=0;x<count;x++)if(!body.some(b=>b.x===x&&b.y===y))vacant.push({x,y});fruit=vacant[rand(vacant.length)]||null}
+ function paint(){
+  ctx.fillStyle="#14323d";ctx.fillRect(0,0,400,400);
+  ctx.strokeStyle="#26444b";ctx.lineWidth=.5;
+  for(let i=0;i<=20;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,400);ctx.moveTo(0,i*cell);ctx.lineTo(400,i*cell);ctx.stroke()}
+  if(fruit){ctx.fillStyle="#f76660";ctx.beginPath();ctx.arc(fruit.x*20+10,fruit.y*20+10,8,0,Math.PI*2);ctx.fill()}
+  body.forEach((s,i)=>{ctx.fillStyle=i===0?"#f9cb58":"#4ee3ae";ctx.fillRect(s.x*20+2,s.y*20+2,16,16)});
+  if(dead){ctx.fillStyle="#102b34db";ctx.fillRect(38,159,324,82);drawText(ctx,"Game over · New game to retry",54,206,17)}
+ }
+ function direction(d){
+  if(!delta[d]||dead)return;
+  if(delta[d][0]===-delta[dir][0]&&delta[d][1]===-delta[dir][1])return;
+  next=d;
+ }
+ function tick(){
+  if(dead)return;dir=next;
+  const head={x:body[0].x+delta[dir][0],y:body[0].y+delta[dir][1]};
+  const grow=!!(fruit&&head.x===fruit.x&&head.y===fruit.y);
+  const tailCheck=body.slice(0,grow?body.length:body.length-1);
+  if(head.x<0||head.y<0||head.x>=count||head.y>=count||tailCheck.some(p=>p.x===head.x&&p.y===head.y)){
+   dead=true;clearInterval(timer);setStatus("Game over · "+points+" fruit collected.");paint();return;
+  }
+  body.unshift(head);if(grow){points++;place();}else body.pop();
+  setStatus("Fruit: "+points);paint();
+ }
+ function key(k){const d={ArrowUp:"up",w:"up",W:"up",ArrowDown:"down",s:"down",S:"down",ArrowLeft:"left",a:"left",A:"left",ArrowRight:"right",d:"right",D:"right"}[k];if(d){direction(d);return true}return false}
+ let touch=null;el.addEventListener("pointerdown",e=>touch={x:e.clientX,y:e.clientY});
+ el.addEventListener("pointerup",e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;if(Math.max(Math.abs(dx),Math.abs(dy))>15)direction(Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up"));touch=null});
+ place();setStatus("Fruit: 0");paint();const timer=setInterval(tick,120);
+ return{stop:()=>clearInterval(timer),direction,key};
+}
+function merge(){
+ let board=Array(16).fill(0),score=0,ended=false;
+ const view=make("div","tile-grid");view.setAttribute("role","img");view.setAttribute("aria-label","Four by four merge tiles board");stage.append(view);
+ function spawn(){const empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);if(empty.length)board[empty[rand(empty.length)]]=Math.random()<.9?2:4}
+ function paint(){view.replaceChildren();for(const n of board){const el=make("div","tile"+(n?" filled v"+(n>=1024?1024:n>=256?256:n>=64?64:n>=16?16:0):""));el.textContent=n?String(n):"";view.append(el)}setStatus("Score: "+score+(ended?" · No moves left.":""))}
+ function combine(values){const a=values.filter(Boolean),out=[];for(let i=0;i<a.length;i++){if(a[i]===a[i+1]){out.push(a[i]*2);score+=a[i]*2;i++}else out.push(a[i])}while(out.length<4)out.push(0);return out}
+ function direction(d){
+  if(ended)return;const old=board.join(",");
+  for(let n=0;n<4;n++){
+   const cells=Array.from({length:4},(_,k)=>d==="left"?n*4+k:d==="right"?n*4+3-k:d==="up"?k*4+n:(3-k)*4+n);
+   const result=combine(cells.map(i=>board[i]));cells.forEach((idx,i)=>board[idx]=result[i]);
+  }
+  if(board.join(",")!==old){spawn();ended=!board.some(n=>n===0)&&!board.some((n,i)=>i%4<3&&board[i+1]===n||i<12&&board[i+4]===n);paint()}
+ }
+ function key(k){const d={ArrowLeft:"left",a:"left",A:"left",ArrowRight:"right",d:"right",D:"right",ArrowUp:"up",w:"up",W:"up",ArrowDown:"down",s:"down",S:"down"}[k];if(d){direction(d);return true}return false}
+ let touch=null;view.addEventListener("pointerdown",e=>{touch={x:e.clientX,y:e.clientY}});view.addEventListener("pointerup",e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.max(Math.abs(dx),Math.abs(dy))>18)direction(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up")});
+ spawn();spawn();paint();return{key,direction};
+}
+function pong(){
+ const el=canvas(520,310),ctx=el.getContext("2d"),h=310;
+ let player=112,cpu=112,ball={x:260,y:155,vx:4,vy:2.5},score=0,rival=0,over=false,frame=0,last=0;
+ function serve(toRight){ball={x:260,y:155,vx:toRight?4:-4,vy:(Math.random()-.5)*5}}
+ function direction(d){if(d==="up")player=point(player-26,0,h-72);if(d==="down")player=point(player+26,0,h-72)}
+ function key(k){if(["ArrowUp","w","W"].includes(k)){direction("up");return true}if(["ArrowDown","s","S"].includes(k)){direction("down");return true}return false}
+ el.addEventListener("pointermove",e=>{if(e.pointerType==="mouse"||e.buttons){const r=el.getBoundingClientRect();player=point((e.clientY-r.top)*310/r.height-36,0,h-72)}});
+ el.addEventListener("pointerdown",e=>{const r=el.getBoundingClientRect();player=point((e.clientY-r.top)*310/r.height-36,0,h-72)});
+ function paint(){
+  ctx.fillStyle="#112d3d";ctx.fillRect(0,0,520,310);
+  ctx.fillStyle="#567483";for(let y=8;y<310;y+=28)ctx.fillRect(257,y,6,15);
+  ctx.fillStyle="#45dab2";ctx.fillRect(16,player,12,72);
+  ctx.fillStyle="#ffd067";ctx.fillRect(492,cpu,12,72);
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ball.x,ball.y,8,0,Math.PI*2);ctx.fill();
+  drawText(ctx,String(score),214,35,24);drawText(ctx,String(rival),293,35,24);
+  if(over){ctx.fillStyle="#112d3de8";ctx.fillRect(85,105,350,92);drawText(ctx,score>rival?"You win!":"Computer wins",173,145,25);drawText(ctx,"Select New game to retry",153,175,16)}
+ }
+ function step(t){
+  if(over){paint();return}
+  const n=last?point((t-last)/16.67,.5,2):1;last=t;
+  cpu=point(cpu+point(ball.y-(cpu+36),-3.1*n,3.1*n),0,h-72);
+  ball.x+=ball.vx*n;ball.y+=ball.vy*n;
+  if(ball.y<8||ball.y>302){ball.y=point(ball.y,8,302);ball.vy*=-1}
+  if(ball.vx<0&&ball.x<=37&&ball.x>=20&&ball.y>=player-8&&ball.y<=player+80){ball.vx=Math.min(8,-ball.vx*1.055);ball.vy+=(ball.y-player-36)/20}
+  if(ball.vx>0&&ball.x>=484&&ball.x<=502&&ball.y>=cpu-8&&ball.y<=cpu+80){ball.vx=Math.max(-8,-ball.vx*1.055);ball.vy+=(ball.y-cpu-36)/23}
+  if(ball.x<-10){rival++;serve(true)}else if(ball.x>530){score++;serve(false)}
+  over=score===7||rival===7;setStatus("You "+score+" — Computer "+rival);
+  paint();if(!over)frame=requestAnimationFrame(step);
+ }
+ setStatus("You 0 — Computer 0");frame=requestAnimationFrame(step);
+ return{stop:()=>cancelAnimationFrame(frame),direction,key};
+}
+function memory(){
+ const icons=["🌙","⭐","🚀","🎲","🍋","🎧","🍀","🐙"];
+ const deck=icons.concat(icons).sort(()=>Math.random()-.5);
+ // Unbiased Fisher-Yates makes the order reliably mixed.
+ for(let i=deck.length-1;i>0;i--){const j=rand(i+1);[deck[i],deck[j]]=[deck[j],deck[i]]}
+ const view=make("div","memory-grid");stage.append(view);
+ const opened=new Set(),matched=new Set();let turns=0,lock=false,pending=null;
+ const cells=[];
+ for(let i=0;i<16;i++){
+  const b=make("button","memory-card hidden-card");b.type="button";b.textContent="?";b.setAttribute("aria-label","Reveal card "+(i+1));b.addEventListener("click",()=>flip(i));
+  view.append(b);cells.push(b);
+ }
+ function repaint(){cells.forEach((b,i)=>{const visible=opened.has(i)||matched.has(i);b.textContent=visible?deck[i]:"?";b.className="memory-card"+(matched.has(i)?" matched":!visible?" hidden-card":"");b.setAttribute("aria-label",visible?"Card "+deck[i]:"Reveal card "+(i+1))})}
+ function flip(i){
+  if(lock||opened.has(i)||matched.has(i))return;opened.add(i);repaint();if(opened.size!==2)return;
+  turns++;const [a,b]=[...opened];if(deck[a]===deck[b]){matched.add(a);matched.add(b);opened.clear();setStatus("Pairs: "+matched.size/2+"/8 · Turns: "+turns+(matched.size===16?" · You won!":""));repaint();}
+  else{lock=true;pending=setTimeout(()=>{opened.clear();lock=false;repaint();pending=null},800);setStatus("Pairs: "+matched.size/2+"/8 · Turns: "+turns)}
+ }
+ setStatus("Pairs: 0/8 · Turns: 0");
+ return{stop:()=>clearTimeout(pending),key:()=>false};
+}
+function slide(){
+ const view=make("div","slide-grid");stage.append(view);
+ let tiles=Array.from({length:16},(_,i)=>(i+1)%16),moves=0;
+ const neighbors=i=>[i-4,i+4,i%4>0?i-1:-1,i%4<3?i+1:-1].filter(n=>n>=0&&n<16);
+ let prev=-1;
+ for(let i=0;i<120;i++){const zero=tiles.indexOf(0);const opts=neighbors(zero).filter(n=>n!==prev);const choice=opts[rand(opts.length)];[tiles[zero],tiles[choice]]=[tiles[choice],tiles[zero]];prev=zero}
+ function repaint(){view.replaceChildren();tiles.forEach((num,i)=>{const b=make("button","slide-tile"+(num?"":" blank"));b.type="button";b.textContent=num?String(num):"";b.disabled=!num;b.setAttribute("aria-label",num?"Move tile "+num:"Empty space");b.addEventListener("click",()=>click(i));view.append(b)});setStatus("Moves: "+moves+(tiles.every((v,i)=>v===(i+1)%16)?" · Solved!":""))}
+ function click(i){const zero=tiles.indexOf(0);if(!neighbors(zero).includes(i))return;[tiles[zero],tiles[i]]=[tiles[i],tiles[zero]];moves++;repaint()}
+ function key(k){const moves={ArrowUp:-4,w:-4,W:-4,ArrowDown:4,s:4,S:4,ArrowLeft:-1,a:-1,A:-1,ArrowRight:1,d:1,D:1};const shift=moves[k];if(shift===undefined)return false;const zero=tiles.indexOf(0),target=zero+shift;if(neighbors(zero).includes(target))click(target);return true}
+ repaint();return{key};
+}
+launch("snake");
+})();
+</script>
+</body>
+</html>
