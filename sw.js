@@ -4,14 +4,18 @@ importScripts("scram/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
-// Cache ONLY the trusted first-party offline game pages and their hub.
-// Never try to mirror third-party game hosts, authentication APIs, or
-// Scramjet-encoded websites.
-const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v4";
-const PREVIOUS_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v3";
-const LEGACY_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v2";
-const OLDEST_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
-const OFFLINE_GAME_FILES = ["offline-games.html", "offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html", "nes-homebrew.html", "console-emulators.html"];
+// Cache only real console-game HTML and the separately maintained PC VM
+// player. The AI-made arcade pages were retired and deleted from the repo.
+// Never mirror third-party game hosts, authentication APIs, or proxied sites.
+const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v5";
+const PREVIOUS_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v4";
+const LEGACY_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v3";
+const OLDEST_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v2";
+const EARLIEST_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
+const OFFLINE_GAME_FILES = ["nes-homebrew.html", "console-emulators.html", "dos-arcade.html"];
+// Retired homemade mini-games should not remain available via older caches.
+const RETIRED_AI_GAME_URLS = ["retro-arcade.html","offline-arcade.html","offline-games.html"]
+  .map(name=>new URL(name,self.registration.scope).href);
 const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
   new URL(file, self.registration.scope).href
 );
@@ -22,6 +26,7 @@ async function prepareOfflineGames() {
   const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const legacy = await caches.open(LEGACY_OFFLINE_GAME_CACHE);
   const oldest = await caches.open(OLDEST_OFFLINE_GAME_CACHE);
+  const earliest = await caches.open(EARLIEST_OFFLINE_GAME_CACHE);
   const results = [];
   for (const url of OFFLINE_GAME_URLS) {
     const file = new URL(url).pathname.split("/").pop();
@@ -35,7 +40,7 @@ async function prepareOfflineGames() {
       results.push({file,ok:true});
     } catch (err) {
       try {
-        const saved = await cache.match(url) || await previous.match(url) || await legacy.match(url) || await oldest.match(url);
+        const saved = await cache.match(url) || await previous.match(url) || await legacy.match(url) || await oldest.match(url) || await earliest.match(url);
         if (!saved) throw err;
         await cache.put(url, saved.clone());
         results.push({file,ok:true,cached:true});
@@ -51,9 +56,10 @@ async function serveOfflineGamePage(request) {
   const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const legacy = await caches.open(LEGACY_OFFLINE_GAME_CACHE);
   const oldest = await caches.open(OLDEST_OFFLINE_GAME_CACHE);
+  const earliest = await caches.open(EARLIEST_OFFLINE_GAME_CACHE);
   const url = new URL(request.url);
   const canonicalUrl = new URL(url.pathname, url.origin).href;
-  const saved = await cache.match(canonicalUrl) || await previous.match(canonicalUrl) || await legacy.match(canonicalUrl) || await oldest.match(canonicalUrl);
+  const saved = await cache.match(canonicalUrl) || await previous.match(canonicalUrl) || await legacy.match(canonicalUrl) || await oldest.match(canonicalUrl) || await earliest.match(canonicalUrl);
   if (saved) return saved;
   try {
     const response = await fetch(request);
@@ -160,7 +166,6 @@ const CONSOLE_DATA_ASSETS = [
 const CONSOLE_GAMES = [
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/2048.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/kumi-daiko.n64",
-  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/psxtest.exe",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/nova-the-squirrel.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/alter-ego.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/spacegulls.nes"
@@ -344,7 +349,20 @@ self.addEventListener("install", event => {
     await self.skipWaiting();
   })());
 });
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener("activate", event => event.waitUntil((async()=>{
+  // Remove only the three retired AI arcade HTML pages; preserve saved
+  // legitimate NES and VM game resources and unrelated browser caches.
+  const oldCaches = [OFFLINE_GAME_CACHE,PREVIOUS_OFFLINE_GAME_CACHE,
+    LEGACY_OFFLINE_GAME_CACHE,OLDEST_OFFLINE_GAME_CACHE,EARLIEST_OFFLINE_GAME_CACHE];
+  for(const name of oldCaches){
+    try{
+      const cache=await caches.open(name);
+      if(typeof cache.delete!=="function")continue;
+      for(const url of RETIRED_AI_GAME_URLS)await cache.delete(url);
+    }catch{}
+  }
+  await self.clients.claim();
+})()));
 
 async function handleRequest(event) {
 	await ensureScramjetConfig();

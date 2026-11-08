@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#18263d">
-<title>NES, Nintendo 64 &amp; PS1 Emulators · Seuss Search</title>
+<title>NES, N64, PS1 &amp; Official N64 Classics · Seuss Search</title>
 <style>
 :root{color-scheme:dark;--dark:#131e30;--panel:#1e3047;--text:#eaf8ff;--soft:#c3d6e4;--aqua:#76efd2;--line:#48627d;--sun:#ffcf77}
 *{box-sizing:border-box}
@@ -52,22 +52,25 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 .game-count{font-weight:800;color:var(--aqua);font-size:.88rem;margin:7px 0 13px}
 .card{min-height:225px}
 .card .mark{align-self:start}
-.card button{width:100%}
+.card button,.card .official-link{width:100%}
+.card .official-link{display:block;margin-top:auto;border:0;border-radius:11px;background:#e4c67b;color:#192e35;font-weight:900;padding:11px;text-decoration:none;text-align:center}
+.card .official-link:hover{background:#ffe4a5}
 .card button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
-<header><div class="inner"><div class="kicker">Retro Arcade &amp; Emulators · Free homebrew</div><h1>Nintendo 64, NES &amp; PlayStation 1</h1>
-<p>More than 40 free homebrew games, minigames, and demos. No ROM uploads, BIOS files, or manual setup.</p></div></header>
+<header><div class="inner"><div class="kicker">Actual retro console games · NES / N64 / PS1</div><h1>Nintendo 64, NES &amp; PlayStation 1</h1>
+<p>Real console homebrew games, plus well-known Nintendo 64 classics with official access information. No homemade arcade-style mini-games or commercial ROM downloads.</p></div></header>
 <main>
 <div class="tabs" role="group" aria-label="Choose console">
 <button class="tab" type="button" data-system="nes" aria-pressed="true">NES</button>
-<button class="tab" type="button" data-system="n64" aria-pressed="false">Nintendo 64</button>
+<button class="tab" type="button" data-system="n64" aria-pressed="false">N64 Games &amp; Homebrew</button>
+<button class="tab" type="button" data-system="classics" aria-pressed="false">Famous N64 Classics</button>
 <button class="tab" type="button" data-system="ps1" aria-pressed="false">PlayStation 1</button>
 </div>
 <div class="info" id="description" role="status">NES has a fully offline built-in game. Other games need a first online visit, and cached offline playback varies by browser.</div>
-<div class="searchbar"><label for="search-game">Search games</label><input type="search" id="search-game" placeholder="Search NES, N64 or PS1 games…" autocomplete="off"></div><p id="game-count" class="game-count" role="status"></p>
-<div class="cards" id="games" aria-label="Homebrew games for selected console"></div>
+<div class="searchbar"><label for="search-game">Search console titles</label><input type="search" id="search-game" placeholder="Search real NES, N64 and PS1 titles…" autocomplete="off"></div><p id="game-count" class="game-count" role="status"></p>
+<div class="cards" id="games" aria-label="Games and official console titles in the selected category"></div>
 <section class="panel" id="player" hidden>
 <div class="panel-head"><h2 id="playing">Game</h2><button type="button" id="close-player">Back to game selection</button></div>
 <p id="status" role="status" aria-live="polite">Preparing emulator…</p>
@@ -75,9 +78,9 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 <div id="stage"></div>
 <a id="external" href="https://bonnie-studios.itch.io/psoxide" target="_blank" rel="noopener noreferrer" hidden>Open the original PS1 homebrew player directly</a>
 </section>
-<p class="offline"><strong>Offline details:</strong> NES LJ65 is fully self-contained. Creator-hosted browser games and N64brew/PSoXide collections require internet. To cache supported sample ROMs and emulator files, go to <strong>Games → Retro Arcade &amp; Emulators → Console Emulators → Prepare offline console files</strong> while connected. Internet-free N64 and PS1 WASM support is experimental and may not survive browser cache eviction.</p>
+<p class="offline"><strong>Play and setup:</strong> NES LJ65 is fully self-contained and works offline. Other author-hosted programs and emulator files generally need internet, and browser N64/PS1 compatibility is experimental. The famous commercial N64 games in the Classics tab are <strong>not browser-playable here</strong>; Nintendo offers them through Nintendo Switch Online + Expansion Pack on a compatible console.</p>
 <p class="note">NES emulator code: TrevorS (MIT), LJ65 by Damian Yerrick. Other games are linked from original authors or the openly distributed homebrew collection. N64 Kumi-Daiko: Team Riistahillo (CC0). N64brew 2024: official N64brew community release. PS1 games are selectable within the PSoXide demo disc hosted by Bonnie Studios; selecting a listed title still requires choosing it from the disc menu. None of the game files are rehosted in this repository.</p>
-<p class="note"><a href="nes-homebrew.html">Play fully offline NES LJ65 directly</a> · <a href="retro-arcade.html">22 original offline arcade games</a></p>
+<p class="note"><a href="nes-homebrew.html">Play actual NES LJ65 homebrew offline</a> · <a href="https://www.nintendo.com/us/store/products/nintendo-64-nintendo-classics-switch/" target="_blank" rel="noopener noreferrer">Nintendo 64 Classics (official)</a></p>
 </main>
 <script>
 (()=>{
@@ -111,10 +114,10 @@ const CATALOG=[
   {id:"muncher",system:"nes",label:"Muncher Runner",icon:"➕",kind:"hosted",url:"https://double-z-enterprises.itch.io/muncher-runner",detail:"Author-hosted browser game",note:"An educational running game with the browser emulator included.",author:"Double Z"},
   {id:"droll",system:"nes",label:"Droll Ball",icon:"⚪",kind:"hosted",url:"https://adampankiewicz.itch.io/drollball",detail:"Author-hosted browser game",note:"Solve sixty tile-jumping puzzle stages.",author:"Adam Pankiewicz"},
   {id:"penguin",system:"nes",label:"Penguin: Sokoban Adventure",icon:"🐧",kind:"hosted",url:"https://ajp-games.itch.io/penguin-sokoban-adventure",detail:"Author-hosted browser game",note:"Sixty-four sliding-block puzzle stages.",author:"AJP Games"},
+  {id:"sm64-browser",system:"n64",label:"Super Mario 64 (fan-hosted port)",icon:"🍄",kind:"hosted",url:"https://heyitsheart.github.io/sm3das/64/",detail:"Famous original N64 game · unofficial browser port",note:"An externally hosted fan port of a famous Nintendo 64 game. It may refuse embedding; use the original-site link when needed. This is not a Nintendo-licensed browser release.",author:"Original Nintendo game / external community port"},
   {id:"kumi",system:"n64",label:"Kumi-Daiko Beatoff 64",icon:"🥁",kind:"ejs",core:"n64",url:RAW+"kumi-daiko.n64",detail:"CC0 homebrew · browser compatibility varies",note:"Original Nintendo 64 game-jam arena game; no ROM upload needed.",author:"Team Riistahillo · CC0"},
   {id:"jam",system:"n64",label:"N64brew Game Jam 2024: 20 Minigames",icon:"🎉",kind:"ejs",core:"n64",url:JAM,detail:"Official release · experimental browser emulation",note:"A single genuine N64 cartridge containing 20 community minigames. Choose games inside the cartridge menu; browser Libdragon compatibility is unverified.",author:"N64brew community · official GitHub release",fallback:"https://github.com/n64brew/N64brew-GameJam2024/releases/tag/1.2.1"},
   {id:"psoxide",system:"ps1",label:"PSoXide Homebrew Demo Disc",icon:"💿",kind:"hosted",url:PS1,detail:"Author-hosted browser emulator · internet required",note:"Play several genuine PS1 homebrew games from the demo disc menu. No BIOS, ROM, or manual upload.",author:"Bonnie Studios"},
-  {id:"psxtest",system:"ps1",label:"PS1 Open-Source Test",icon:"🧪",kind:"ejs",core:"psx",url:RAW+"psxtest.exe",detail:"Experimental diagnostic (not a complete game)",note:"A small open-source emulator test, not a fully playable game. Browser compatibility uncertain.",author:"libretro"},
 ];
 const JAM_GAMES=[
 ["64Beats","🎵","Follow the rhythm and hit arrows"],
@@ -149,10 +152,13 @@ for(const [title,icon,desc] of JAM_GAMES)CATALOG.push({
 for(const [title,icon,desc] of DISC_GAMES)CATALOG.push({
  id:"disc-"+title.toLowerCase().replace(/[^a-z0-9]+/g,"-"),system:"ps1",label:title,icon,kind:"collection",parent:"psoxide",detail:"On the PSoXide Demo Disc · internet required",note:desc+". Select it from the demo disc menu; no files to upload.",author:"Bonnie Studios / credited game authors"
 });
+const OFFICIAL_N64_URL="https://www.nintendo.com/us/store/products/nintendo-64-nintendo-classics-switch/";
+const OFFICIAL_N64=[["Super Mario 64","🍄","3D platforming adventure"],["Mario Kart 64","🏎️","Kart racing"],["The Legend of Zelda: Ocarina of Time","🗡️","Fantasy adventure"],["The Legend of Zelda: Majora’s Mask","🌙","Fantasy adventure"],["Banjo-Kazooie","🐻","3D platforming adventure"],["Banjo-Tooie","🐦","3D platforming adventure"],["Donkey Kong 64","🦍","3D platforming adventure"],["Paper Mario","📖","Story-driven role-playing adventure"],["Kirby 64: The Crystal Shards","⭐","Side-scrolling platforming adventure"],["Mario Party","🎲","Party minigame collection"],["Mario Party 2","🎲","Party minigame collection"],["Mario Party 3","🎲","Party minigame collection"],["Pokémon Stadium","⚡","Pokémon battles"],["Pokémon Stadium 2","⚡","Pokémon battles"],["Pokémon Snap","📷","Photograph Pokémon"],["Star Fox 64","🦊","Spaceflight adventure"],["F-Zero X","🏁","Futuristic racing"],["Yoshi’s Story","🦖","Storybook platforming"],["Wave Race 64","🌊","Water racing"],["Mario Tennis","🎾","Tennis"],["Mario Golf","⛳","Golf"],["1080° Snowboarding","🏂","Snowboarding"],["Pilotwings 64","🛩️","Flying challenges"],["Dr. Mario 64","💊","Falling-block puzzle game"]];
 const descriptions={
  nes:"NES: The built-in LJ65 is fully offline. Other free homebrews launch from the preconfigured emulator or their creators' browser-playable pages—no file uploads.",
  n64:"N64: Kumi-Daiko and the 20-minigame N64brew 2024 cartridge need no manual ROM setup. The 2024 Libdragon cartridge may NOT run in EmulatorJS; it is an experimental option.",
- ps1:"PS1: The PSoXide disc contains many genuine homebrew games. Launch its official browser player, then select a game in the disc menu. No Sony BIOS or uploads required."
+ ps1:"PS1: The PSoXide disc contains many genuine homebrew games. Launch its official browser player, then select a game in the disc menu. No Sony BIOS or uploads required.",
+ classics:"These are actual famous commercial Nintendo 64 titles listed by Nintendo. They are not included as free browser ROMs. Official play requires Nintendo Switch or Switch 2 with a Nintendo Switch Online + Expansion Pack membership; the buttons below open Nintendo's official collection information, not a playable game."
 };
 let current="nes",liveEmulator=null,selectedGameId=null;
 let runtimeReady=false,loadTimer=0;
@@ -188,9 +194,24 @@ function render(){
  for(const tab of document.querySelectorAll("[data-system]"))
   tab.setAttribute("aria-pressed",String(tab.dataset.system===current));
  $("description").textContent=descriptions[current];
+ if(current==="classics"){
+  const matching=OFFICIAL_N64.filter(g=>(g[0]+" "+g[2]).toLowerCase().includes(q));
+  $("game-count").textContent=matching.length+" famous N64 titles · official Nintendo availability (not browser playable)";
+  for(const [name,emoji,description] of matching){
+   const card=child("article",undefined,"card");
+   const picture=child("div",emoji,"emoji");
+   const title=child("h2",name);
+   const mark=child("small","Official Nintendo Switch library · membership required","mark online");
+   const note=child("p",description+". This is a Nintendo 64 game, not an AI-made arcade imitation.");
+   const action=child("a","See official Nintendo 64 collection","official-link");
+   action.href=OFFICIAL_N64_URL;action.target="_blank";action.rel="noopener noreferrer";
+   card.append(picture,title,mark,note,action);$("games").append(card);
+  }
+  return;
+ }
  const matching=CATALOG.filter(g=>g.system===current &&
   (g.label+" "+g.note+" "+g.author).toLowerCase().includes(q));
- $("game-count").textContent=matching.length+" games and demo selections available on "+current.toUpperCase()+" · no game files to upload";
+ $("game-count").textContent=matching.length+" real console homebrew games and selections on "+current.toUpperCase();
  for(const item of matching){
   const card=child("article",undefined,"card"),emoji=child("div",item.icon,"emoji"),
         title=child("h2",item.label),
@@ -320,7 +341,7 @@ $("close-player").addEventListener("click",()=>{
  liveEmulator=null;
  location.href=location.pathname+"#"+current;
 });
-if(!selection&&["nes","n64","ps1"].includes(location.hash.slice(1)))current=location.hash.slice(1);
+if(!selection&&["nes","n64","ps1","classics"].includes(location.hash.slice(1)))current=location.hash.slice(1);
 render();
 if(selection)launch(selection);
 })();
