@@ -285,7 +285,7 @@
 			<div class="library-grid">
         <button type="button" class="library-card" data-local-url="console-emulators.html">
           <span class="library-icon" style="background:#385d81;color:#fff">64</span>
-          <strong>NES / N64 / PS1</strong><span>Homebrew games · emulator previews</span>
+          <strong>NES / N64 / PS1</strong><span>45 homebrew games and demo selections</span>
         </button>
         <button type="button" class="library-card retro-launcher" id="open-retro" aria-controls="retro-view" aria-expanded="false">
           <span class="library-icon" style="background:#23465c;color:#a3f0d7">🕹️</span><strong>Retro Arcade &amp; Emulators</strong><span>28 offline games · 5 ready-to-play DOS classics</span>
@@ -364,7 +364,7 @@
   <div class="retro-categories" role="group" aria-label="Retro arcade subcategories">
     <button type="button" class="retro-category" data-retro-category="offline" aria-pressed="true"><strong>Offline Arcade</strong><span>28 ready-to-play games</span></button>
     <button type="button" class="retro-category" data-retro-category="emulators" aria-pressed="false"><strong>Ready-to-Play Emulators</strong><span>7 emulator choices · no files to upload</span></button>
-    <button type="button" class="retro-category" data-retro-category="consoles" aria-pressed="false"><strong>Console Games</strong><span>NES · N64 · PlayStation 1</span></button>
+    <button type="button" class="retro-category" data-retro-category="consoles" aria-pressed="false"><strong>Console Games</strong><span>45 no-upload entries · NES / N64 / PS1</span></button>
   </div>
   <section id="retro-offline-section" aria-label="Offline arcade games">
     <p class="retro-note"><strong>No Wi-Fi required after saving the page.</strong> Play instantly, select Enable offline access in Games while connected, or download the single-file game page. Neither arcade requires a ROM, BIOS, or online service.</p>
@@ -393,6 +393,10 @@
       <a href="console-emulators.html">Open all three consoles</a>
       <a href="nes-homebrew.html" download="NES-LJ65-Offline.html">Save fully offline NES emulator + game</a>
     </div>
+    <label class="retro-search-label">Search console games
+      <input id="retro-console-search" type="search" placeholder="Search 45 console games and demos…" autocomplete="off">
+    </label>
+    <p id="retro-console-count" class="retro-counter" role="status"></p>
     <div class="retro-grid" id="retro-console-grid"></div>
     <div class="retro-shortcuts">
       <button type="button" class="chip" id="retro-cache-console">Prepare offline console files</button>
