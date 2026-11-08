@@ -43,6 +43,13 @@ A whimsical, fully static web proxy built on [Scramjet](https://github.com/Mercu
 - **Scaling modes**: Fit (smooth), Pixel (crisp integer scaling) and Stretch
 - **Games section** on the home page with links to GeForce NOW and now.gg (these open directly in a new tab, since cloud-gaming streams use WebRTC and cannot run through the proxy)
 
+
+## Optional Render Wisp relay
+
+The existing public Wisp endpoint remains the default. You can choose **Render Wisp (optional — your Render service)** in **Settings → Primary Wisp relay**, then click **Test primary relay** and **Save**. The alternative is `wss://seuss-scramjet-private.onrender.com/wisp/`, served on the same Render web service as this site. You may also choose it as a fallback relay.
+
+The relay runs only on the Render-hosted Node server; GitHub Pages continues to host the frontend and service worker locally in each visitor's browser. The relay accepts WebSocket connections from the specified GitHub Pages/Render website origins, limits sessions, permits web ports 80/443, and blocks direct-IP, private/loopback, and UDP destinations. This does not bypass age checks, site policies, or network permissions. WebSocket Origin checks are not authentication against non-browser clients. Free Render services may sleep or disconnect, and browsing requests can fail even if a WebSocket handshake succeeds.
+
 ## Self-hosting a Wisp relay (recommended)
 
 Public relays are shared by many people, so search engines often show captchas. Running your own relay fixes that. For example, use [wisp-server-node](https://github.com/MercuryWorkshop/wisp-server-node) or [wisp-js](https://github.com/MercuryWorkshop/wisp-js) on any VPS, Render, Fly.io, or similar host. Then paste its `wss://.../` address into Settings.
