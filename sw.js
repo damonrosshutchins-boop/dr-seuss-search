@@ -383,6 +383,15 @@ async function handleRequest(event) {
 			scheduleDssProgress();
 		}
 	}
+	// Never forward a Scramjet-encoded request to GitHub Pages: that path
+	// is virtual and GitHub Pages will serve its confusing static-file 404.
+	const url = new URL(event.request.url);
+	if (url.origin === self.location.origin && url.pathname.startsWith(SCRAMJET_PATH)) {
+		return new Response(
+			"Scramjet routing is not initialized for this request. Return to Seuss Search, reload, and retry Scramjet.",
+			{status:503,headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"}}
+		);
+	}
 	return fetch(event.request);
 }
 
@@ -407,5 +416,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 	if (!url.pathname.startsWith(SCRAMJET_PATH)) return;
-	event.respondWith(handleRequest(event));
+	event.respondWith(handleRequest(event).catch(error => new Response(
+		"Scramjet could not handle this request: " + (error?.message || "transport or service worker error") +
+		"\nReturn to Seuss Search, reload, and retry Scramjet.",
+		{status:503,headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"}}
+	)));
 });
