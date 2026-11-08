@@ -331,7 +331,8 @@ wispTestButton.addEventListener("click", () => {
 });
 function syncLabel() {
 	$("engine-label").textContent = settings.proxyEngine === "seusslite" ?
-		"Seuss Search" : (ENGINE_NAMES[settings.engine] || "custom engine");
+		"Seuss Search" : settings.proxyEngine === "customloader" ?
+		"DuckDuckGo" : (ENGINE_NAMES[settings.engine] || "custom engine");
 }
 function openSettings() {
 	$("s-engine").value = settings.engine;
@@ -845,7 +846,8 @@ function publicActiveSiteView(tab = currentSiteTab()) {
 	if (tab.type === "admin") return "Admin Dashboard";
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
-	if (tab.searchPage) return tab.sourceNotice ? "External website notice" : "Seuss Search results";
+	if (tab.searchPage) return tab.duckDuckGoSearch ? "DuckDuckGo search" :
+		(tab.sourceNotice ? "External website notice" : "Seuss Search results");
 	if (tab.customEngine) {
 		try { return new URL(tab.url).hostname.toLowerCase().slice(0, 120); }
 		catch { return "Other site page"; }
@@ -1192,6 +1194,7 @@ function createSeussSearchPane(options = {}) {
 	tab.directFrame = null;
 	tab.searchPage = true;
 	tab.sourceNotice = false;
+	tab.duckDuckGoSearch = false;
 	tab.liteEngine = false;
 	tab.loading = false;
 	activateSiteTab(tab.id);
@@ -1202,6 +1205,59 @@ function searchWebLink(query) {
 }
 function youtubeSearchLink(query) {
 	return "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
+}
+// DuckDuckGo is a regular website, not a CORS-enabled Custom Loader HTML
+// source. Display a normal embedded preview and an always-available link
+// to genuine DDG results; do not relabel Wikipedia results as DuckDuckGo.
+async function showDuckDuckGoSearch(query, options = {}) {
+  if (!requireSeussAccount()) return;
+  const q = String(query || "").trim().slice(0, 180);
+  if (!q) return;
+  const searchUrl = "https://duckduckgo.com/?q=" + encodeURIComponent(q);
+  try {
+    if (typeof window.dssSitePolicyCheck !== "function" ||
+        !(await window.dssSitePolicyCheck(searchUrl))) return;
+  } catch {
+    showError("Couldn't verify DuckDuckGo access.",
+      "Site rules must be available before opening a search destination.");
+    return;
+  }
+  if (!requireSeussAccount()) return;
+  const {tab,main} = createSeussSearchPane({
+    ...options, title:"DuckDuckGo: " + q.slice(0,40)
+  });
+  tab.duckDuckGoSearch = true;
+  tab.searchQuery = q;
+  const heading = seussSearchNode("h1", "", "DuckDuckGo Search");
+  const note = seussSearchNode("p", "seuss-search-note",
+    "Custom Loader searches now go to DuckDuckGo instead of Seuss Search. " +
+    "DuckDuckGo may block embedded results. If this preview is blank or " +
+    "blocked, use the link to view DuckDuckGo directly.");
+  const form = document.createElement("form");
+  form.className = "seuss-search-form";
+  const input = document.createElement("input");
+  input.type = "search"; input.value = q; input.maxLength = 180;
+  input.setAttribute("aria-label", "Search DuckDuckGo");
+  const submit = document.createElement("button");
+  submit.type = "submit"; submit.textContent = "Search DuckDuckGo";
+  form.append(input,submit);
+  form.addEventListener("submit", event => {
+    event.preventDefault(); void showDuckDuckGoSearch(input.value);
+  });
+  const actions = seussSearchNode("div", "seuss-search-actions");
+  actions.append(
+    seussSearchExternalLink("Open full results on DuckDuckGo",searchUrl),
+    seussSearchButton("Try DuckDuckGo in another site tab", () =>
+      void go(searchUrl, {forceLite:true, allowEmbeddedRestricted:true,
+        newTab:true, embeddedQuery:q}))
+  );
+  const frame = document.createElement("iframe");
+  frame.className = "dss-duckduckgo-frame";
+  frame.title = "DuckDuckGo search preview (may be blocked)";
+  frame.referrerPolicy = "no-referrer"; frame.loading = "lazy";
+  frame.setAttribute("sandbox", "allow-scripts allow-forms");
+  frame.src = searchUrl;
+  main.append(heading,note,form,actions,frame);
 }
 function showSeussSearch(query, options = {}) {
 	if (!requireSeussAccount()) return;
@@ -1343,6 +1399,11 @@ function showEmbeddingNotice(target, options = {}) {
 		}
 	}
 }
+const FIRST_PARTY_GAME_FILES = new Set([
+	"offline-arcade.html","retro-arcade.html","nes-homebrew.html",
+	"offline-games.html","offline-pack.html","dos-arcade.html",
+	"console-emulators.html"
+]);
 /* ---------- Seuss Browser (optimized native, permitted embedding) ----------
    No relay, network rewriting, proxy URL, third-party library or additional
    service worker. Native browser caching and media loading are preserved.
@@ -1353,10 +1414,16 @@ function showEmbeddingNotice(target, options = {}) {
 function seussLiteFrame(tab) {
 	const frame = createDirectFrameForTab(tab);
 	frame.title = tab.title || "Seuss Browser page";
-	// The first-party offline catalog is maintained as part of this site's
-	// trusted code and needs its own normal origin for loading game assets.
-	// All third-party game pages stay in an opaque-origin sandbox.
-	const trustedCatalog = tab.url === new URL("offline-pack.html", BASE).href;
+	// Trusted first-party games need same-origin storage and WASM assets.
+	// Every unrelated/external site retains an opaque-origin sandbox.
+	const trustedCatalog = (() => {
+		try {
+			const u = new URL(tab.url);
+			return u.origin === location.origin &&
+				u.pathname.startsWith(BASE.pathname) &&
+				FIRST_PARTY_GAME_FILES.has(u.pathname.slice(BASE.pathname.length));
+		} catch { return false; }
+	})();
 	frame.setAttribute("sandbox", trustedCatalog
 		? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals allow-downloads"
 		: "allow-scripts allow-forms allow-pointer-lock allow-modals allow-downloads");
@@ -1652,6 +1719,10 @@ $("rammerhead-copy").addEventListener("click", async () => {
 
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
+	if (!options.forceScramjet && !options.nativeSearch &&
+		settings.proxyEngine === "customloader" && isSeussSearchQuery(input)) {
+		return showDuckDuckGoSearch(input, options);
+	}
 	if (!options.forceScramjet &&
 		(options.forceLite || ["seusslite","customloader"].includes(settings.proxyEngine)) &&
 		isSeussSearchQuery(input)) {
@@ -1757,6 +1828,7 @@ function goHome() {
 	tab.liteEngine = false;
 	tab.customEngine = false;
 	tab.searchPage = false;
+	tab.duckDuckGoSearch = false;
 	tab.uvFallback = false;
 	if (tab.searchAbort) tab.searchAbort.abort();
 	activateSiteTab(tab.id);
@@ -1887,9 +1959,18 @@ function launchLibraryGame(event, url) {
 	if (!requireSeussAccount()) return;
 	const gameTitle = event.currentTarget?.querySelector("strong")?.textContent?.trim() || siteTabTitle(url);
 	gamesDialog.close();
-	// All Games Library tiles (including Green Eggs and Ham) open in a new
-	// Seuss Browser tab, independently of the general search engine choice.
-	// go() still checks site policy BEFORE the native iframe is created.
+	// First-party offline games must not pass through external-site
+	// moderation/network checks or an opaque sandbox.
+	try {
+		const page = new URL(url, BASE);
+		if (page.origin === location.origin &&
+			page.pathname.startsWith(BASE.pathname) &&
+			FIRST_PARTY_GAME_FILES.has(page.pathname.slice(BASE.pathname.length))) {
+			openDirectSiteTab(page.href, gameTitle);
+			return;
+		}
+	} catch {}
+	// External games keep the existing policy checks and restricted iframe.
 	go(url, { forceLite:true, newTab:true, title:gameTitle });
 }
 document.querySelectorAll("[data-proxy-url]").forEach(button => {
@@ -1925,6 +2006,10 @@ $("b-reload").onclick = () => {
 	const tab = currentSiteTab();
 	if (!tab) return;
 	if (tab.searchPage) {
+		if (tab.duckDuckGoSearch) {
+			void showDuckDuckGoSearch(tab.searchQuery);
+			return;
+		}
 		if (tab.uvFallback) { goUltraviolet(tab.url); return; }
 		if (tab.sourceNotice) showEmbeddingNotice(new URL(tab.url));
 		else showSeussSearch(tab.searchQuery);
