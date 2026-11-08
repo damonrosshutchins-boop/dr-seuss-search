@@ -1796,6 +1796,14 @@ async function go(input, options = {}) {
 	}
 	const url = toUrl(input);
 	if (!url) return;
+	// Game launchers must never proceed if the account's destination-rule
+	// checker is unavailable. The ordinary browsing modes stay unchanged.
+	if ((options.wasmRipProxy === true || options.gameEmbed === true) &&
+		typeof window.dssSitePolicyCheck !== "function") {
+		showError("Game site rules are unavailable.",
+			"Reconnect to the site's safety checks before launching this game.");
+		return;
+	}
 	// Check the hostname before any external navigation starts. The rule
 	// service returns a block decision without reading the page contents.
 	if (typeof window.dssSitePolicyCheck === "function") {
