@@ -188,8 +188,8 @@ async function openGame(file,bytes,sha){
  }
  if(!navigator.onLine){status.textContent="This game isn't saved yet. Reconnect, choose the game, and press Save offline.";return}
  status.textContent="Opening hosted game. To play offline later, press Save offline.";
- frame.onload=()=>{if(number===token)status.textContent="Hosted game opened. Press Save offline now to keep a copy."};
- frame.onerror=()=>{if(number===token)status.textContent="Hosted game didn't open. Try GitHub download."};
+ frame.onload=()=>{if(number===token)status.textContent="The hosted game frame responded. If the screen is blank, its host may block embedding. Use Save offline to try a local copy; some games need extra assets."};
+ frame.onerror=()=>{if(number===token)status.textContent="Could not load the hosted game. Use Save offline to try its standalone HTML file."};
  frame.src=hosted+encodeURIComponent(file);
 }
 // Official GitHub file API is a fallback for smaller HTML files only.

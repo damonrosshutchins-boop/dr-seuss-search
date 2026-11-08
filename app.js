@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-dos-arcade-repair-20261107";
+const PROXY_WORKER_VERSION = "greeneggs-more-gamefixes-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1469,16 +1469,28 @@ function openSeussLite(targetUrl, options = {}) {
 		tab.liteHistory = [];
 		tab.liteHistoryIndex = -1;
 	}
+	if (!Array.isArray(tab.liteHistoryGameModes))
+		tab.liteHistoryGameModes = [];
+	const eligibleGame = options.gameEmbed === true &&
+		isCuratedRemoteGameUrl(target.href);
 	if (!options.fromHistory) {
-		tab.liteHistory = tab.liteHistory.slice(0, tab.liteHistoryIndex + 1);
+		// Keep the launch context per history entry so Back/Forward restores
+		// the same WASM-compatible sandbox. Never enable it for arbitrary URLs.
+		const end = tab.liteHistoryIndex + 1;
+		tab.liteHistory = tab.liteHistory.slice(0, end);
+		tab.liteHistoryGameModes = tab.liteHistoryGameModes.slice(0, end);
 		tab.liteHistory.push(target.href);
-		// Keep only the latest 30 top-level destinations to minimize memory.
-		if (tab.liteHistory.length > 30) tab.liteHistory.shift();
+		tab.liteHistoryGameModes.push(eligibleGame);
+		if (tab.liteHistory.length > 30) {
+			tab.liteHistory.shift();
+			tab.liteHistoryGameModes.shift();
+		}
 		tab.liteHistoryIndex = tab.liteHistory.length - 1;
 	}
 	tab.liteEngine = true;
-	tab.gameEmbed = options.gameEmbed === true &&
-		isCuratedRemoteGameUrl(target.href);
+	tab.gameEmbed = (options.fromHistory
+		? tab.liteHistoryGameModes[tab.liteHistoryIndex] === true
+		: eligibleGame) && isCuratedRemoteGameUrl(target.href);
 	tab.searchPage = false;
 	if (options.embeddedQuery) tab.liteSearchQuery = String(options.embeddedQuery).slice(0, 180);
 	tab.type = "direct";

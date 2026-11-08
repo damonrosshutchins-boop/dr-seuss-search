@@ -7,9 +7,10 @@ const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
 // Cache ONLY the trusted first-party offline game pages and their hub.
 // Never try to mirror third-party game hosts, authentication APIs, or
 // Scramjet-encoded websites.
-const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v3";
-const PREVIOUS_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v2";
-const LEGACY_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
+const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v4";
+const PREVIOUS_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v3";
+const LEGACY_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v2";
+const OLDEST_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
 const OFFLINE_GAME_FILES = ["offline-games.html", "offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html", "nes-homebrew.html", "console-emulators.html"];
 const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
   new URL(file, self.registration.scope).href
@@ -20,6 +21,7 @@ async function prepareOfflineGames() {
   const cache = await caches.open(OFFLINE_GAME_CACHE);
   const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const legacy = await caches.open(LEGACY_OFFLINE_GAME_CACHE);
+  const oldest = await caches.open(OLDEST_OFFLINE_GAME_CACHE);
   const results = [];
   for (const url of OFFLINE_GAME_URLS) {
     const file = new URL(url).pathname.split("/").pop();
@@ -33,7 +35,7 @@ async function prepareOfflineGames() {
       results.push({file,ok:true});
     } catch (err) {
       try {
-        const saved = await cache.match(url) || await previous.match(url) || await legacy.match(url);
+        const saved = await cache.match(url) || await previous.match(url) || await legacy.match(url) || await oldest.match(url);
         if (!saved) throw err;
         await cache.put(url, saved.clone());
         results.push({file,ok:true,cached:true});
@@ -48,9 +50,10 @@ async function serveOfflineGamePage(request) {
   const cache = await caches.open(OFFLINE_GAME_CACHE);
   const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const legacy = await caches.open(LEGACY_OFFLINE_GAME_CACHE);
+  const oldest = await caches.open(OLDEST_OFFLINE_GAME_CACHE);
   const url = new URL(request.url);
   const canonicalUrl = new URL(url.pathname, url.origin).href;
-  const saved = await cache.match(canonicalUrl) || await previous.match(canonicalUrl) || await legacy.match(canonicalUrl);
+  const saved = await cache.match(canonicalUrl) || await previous.match(canonicalUrl) || await legacy.match(canonicalUrl) || await oldest.match(canonicalUrl);
   if (saved) return saved;
   try {
     const response = await fetch(request);
