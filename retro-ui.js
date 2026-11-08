@@ -102,20 +102,24 @@ for(const [name,icon,description] of [
 
 /* Built-in homebrew launchers: no user-supplied ROM / BIOS requested. */
 const consoleGrid=$("retro-console-grid");
-const CONSOLES=[
- ["🎮","NES · LJ65","Single-file NES game · fully offline","nes-homebrew.html"],
- ["🔢","NES · 2048","MIT-licensed NES homebrew · cacheable","console-emulators.html?game=2048"],
- ["🥁","Nintendo 64 · Kumi-Daiko","CC0-licensed game-jam homebrew","console-emulators.html?game=kumi"],
- ["🎮","PS1 · Homebrew demo disc","Official PSoXide games · internet required","console-emulators.html?game=psoxide"],
- ["🧪","PS1 · Open-source test program","Hardware/emulator diagnostic · experimental","console-emulators.html?game=psxtest"]
-];
-for(const [icon,name,detail,file] of CONSOLES){
- consoleGrid.append(card(icon,name,detail,()=>{
-  if(typeof window.openDirectSiteTab!=="function")return;
-  dialog.close();
-  window.openDirectSiteTab(new URL(file,base).href,name);
- }));
+const CONSOLES=[["🧩","LJ65","NES · Fully offline","nes-homebrew.html","nes"],["🔢","2048 for NES","NES · Free homebrew · browser emulator","console-emulators.html?game=2048","nes"],["🐿️","Nova the Squirrel","NES · Free homebrew · browser emulator","console-emulators.html?game=nova","nes"],["👥","Alter Ego","NES · Free homebrew · browser emulator","console-emulators.html?game=alterego","nes"],["🐦","Spacegulls","NES · Free homebrew · browser emulator","console-emulators.html?game=spacegulls","nes"],["🗺️","Retropia","NES · Creator-hosted browser game","console-emulators.html?game=retropia","nes"],["⭐","Stallar","NES · Creator-hosted browser game","console-emulators.html?game=stallar","nes"],["🧱","MIROH","NES · Creator-hosted browser game","console-emulators.html?game=miroh","nes"],["💠","Doppel Effect","NES · Creator-hosted browser game","console-emulators.html?game=doppel","nes"],["🖼️","Anomalisa","NES · Creator-hosted browser game","console-emulators.html?game=anomalisa","nes"],["🐌","SnailNES","NES · Creator-hosted browser game","console-emulators.html?game=snail","nes"],["🐍","Slide-o-Snake","NES · Creator-hosted browser game","console-emulators.html?game=slide","nes"],["🎨","DWAMBO","NES · Creator-hosted browser game","console-emulators.html?game=dwambo","nes"],["🎃","Jack and the Candy Corn","NES · Creator-hosted browser game","console-emulators.html?game=jack","nes"],["🍔","8-Bit Diner","NES · Creator-hosted browser game","console-emulators.html?game=diner","nes"],["➕","Muncher Runner","NES · Creator-hosted browser game","console-emulators.html?game=muncher","nes"],["⚪","Droll Ball","NES · Creator-hosted browser game","console-emulators.html?game=droll","nes"],["🐧","Penguin: Sokoban Adventure","NES · Creator-hosted browser game","console-emulators.html?game=penguin","nes"],["🥁","Kumi-Daiko Beatoff 64","N64 · Free homebrew · browser emulator","console-emulators.html?game=kumi","n64"],["🎉","N64brew Game Jam 2024: 20 Minigames","N64 · Free homebrew · browser emulator","console-emulators.html?game=jam","n64"],["💿","PSoXide Homebrew Demo Disc","PS1 · Creator-hosted browser game","console-emulators.html?game=psoxide","ps1"],["🧪","PS1 Open-Source Test","PS1 · Free homebrew · browser emulator","console-emulators.html?game=psxtest","ps1"],["🎵","64Beats","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-64beats","n64"],["🪙","Coin Rush","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-coin-rush","n64"],["🐾","FurBall","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-furball","n64"],["⬡","Halcyon Hexagons","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-halcyon-hexagons","n64"],["🔥","Hot Hot Hexagons","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-hot-hot-hexagons","n64"],["🕳️","Holes","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-holes","n64"],["🎶","Hydra Harmonics","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-hydra-harmonics","n64"],["🧩","Land Grab","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-land-grab","n64"],["🔑","Le Tohu-Bohu","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-le-tohu-bohu","n64"],["🦆","Mallard","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-mallard","n64"],["⛄","May the Best Snowman Win","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-may-the-best-snowman-win","n64"],["🧖","Sauna Rush","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-sauna-rush","n64"],["🐍","Sneks","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-sneks","n64"],["🖐️","The Third Arm","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-the-third-arm","n64"],["💎","Underground Grind","N64 · Select in cartridge menu · experimental","console-emulators.html?game=jam-underground-grind","n64"],["🚗","NitroXide","PS1 · Select in disc menu · online","console-emulators.html?game=disc-nitroxide","ps1"],["⛏️","VoXide","PS1 · Select in disc menu · online","console-emulators.html?game=disc-voxide","ps1"],["🏔️","Celeste Classic","PS1 · Select in disc menu · online","console-emulators.html?game=disc-celeste-classic","ps1"],["🧗","Celeste Classic 2","PS1 · Select in disc menu · online","console-emulators.html?game=disc-celeste-classic-2","ps1"],["🧱","PSoXide Breakout","PS1 · Select in disc menu · online","console-emulators.html?game=disc-psoxide-breakout","ps1"],["🏓","PSoXide Pong","PS1 · Select in disc menu · online","console-emulators.html?game=disc-psoxide-pong","ps1"],["👾","PSoXide Space Invaders","PS1 · Select in disc menu · online","console-emulators.html?game=disc-psoxide-space-invaders","ps1"],["🎵","GH-PSX","PS1 · Select in disc menu · online","console-emulators.html?game=disc-gh-psx","ps1"]];
+const consoleSearch=$("retro-console-search"),consoleCount=$("retro-console-count");
+function displayConsoleCards(){
+ const q=(consoleSearch?.value||"").trim().toLowerCase();
+ consoleGrid.replaceChildren();let shown=0;
+ for(const [icon,name,detail,file,system] of CONSOLES){
+  if(![name,detail,system].join(" ").toLowerCase().includes(q))continue;
+  shown++;
+  consoleGrid.append(card(icon,name,detail,()=>{
+   if(typeof window.openDirectSiteTab!=="function")return;
+   dialog.close();
+   window.openDirectSiteTab(new URL(file,base).href,name);
+  }));
+ }
+ if(consoleCount)consoleCount.textContent=shown+" of "+CONSOLES.length+" console game entries";
 }
+consoleSearch?.addEventListener("input",displayConsoleCards);
+displayConsoleCards();
 $("retro-cache-console").addEventListener("click",async()=>{
  const button=$("retro-cache-console"),status=$("retro-cache-console-status");
  button.disabled=true;
@@ -123,7 +127,7 @@ $("retro-cache-console").addEventListener("click",async()=>{
  try {
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("This requires a browser supporting HTTPS service workers.");
-  const url=new URL("sw.js?v=greeneggs-console-20261107",base);
+  const url=new URL("sw.js?v=greeneggs-more-console-games-20261107",base);
   const reg=await navigator.serviceWorker.register(url.href,{scope:base.pathname,updateViaCache:"none"});
   await navigator.serviceWorker.ready;
   const worker=await new Promise((resolve,reject)=>{
@@ -147,7 +151,7 @@ $("retro-cache-console").addEventListener("click",async()=>{
    const why=(reply.failures||[]).slice(0,3).map(f=>f.file+" ("+f.message+")").join("; ");
    throw new Error(reply.error||"Some assets could not be saved: "+why);
   }
-  status.textContent="Console assets cached. NES 2048 and N64 homebrew may now work offline in this browser. PS1 test support is experimental. Hosted PSoXide still needs Wi-Fi.";
+  status.textContent="Console assets cached. NES 2048, Nova, Alter Ego, Spacegulls, and N64 Kumi-Daiko may now work offline in this browser. PS1 test support is experimental. Hosted PSoXide still needs Wi-Fi.";
  }catch(error){
   status.textContent="Console offline preparation incomplete: "+(error?.message||error);
  }finally{button.disabled=false}
@@ -163,7 +167,7 @@ cacheButton.addEventListener("click",async()=>{
  try{
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("HTTPS and service-worker support are required.");
-  const workerUrl=new URL("sw.js?v=greeneggs-console-20261107",base);
+  const workerUrl=new URL("sw.js?v=greeneggs-more-console-games-20261107",base);
   const registration=await navigator.serviceWorker.register(workerUrl.href,{
    scope:base.pathname,updateViaCache:"none"
   });

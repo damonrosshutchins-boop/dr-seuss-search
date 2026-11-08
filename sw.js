@@ -130,7 +130,7 @@ self.addEventListener("message",event=>{
 // Optional offline cache for official EmulatorJS cores and a small, fixed list
 // of license-compatible homebrew cartridge files. No full ROM mirrors and no
 // general-purpose cross-origin proxying.
-const CONSOLE_CACHE = "dss-console-homebrew-v1";
+const CONSOLE_CACHE = "dss-console-homebrew-v2";
 const CONSOLE_CDN = "https://cdn.emulatorjs.org/stable/data/";
 const CONSOLE_CORE_VARIANTS = ["fceumm","mupen64plus_next","pcsx_rearmed"];
 const CONSOLE_CORE_SUFFIXES = ["wasm","legacy-wasm","thread-wasm","thread-legacy-wasm"];
@@ -142,7 +142,10 @@ const CONSOLE_DATA_ASSETS = [
 const CONSOLE_GAMES = [
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/2048.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/kumi-daiko.n64",
-  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/psxtest.exe"
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/psxtest.exe",
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/nova-the-squirrel.nes",
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/alter-ego.nes",
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/spacegulls.nes"
 ];
 const CONSOLE_URLS = [...CONSOLE_DATA_ASSETS, ...CONSOLE_GAMES];
 const CONSOLE_URL_SET = new Set(CONSOLE_URLS);

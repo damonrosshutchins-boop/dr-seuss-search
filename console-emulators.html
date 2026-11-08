@@ -43,11 +43,20 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 [hidden]{display:none!important}
 @media(max-width:640px){.cards{grid-template-columns:1fr 1fr}.card{padding:11px}.card h2{font-size:.98rem}#stage{min-height:280px}}
 @media(max-width:410px){.cards{grid-template-columns:1fr}#stage{min-height:240px}}
+
+.searchbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:7px 0}
+.searchbar label{font-weight:850;color:var(--soft)}
+.searchbar input{flex:1;min-width:190px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0f2033;color:#eef7ff}
+.game-count{font-weight:800;color:var(--aqua);font-size:.88rem;margin:7px 0 13px}
+.card{min-height:225px}
+.card .mark{align-self:start}
+.card button{width:100%}
+.card button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
 <header><div class="inner"><div class="kicker">Retro Arcade &amp; Emulators · Free homebrew</div><h1>Nintendo 64, NES &amp; PlayStation 1</h1>
-<p>Preselected homebrew demos. No ROM hunting, BIOS upload, or manual file configuration.</p></div></header>
+<p>More than 40 free homebrew games, minigames, and demos. No ROM uploads, BIOS files, or manual setup.</p></div></header>
 <main>
 <div class="tabs" role="group" aria-label="Choose console">
 <button class="tab" type="button" data-system="nes" aria-pressed="true">NES</button>
@@ -55,6 +64,7 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 <button class="tab" type="button" data-system="ps1" aria-pressed="false">PlayStation 1</button>
 </div>
 <div class="info" id="description" role="status">NES has a fully offline built-in game. Other games need a first online visit, and cached offline playback varies by browser.</div>
+<div class="searchbar"><label for="search-game">Search games</label><input type="search" id="search-game" placeholder="Search NES, N64 or PS1 games…" autocomplete="off"></div><p id="game-count" class="game-count" role="status"></p>
 <div class="cards" id="games" aria-label="Homebrew games for selected console"></div>
 <section class="panel" id="player" hidden>
 <div class="panel-head"><h2 id="playing">Game</h2><button type="button" id="close-player">Back to game selection</button></div>
@@ -62,94 +72,198 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 <div id="stage"></div>
 <a id="external" href="https://bonnie-studios.itch.io/psoxide" target="_blank" rel="noopener noreferrer" hidden>Open the original PS1 homebrew player directly</a>
 </section>
-<p class="offline"><strong>Offline details:</strong> NES LJ65 is fully self-contained. To cache the other emulator runtimes and sample homebrew games, go to <strong>Games → Retro Arcade &amp; Emulators → Console Emulators → Prepare offline console files</strong> while connected. Internet-free N64 and PS1 WASM support is experimental and may not survive browser cache eviction.</p>
-<p class="note">NES console code: TrevorS (MIT), LJ65 by Damian Yerrick. NES 2048: tsone (MIT). N64 Kumi-Daiko: Team Riistahillo (CC0). PS1 test app: libretro open-source diagnostic, not a full game. The PlayStation demo disc is hosted and run by Bonnie Studios, not copied to this site. Commercial game ROMs and Sony BIOS files are not included.</p>
+<p class="offline"><strong>Offline details:</strong> NES LJ65 is fully self-contained. Creator-hosted browser games and N64brew/PSoXide collections require internet. To cache supported sample ROMs and emulator files, go to <strong>Games → Retro Arcade &amp; Emulators → Console Emulators → Prepare offline console files</strong> while connected. Internet-free N64 and PS1 WASM support is experimental and may not survive browser cache eviction.</p>
+<p class="note">NES emulator code: TrevorS (MIT), LJ65 by Damian Yerrick. Other games are linked from original authors or the openly distributed homebrew collection. N64 Kumi-Daiko: Team Riistahillo (CC0). N64brew 2024: official N64brew community release. PS1 games are selectable within the PSoXide demo disc hosted by Bonnie Studios; selecting a listed title still requires choosing it from the disc menu. None of the game files are rehosted in this repository.</p>
 <p class="note"><a href="nes-homebrew.html">Play fully offline NES LJ65 directly</a> · <a href="retro-arcade.html">22 original offline arcade games</a></p>
 </main>
 <script>
 (()=>{
 "use strict";
-const REV="35252504279bdc946156b1a002ce0de9f8b9d01b",RAW="https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/",CDN="https://cdn.emulatorjs.org/stable/data/";
+const REV="35252504279bdc946156b1a002ce0de9f8b9d01b";
+const RAW="https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/"+REV+"/www/roms/";
+const CDN="https://cdn.emulatorjs.org/stable/data/";
+const JAM="https://github.com/n64brew/N64brew-GameJam2024/releases/download/1.2.1/gamejam2024.z64";
+const PS1="https://bonnie-studios.itch.io/psoxide";
 const $=id=>document.getElementById(id);
 const CATALOG=[
-{id:"lj65",system:"nes",label:"LJ65 NES Homebrew",icon:"🧩",kind:"local",note:"Playable original NES cartridge with the emulator embedded in one HTML page.",license:"Free homebrew · fully offline",offline:true},
-{id:"2048",system:"nes",label:"2048 for NES",icon:"🔢",kind:"ejs",core:"nes",file:"2048.nes",note:"Slide and combine numbered tiles in a true NES homebrew game.",license:"MIT · offline after caching",offline:false},
-{id:"kumi",system:"n64",label:"Kumi-Daiko Beatoff 64",icon:"🥁",kind:"ejs",core:"n64",file:"kumi-daiko.n64",note:"Free N64 homebrew game-jam arena and rhythm game.",license:"CC0 · offline after caching",offline:false},
-{id:"psxtest",system:"ps1",label:"PS1 Open-Source Test",icon:"🎮",kind:"ejs",core:"psx",file:"psxtest.exe",note:"Real PS1 homebrew input/graphics test, not a full game. Emulator BIOS-free compatibility is experimental.",license:"Open-source diagnostic · experimental",offline:false},
-{id:"psoxide",system:"ps1",label:"PSoXide Demo Disc Games",icon:"💿",kind:"hosted",note:"Actual PS1 homebrew games and mini-games, playable online in the official browser emulator. No files needed.",license:"No setup · internet required",offline:false}
+  {id:"lj65",system:"nes",label:"LJ65",icon:"🧩",kind:"local",detail:"Fully offline",note:"An NES homebrew game preloaded into a self-contained emulator. No downloads or setup.",author:"Damian Yerrick"},
+  {id:"2048",system:"nes",label:"2048 for NES",icon:"🔢",kind:"ejs",core:"nes",url:RAW+"2048.nes",detail:"Free homebrew · internet first run",note:"Combine numbers in an actual NES cartridge program.",author:"tsone · MIT"},
+  {id:"nova",system:"nes",label:"Nova the Squirrel",icon:"🐿️",kind:"ejs",core:"nes",url:RAW+"nova-the-squirrel.nes",detail:"Homebrew · internet first run",note:"Explore a platforming adventure and copy abilities from enemies.",author:"NovaSquirrel"},
+  {id:"alterego",system:"nes",label:"Alter Ego",icon:"👥",kind:"ejs",core:"nes",url:RAW+"alter-ego.nes",detail:"Free homebrew · internet first run",note:"A puzzle-platformer where you swap places with your twin.",author:"Shiru"},
+  {id:"spacegulls",system:"nes",label:"Spacegulls",icon:"🐦",kind:"ejs",core:"nes",url:RAW+"spacegulls.nes",detail:"Free homebrew · internet first run",note:"A fast original NES space-platforming game.",author:"Morphcat Games"},
+  {id:"retropia",system:"nes",label:"Retropia",icon:"🗺️",kind:"hosted",url:"https://wendelscardua.itch.io/retropia",detail:"Author-hosted browser game",note:"Explore a retro world and discover special cartridges. Press Run game on the author's page.",author:"Wendel Scardua"},
+  {id:"stallar",system:"nes",label:"Stallar",icon:"⭐",kind:"hosted",url:"https://wendelscardua.itch.io/stallar",detail:"Author-hosted browser game",note:"Collect ten stars, then reach the goal. Press Run game.",author:"Wendel Scardua"},
+  {id:"miroh",system:"nes",label:"MIROH",icon:"🧱",kind:"hosted",url:"https://wendelscardua.itch.io/miroh",detail:"Author-hosted browser game",note:"A maze and falling-block survival puzzle.",author:"Wendel Scardua"},
+  {id:"doppel",system:"nes",label:"Doppel Effect",icon:"💠",kind:"hosted",url:"https://wendelscardua.itch.io/doppel-effect",detail:"Author-hosted browser game",note:"Solve crate puzzles using copies of your character.",author:"Wendel Scardua"},
+  {id:"anomalisa",system:"nes",label:"Anomalisa",icon:"🖼️",kind:"hosted",url:"https://wendelscardua.itch.io/anomalisa",detail:"Author-hosted browser game",note:"Rebuild a pixel-art painting using changing puzzle rules.",author:"Wendel Scardua"},
+  {id:"snail",system:"nes",label:"SnailNES",icon:"🐌",kind:"hosted",url:"https://skrap-klan.itch.io/snailnes",detail:"Author-hosted browser game",note:"Push snails into their homes across 30 puzzle levels.",author:"skRap Klan"},
+  {id:"slide",system:"nes",label:"Slide-o-Snake",icon:"🐍",kind:"hosted",url:"https://mikebloke.itch.io/slide-o-snake-nes",detail:"Author-hosted browser game",note:"Classic puzzle game reimagined for the NES.",author:"Mikebloke"},
+  {id:"dwambo",system:"nes",label:"DWAMBO",icon:"🎨",kind:"hosted",url:"https://felpashito.itch.io/dwambo",detail:"Author-hosted browser game",note:"Match colors on neighboring tile edges.",author:"felpashito"},
+  {id:"jack",system:"nes",label:"Jack and the Candy Corn",icon:"🎃",kind:"hosted",url:"https://gamma-correction.itch.io/jack-and-the-candy-corn",detail:"Author-hosted browser game",note:"Navigate puzzle-platforming stages as a pumpkin hero.",author:"gamma_correction"},
+  {id:"diner",system:"nes",label:"8-Bit Diner",icon:"🍔",kind:"hosted",url:"https://birdtekgames.itch.io/8-bit-diner-nes",detail:"Author-hosted browser game · early build",note:"Cook and serve orders in a cooperative NES restaurant game.",author:"Birdtek Games"},
+  {id:"muncher",system:"nes",label:"Muncher Runner",icon:"➕",kind:"hosted",url:"https://double-z-enterprises.itch.io/muncher-runner",detail:"Author-hosted browser game",note:"An educational running game with the browser emulator included.",author:"Double Z"},
+  {id:"droll",system:"nes",label:"Droll Ball",icon:"⚪",kind:"hosted",url:"https://adampankiewicz.itch.io/drollball",detail:"Author-hosted browser game",note:"Solve sixty tile-jumping puzzle stages.",author:"Adam Pankiewicz"},
+  {id:"penguin",system:"nes",label:"Penguin: Sokoban Adventure",icon:"🐧",kind:"hosted",url:"https://ajp-games.itch.io/penguin-sokoban-adventure",detail:"Author-hosted browser game",note:"Sixty-four sliding-block puzzle stages.",author:"AJP Games"},
+  {id:"kumi",system:"n64",label:"Kumi-Daiko Beatoff 64",icon:"🥁",kind:"ejs",core:"n64",url:RAW+"kumi-daiko.n64",detail:"CC0 homebrew · browser compatibility varies",note:"Original Nintendo 64 game-jam arena game; no ROM upload needed.",author:"Team Riistahillo · CC0"},
+  {id:"jam",system:"n64",label:"N64brew Game Jam 2024: 20 Minigames",icon:"🎉",kind:"ejs",core:"n64",url:JAM,detail:"Official release · experimental browser emulation",note:"A single genuine N64 cartridge containing 20 community minigames. Choose games inside the cartridge menu; browser Libdragon compatibility is unverified.",author:"N64brew community · official GitHub release",fallback:"https://github.com/n64brew/N64brew-GameJam2024/releases/tag/1.2.1"},
+  {id:"psoxide",system:"ps1",label:"PSoXide Homebrew Demo Disc",icon:"💿",kind:"hosted",url:PS1,detail:"Author-hosted browser emulator · internet required",note:"Play several genuine PS1 homebrew games from the demo disc menu. No BIOS, ROM, or manual upload.",author:"Bonnie Studios"},
+  {id:"psxtest",system:"ps1",label:"PS1 Open-Source Test",icon:"🧪",kind:"ejs",core:"psx",url:RAW+"psxtest.exe",detail:"Experimental diagnostic (not a complete game)",note:"A small open-source emulator test, not a fully playable game. Browser compatibility uncertain.",author:"libretro"},
 ];
-const URLS={
- "2048":RAW+"2048.nes",
- kumi:RAW+"kumi-daiko.n64",
- psxtest:RAW+"psxtest.exe"
-};
+const JAM_GAMES=[
+["64Beats","🎵","Follow the rhythm and hit arrows"],
+["Coin Rush","🪙","Compete to collect coins"],
+["FurBall","🐾","Play a furry target-throwing game"],
+["Halcyon Hexagons","⬡","Stay on the hexagonal platforms"],
+["Hot Hot Hexagons","🔥","Another hexagonal platform challenge"],
+["Holes","🕳️","Grow your hole by collecting objects"],
+["Hydra Harmonics","🎶","Collect musical notes as a hydra"],
+["Land Grab","🧩","Claim space on a board"],
+["Le Tohu-Bohu","🔑","Search for a hidden key"],
+["Mallard","🦆","Play as a duck and save the season"],
+["May the Best Snowman Win","⛄","Race to build a snowman"],
+["Sauna Rush","🧖","Beat the sauna timing challenge"],
+["Sneks","🐍","Feed a family of hungry snakes"],
+["The Third Arm","🖐️","An unusual controller coordination challenge"],
+["Underground Grind","💎","Search underground for treasure"]
+];
+const DISC_GAMES=[
+["NitroXide","🚗","Rocket-car soccer, with a friend or the computer"],
+["VoXide","⛏️","A block-building survival sandbox"],
+["Celeste Classic","🏔️","The first PICO-8 mountain platformer, on PS1"],
+["Celeste Classic 2","🧗","The second mountain game, with a grappling mechanic"],
+["PSoXide Breakout","🧱","A brick-breaking arcade minigame"],
+["PSoXide Pong","🏓","Classic paddle arcade minigame"],
+["PSoXide Space Invaders","👾","A classic alien arcade minigame"],
+["GH-PSX","🎵","A rhythm-game prototype"]
+];
+for(const [title,icon,desc] of JAM_GAMES)CATALOG.push({
+ id:"jam-"+title.toLowerCase().replace(/[^a-z0-9]+/g,"-"),system:"n64",label:title,icon,kind:"collection",parent:"jam",detail:"Part of the N64brew 2024 cartridge · experimental",note:desc+". Select this title from the game's own menu after launching the 2024 cartridge.",author:"N64brew Game Jam 2024"
+});
+for(const [title,icon,desc] of DISC_GAMES)CATALOG.push({
+ id:"disc-"+title.toLowerCase().replace(/[^a-z0-9]+/g,"-"),system:"ps1",label:title,icon,kind:"collection",parent:"psoxide",detail:"On the PSoXide Demo Disc · internet required",note:desc+". Select it from the demo disc menu; no files to upload.",author:"Bonnie Studios / credited game authors"
+});
 const descriptions={
- nes:"NES: LJ65 is fully embedded and works even from a saved HTML file. 2048 uses the browser emulator and can be cached after one online visit.",
- n64:"Nintendo 64: launch a real CC0 homebrew game in EmulatorJS. A faster desktop browser may be required; cache its files once for possible offline reuse.",
- ps1:"PlayStation 1: the official PSoXide player supplies working games with no BIOS upload but requires internet. The separate EmulatorJS PS1 test is experimental."
+ nes:"NES: The built-in LJ65 is fully offline. Other free homebrews launch from the preconfigured emulator or their creators' browser-playable pages—no file uploads.",
+ n64:"N64: Kumi-Daiko and the 20-minigame N64brew 2024 cartridge need no manual ROM setup. The 2024 Libdragon cartridge may NOT run in EmulatorJS; it is an experimental option.",
+ ps1:"PS1: The PSoXide disc contains many genuine homebrew games. Launch its official browser player, then select a game in the disc menu. No Sony BIOS or uploads required."
 };
-let current="nes";
-function setStatus(s){$("status").textContent=s}
-function showList(){
- const region=$("games");region.replaceChildren();
+let current="nes",liveEmulator=null;
+const params=new URLSearchParams(location.search);
+const requested=params.get("game");
+const selection=CATALOG.find(g=>g.id===requested);
+if(selection)current=selection.system;
+function status(text){$("status").textContent=text}
+function child(tag,content,cls){
+ const el=document.createElement(tag);
+ if(content!==undefined)el.textContent=content;
+ if(cls)el.className=cls;
+ return el;
+}
+function render(){
+ $("games").replaceChildren();
+ const q=$("search-game").value.trim().toLowerCase();
+ for(const tab of document.querySelectorAll("[data-system]"))
+  tab.setAttribute("aria-pressed",String(tab.dataset.system===current));
  $("description").textContent=descriptions[current];
- for(const tab of document.querySelectorAll("[data-system]"))tab.setAttribute("aria-pressed",String(tab.dataset.system===current));
- for(const item of CATALOG.filter(g=>g.system===current)){
-  const card=document.createElement("article");card.className="card";
-  const picture=document.createElement("div");picture.className="emoji";picture.textContent=item.icon;
-  const title=document.createElement("h2");title.textContent=item.label;
-  const line=document.createElement("span");line.className="mark"+(item.kind==="hosted"?" online":"");line.textContent=item.license;
-  const note=document.createElement("p");note.textContent=item.note;
-  const button=document.createElement("button");button.type="button";button.textContent=item.kind==="local"?"Play offline":item.kind==="hosted"?"Open playable demo":"Start emulator";
-  button.addEventListener("click",()=>start(item));
-  card.append(picture,title,line,note,button);region.append(card);
+ const matching=CATALOG.filter(g=>g.system===current &&
+  (g.label+" "+g.note+" "+g.author).toLowerCase().includes(q));
+ $("game-count").textContent=matching.length+" games and demo selections available on "+current.toUpperCase()+" · no game files to upload";
+ for(const item of matching){
+  const card=child("article",undefined,"card"),emoji=child("div",item.icon,"emoji"),
+        title=child("h2",item.label),
+        mark=child("small",item.detail,"mark"+(["hosted","collection"].includes(item.kind)?" online":"")),
+        note=child("p",item.note),
+        author=child("small","Created by "+item.author);
+  const button=child("button",item.kind==="local"?"Play offline":item.kind==="hosted"?"Open browser game":item.kind==="collection"?"Open game collection":"Start emulator");
+  button.type="button";button.addEventListener("click",()=>launch(item));
+  card.append(emoji,title,mark,note,author,button);$("games").append(card);
  }
 }
-function reset(){
- $("player").hidden=true;$("stage").replaceChildren();$("external").hidden=true;
- setStatus("");try{history.replaceState(null,"",location.pathname)}catch{}
+function clear(){
+ if(liveEmulator){
+  // Avoid duplicate initialization of EmulatorJS in one document.
+  location.href=location.pathname+"#"+current;
+  return true;
+ }
+ $("player").hidden=true;$("stage").replaceChildren();
+ $("external").hidden=true;$("external").removeAttribute("href");status("");
+ return false;
 }
-function start(item){
+function showPlayer(item){
+ $("player").hidden=false;$("playing").textContent=item.label;
+ $("stage").replaceChildren();$("external").hidden=true;
+ $("external").removeAttribute("href");
+ try{history.replaceState(null,"","?game="+encodeURIComponent(item.id))}catch{}
+ $("player").scrollIntoView?.({block:"start",behavior:"smooth"});
+}
+function launch(item){
+ if(item.kind==="collection"){
+  const parent=CATALOG.find(g=>g.id===item.parent);
+  if(!parent)return;
+  return launch({...parent,chosen:item.label});
+ }
  if(item.kind==="local"){
   location.href=new URL("nes-homebrew.html",location.href).href;
   return;
  }
- reset();$("player").hidden=false;$("playing").textContent=item.label;
- if(item.kind==="hosted"){
-  setStatus("This official PS1 game collection needs internet. If embedding is blocked, use the direct player link.");
-  const iframe=document.createElement("iframe");iframe.title="Official PSoXide PS1 homebrew demo disc";
-  iframe.referrerPolicy="no-referrer";iframe.allow="fullscreen; gamepad";
-  iframe.setAttribute("sandbox","allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-fullscreen");
-  iframe.src="https://bonnie-studios.itch.io/psoxide";
-  iframe.style.cssText="width:100%;min-height:550px;border:0";
-  $("stage").append(iframe);$("external").hidden=false;return;
+ if(liveEmulator){
+  location.href=location.pathname+"?game="+encodeURIComponent(item.id);
+  return;
  }
- const stage=$("stage"),game=document.createElement("div");game.id="console-screen";
+ showPlayer(item);
+ if(item.kind==="hosted"){
+  const hint=item.chosen ? " Find '"+item.chosen+"' in the disc menu." : "";
+  status("This game is hosted by its developer. Click Run game or Play in the embedded page."+hint+" If embedding is blocked, open the original page below.");
+  const frame=child("iframe");
+  frame.src=item.url;frame.title=item.label+" · official game";
+  frame.referrerPolicy="no-referrer";
+  frame.setAttribute("sandbox","allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-fullscreen");
+  frame.allow="fullscreen; gamepad";frame.style.cssText="width:100%;height:620px;border:0;";
+  $("stage").append(frame);
+  const link=$("external");link.href=item.url;link.textContent="Open the official browser game page";link.hidden=false;
+  return;
+ }
+ liveEmulator=item.id;
+ const game=child("div");game.id="console-screen";
  game.style.cssText="width:100%;height:100%;min-height:425px";
- stage.append(game);
- // The upstream official EmulatorJS loader fetches its own WebAssembly core.
- // We load only a fixed allowlist of small, openly licensed sample programs.
- window.EJS_player="#console-screen";window.EJS_core=item.core;
- window.EJS_gameUrl=URLS[item.id];window.EJS_gameName=item.label;
- window.EJS_biosUrl="";window.EJS_pathtodata=CDN;
- window.EJS_startOnLoaded=true;window.EJS_color="#2e7b72";
+ $("stage").append(game);
+ window.EJS_player="#console-screen";
+ window.EJS_core=item.core;
+ window.EJS_gameUrl=item.url;
+ window.EJS_gameName=item.label;
+ window.EJS_biosUrl="";
+ window.EJS_pathtodata=CDN;
+ window.EJS_startOnLoaded=true;
+ window.EJS_color="#2e7b72";
  window.EJS_DEBUG_XX=false;
- setStatus("Loading the "+item.core.toUpperCase()+" emulator and the preselected homebrew file… First use needs internet.");
- const script=document.createElement("script");script.src=CDN+"loader.js";
- script.crossOrigin="anonymous";
- script.onerror=()=>setStatus("Emulator files are unavailable. Check Wi-Fi, or try Prepare offline console files while connected.");
+ const chosen=item.chosen?" Once loaded, select '"+item.chosen+"' in the cartridge menu.":"";
+ status("Starting "+item.label+" in EmulatorJS… This may take a little time."+chosen+(item.id==="jam"?" This Libdragon game may be incompatible with this emulator.":""));
+ if(item.fallback){
+  const link=$("external");link.href=item.fallback;
+  link.textContent="Official game developer and release page";link.hidden=false;
+ }
+ const script=document.createElement("script");
+ script.src=CDN+"loader.js";script.crossOrigin="anonymous";
+ script.onerror=()=>status("The emulator couldn't load. No setup is needed on your end, but this game may be incompatible or the server may be unavailable.");
  document.body.append(script);
- try{history.replaceState(null,"","?game="+encodeURIComponent(item.id))}catch{}
 }
 for(const tab of document.querySelectorAll("[data-system]"))tab.addEventListener("click",()=>{
- current=tab.dataset.system;reset();showList();
+ const next=tab.dataset.system;
+ if(liveEmulator){
+  location.href=location.pathname+"#"+next;
+  return;
+ }
+ current=next;clear();render();
+ try{history.replaceState(null,"","#"+current)}catch{}
 });
-$("close-player").addEventListener("click",()=>{location.href=location.pathname+"#"+current});
-const requested=new URLSearchParams(location.search).get("game");
-const initial=CATALOG.find(item=>item.id===requested&&item.kind!=="local");
-if(initial)current=initial.system;
-showList();
-if(initial)start(initial);
+$("search-game").addEventListener("input",render);
+$("close-player").addEventListener("click",()=>{
+ liveEmulator=null;
+ location.href=location.pathname+"#"+current;
+});
+if(!selection&&["nes","n64","ps1"].includes(location.hash.slice(1)))current=location.hash.slice(1);
+render();
+if(selection)launch(selection);
 })();
 </script>
 </body>
