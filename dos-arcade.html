@@ -57,7 +57,7 @@ let runner=null,current=null,generation=0,safeMode=false,startTimer=null,gameRea
 compatBtn.disabled=true;
 function clearTimer(){if(startTimer){clearTimeout(startTimer);startTimer=null}}
 async function stop(){
- generation++;
+ const token=++generation;
  clearTimer();
  const old=runner;
  runner=null;current=null;gameReady=false;
@@ -67,7 +67,7 @@ async function stop(){
  compatBtn.disabled=true;
  message.textContent="Emulator stopped.";
  if(old){try{await old.stop()}catch{}}
- return generation;
+ return token;
 }
 document.getElementById("stop").addEventListener("click",()=>{void stop()});
 compatBtn.addEventListener("click",()=>{
