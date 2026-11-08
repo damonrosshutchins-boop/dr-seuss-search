@@ -8,7 +8,7 @@ const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
 // Never try to mirror third-party game hosts, authentication APIs, or
 // Scramjet-encoded websites.
 const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
-const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html"];
+const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html", "nes-homebrew.html", "console-emulators.html"];
 const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
   new URL(file, self.registration.scope).href
 );
@@ -123,6 +123,71 @@ self.addEventListener("message",event=>{
   }catch(error){
    port.postMessage({type:"done",ok:false,error:String(error?.message||error)});
   }
+ })());
+});
+
+
+// Optional offline cache for official EmulatorJS cores and a small, fixed list
+// of license-compatible homebrew cartridge files. No full ROM mirrors and no
+// general-purpose cross-origin proxying.
+const CONSOLE_CACHE = "dss-console-homebrew-v1";
+const CONSOLE_CDN = "https://cdn.emulatorjs.org/stable/data/";
+const CONSOLE_CORE_VARIANTS = ["fceumm","mupen64plus_next","pcsx_rearmed"];
+const CONSOLE_CORE_SUFFIXES = ["wasm","legacy-wasm","thread-wasm","thread-legacy-wasm"];
+const CONSOLE_DATA_ASSETS = [
+  "loader.js","emulator.min.js","emulator.min.css","cores/cores.json",
+  ...CONSOLE_CORE_VARIANTS.flatMap(name=>
+    CONSOLE_CORE_SUFFIXES.map(suffix=>"cores/"+name+"-"+suffix+".data"))
+].map(file=>CONSOLE_CDN+file);
+const CONSOLE_GAMES = [
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/2048.nes",
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/kumi-daiko.n64",
+  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/psxtest.exe"
+];
+const CONSOLE_URLS = [...CONSOLE_DATA_ASSETS, ...CONSOLE_GAMES];
+const CONSOLE_URL_SET = new Set(CONSOLE_URLS);
+async function cacheConsoleAssets(port) {
+ const store=await caches.open(CONSOLE_CACHE),failures=[];
+ let completed=0;
+ for(const url of CONSOLE_URLS) {
+  try {
+    if(!await store.match(url)) {
+      const response=await fetch(url,{
+        credentials:"omit",mode:"cors",redirect:"follow",cache:"no-store"
+      });
+      if(!response.ok||response.type==="opaque")
+        throw new Error("File did not allow cross-origin loading (HTTP "+response.status+")");
+      await store.put(url,response);
+    }
+  }catch(error){failures.push({file:url.split("/").pop(),message:String(error?.message||error).slice(0,110)})}
+  completed++;
+  try{port.postMessage({type:"progress",done:completed,total:CONSOLE_URLS.length,failures:failures.length})}catch{}
+ }
+ return failures;
+}
+async function serveConsoleAsset(request) {
+ const store=await caches.open(CONSOLE_CACHE);
+ const cached=await store.match(request.url);
+ if(cached)return cached;
+ const response=await fetch(request);
+ if(response.ok&&response.type!=="opaque") {
+  try{await store.put(request.url,response.clone())}catch{}
+ }
+ return response;
+}
+self.addEventListener("message",event=>{
+ if(event.data?.type!=="dss-install-console-homebrew")return;
+ const port=event.ports?.[0];
+ if(!port||!event.source?.url)return;
+ try{
+   const source=new URL(event.source.url),scope=new URL(self.registration.scope);
+   if(source.origin!==scope.origin||!source.pathname.startsWith(scope.pathname))return;
+ }catch{return}
+ event.waitUntil((async()=>{
+  try{
+   const failures=await cacheConsoleAssets(port);
+   port.postMessage({type:"done",ok:failures.length===0,failures,total:CONSOLE_URLS.length});
+  }catch(error){port.postMessage({type:"done",ok:false,error:String(error?.message||error).slice(0,150)})}
  })());
 });
 
@@ -284,6 +349,12 @@ self.addEventListener("fetch", (event) => {
 	// games catalog or other first-party assets. Native browser networking
 	// can fetch/cache them faster than a JS service-worker pass-through.
 	const url = new URL(event.request.url);
+  // A closed allowlist, not a general relay: cache only official emulator
+  // runtime files and the three identified free homebrew/test programs.
+  if(event.request.method==="GET"&&CONSOLE_URL_SET.has(event.request.url)) {
+    event.respondWith(serveConsoleAsset(event.request));
+    return;
+  }
   if (url.origin !== self.location.origin) return;
   if (event.request.method === "GET" && OFFLINE_GAME_PATHS.has(url.pathname)) {
     event.respondWith(serveOfflineGamePage(event.request));
