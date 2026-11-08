@@ -31,6 +31,9 @@
 		{ name: "TerbiumOS v2", badge: "Tb", color: "#32ae62",
 			desc: "A modern browser desktop with a window manager and app store, hosted by TerbiumOS.",
 			size: "Web app", url: "https://terbiumon.top/" },
+		{ name: "LavenderOS", badge: "Lv", color: "#a78bfa",
+			desc: "A browser-based desktop experience, hosted by LavenderOS-test.",
+			size: "Web app", url: "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html" },
 	];
 
 	const $ = (id) => document.getElementById(id);
@@ -347,19 +350,23 @@
 		ui.stage.classList.add("web");
 		ui.hint.textContent = "This is a hosted browser desktop, not a PC emulator. Some embedded browser features may be limited.";
 		ui.webFallback.hidden = false;
+		const fallbackLink = ui.webFallback.querySelector("a");
+		const fallbackTitle = ui.webFallback.querySelector("strong");
+		if (fallbackTitle) fallbackTitle.textContent = req.name + " is hosted on a different website.";
+		if (fallbackLink) { fallbackLink.href = req.url; fallbackLink.textContent = "Open " + req.name + " directly (if permitted)"; }
 		ui.webHost.hidden = false;
-		setStatus("Opening TerbiumOS v2…");
+		setStatus("Opening " + req.name + "…");
 		const frame = document.createElement("iframe");
 		frame.title = req.name;
 		frame.referrerPolicy = "no-referrer";
 		frame.allow = "fullscreen; clipboard-read; clipboard-write";
 		frame.addEventListener("load", () => {
 			if (generation === bootGeneration && engine === "web")
-				setStatus("TerbiumOS iframe response received. If you see a browser block message, its host or network does not allow embedding. Try the local desktop below.", true);
+				setStatus(req.name + " iframe response received. If you see a browser block message, its host or network does not allow embedding. Try the local desktop below.", true);
 		});
 		frame.addEventListener("error", () => {
 			if (generation === bootGeneration && engine === "web")
-				setStatus("The external TerbiumOS website could not be embedded. Use the built-in KolibriOS desktop instead.", true);
+				setStatus("The external " + req.name + " website could not be embedded. Use the built-in KolibriOS desktop instead.", true);
 		});
 		webFrame = frame;
 		ui.webHost.appendChild(frame);
