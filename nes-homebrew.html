@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NES · LJ65 Free Homebrew · Seuss Search</title>
+<style>
+  :root {
+    --bg: #14141a; --panel: #1e1e28; --border: #32323f;
+    --text: #e8e8f0; --dim: #8a8a9a; --accent: #e05c5c; --ok: #6cc46c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px;
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: 1px; }
+  h1 .accent { color: var(--accent); }
+  #screen {
+    width: 512px; height: 480px; max-width: 100%;
+    image-rendering: pixelated; background: #000;
+    border: 1px solid var(--border); border-radius: 4px;
+  }
+  #drop {
+    border: 2px dashed var(--border); border-radius: 6px; padding: 10px 18px;
+    color: var(--dim); cursor: pointer; text-align: center;
+  }
+  #drop.hover { border-color: var(--accent); color: var(--text); }
+  #status { color: var(--dim); white-space: pre-wrap; max-width: 640px; text-align: center; }
+  #status .ok { color: var(--ok); }
+  #status .err { color: var(--accent); }
+  #keys { color: var(--dim); font-size: 12px; }
+  input[type=file] { display: none; }
+  button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 16px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  #controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  #controls button { padding: 4px 12px; }
+  #fps { color: var(--dim); min-width: 64px; }
+  #vol { width: 90px; accent-color: var(--accent); }
+  #mp { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 560px; max-width: 100%; }
+  #mpBtns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  #mpStatus { color: var(--dim); }
+  #mpStatus.ok { color: var(--ok); }
+  #mpStatus.err { color: var(--accent); }
+  #mpExchange { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  #mpHint { color: var(--dim); font-size: 12px; }
+  .mprow { display: flex; gap: 6px; }
+  .mprow textarea {
+    flex: 1; height: 52px; resize: none; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; font: 11px ui-monospace, monospace; padding: 6px;
+  }
+  #keys { text-align: center; line-height: 1.8; }
+  #screen:fullscreen { object-fit: contain; width: 100%; height: 100%; border: none; }
+</style>
+<style>
+#mp,#drop,#rom{display:none!important}
+#builtin{border-color:var(--accent);color:var(--text)}
+</style>
+</head>
+<body>
+  <h1>Nintendo Entertainment System · <span class="accent">LJ65</span></h1>
+  <p style="margin:0;text-align:center;max-width:570px;color:var(--dim)">Ready-to-play NES homebrew by Damian Yerrick. Runs completely offline in this single file; no ROM or BIOS needed.</p>
+  <canvas id="screen" width="256" height="240"></canvas>
+  <div id="controls">
+    <button id="pauseBtn" title="P">Pause</button>
+    <button id="resetBtn">Reset</button>
+    <button id="saveBtn" title="F5">Save state</button>
+    <button id="loadBtn" title="F9">Load state</button>
+    <button id="fsBtn">Fullscreen</button>
+    <button id="muteBtn">Mute</button>
+    <input type="range" id="vol" min="0" max="100" value="50" title="Volume">
+    <span id="fps"></span>
+  </div>
+  <label id="drop" for="rom">Drop a .nes ROM here or click to browse</label>
+  <input type="file" id="rom" accept=".nes">
+  <button id="builtin">Load built-in game: LJ65 (free homebrew by Damian Yerrick)</button>
+  <div id="status">Loading built-in LJ65 game…</div>
+  <div id="mp">
+    <div id="mpBtns">
+      <button id="hostBtn">Host multiplayer</button>
+      <button id="joinBtn">Join multiplayer</button>
+      <button id="leaveBtn" hidden>Leave game</button>
+      <span id="mpStatus"></span>
+    </div>
+    <div id="mpExchange" hidden>
+      <div id="mpHint"></div>
+      <div class="mprow"><textarea id="mpOut" readonly placeholder="(your code will appear here)"></textarea><button id="mpCopy">Copy</button></div>
+      <div class="mprow"><textarea id="mpIn" placeholder="paste your friend's code here"></textarea><button id="mpApply">Apply</button></div>
+    </div>
+  </div>
+  <div id="keys">P1: arrows &nbsp; Z=B X=A &nbsp; Enter=Start Shift=Select &nbsp;|&nbsp; P2: IJKL &nbsp; N=B M=A<br>
+  P=pause &nbsp; F5/F9=save/load state &nbsp; gamepads supported (first two)<br>
+  Multiplayer: host = P1, guest = P2, both use the P1 keys. Load the same ROM on both sides first.</div>
+
+<script>
+"use strict";
+//<NES-CORE>
+// Everything between these markers is DOM-free and runs in Node for testing.
+
+// ---------------------------------------------------------------- flags
+const FC=0x01, FZ=0x02, FI=0x04, FD=0x08, FB=0x10, FU=0x20, FV=0x40, FN=0x80;
+
+// ---------------------------------------------------------------- opcode table
+// mode: imp acc imm zp zpx zpy abs abx aby ind izx izy rel
+// x = +1 cycle on page cross (read instructions only)
+const OPTABLE = new Array(256).fill(null);
+(function build() {
+  const d = (code, n, m, c, x) => { OPTABLE[code] = { n, m, c, x: !!x }; };
+  // official
+  d(0x69,'ADC','imm',2); d(0x65,'ADC','zp',3);  d(0x75,'ADC','zpx',4); d(0x6D,'ADC','abs',4);
+  d(0x7D,'ADC','abx',4,1); d(0x79,'ADC','aby',4,1); d(0x61,'ADC','izx',6); d(0x71,'ADC','izy',5,1);
+  d(0x29,'AND','imm',2); d(0x25,'AND','zp',3);  d(0x35,'AND','zpx',4); d(0x2D,'AND','abs',4);
+  d(0x3D,'AND','abx',4,1); d(0x39,'AND','aby',4,1); d(0x21,'AND','izx',6); d(0x31,'AND','izy',5,1);
+  d(0x0A,'ASL','acc',2); d(0x06,'ASL','zp',5);  d(0x16,'ASL','zpx',6); d(0x0E,'ASL','abs',6); d(0x1E,'ASL','abx',7);
+  d(0x90,'BCC','rel',2); d(0xB0,'BCS','rel',2); d(0xF0,'BEQ','rel',2); d(0x30,'BMI','rel',2);
+  d(0xD0,'BNE','rel',2); d(0x10,'BPL','rel',2); d(0x50,'BVC','rel',2); d(0x70,'BVS','rel',2);
+  d(0x24,'BIT','zp',3);  d(0x2C,'BIT','abs',4);
+  d(0x00,'BRK','imp',7);
+  d(0x18,'CLC','imp',2); d(0xD8,'CLD','imp',2); d(0x58,'CLI','imp',2); d(0xB8,'CLV','imp',2);
+  d(0xC9,'CMP','imm',2); d(0xC5,'CMP','zp',3);  d(0xD5,'CMP','zpx',4); d(0xCD,'CMP','abs',4);
+  d(0xDD,'CMP','abx',4,1); d(0xD9,'CMP','aby',4,1); d(0xC1,'CMP','izx',6); d(0xD1,'CMP','izy',5,1);
+  d(0xE0,'CPX','imm',2); d(0xE4,'CPX','zp',3);  d(0xEC,'CPX','abs',4);
+  d(0xC0,'CPY','imm',2); d(0xC4,'CPY','zp',3);  d(0xCC,'CPY','abs',4);
+  d(0xC6,'DEC','zp',5);  d(0xD6,'DEC','zpx',6); d(0xCE,'DEC','abs',6); d(0xDE,'DEC','abx',7);
+  d(0xCA,'DEX','imp',2); d(0x88,'DEY','imp',2);
+  d(0x49,'EOR','imm',2); d(0x45,'EOR','zp',3);  d(0x55,'EOR','zpx',4); d(0x4D,'EOR','abs',4);
+  d(0x5D,'EOR','abx',4,1); d(0x59,'EOR','aby',4,1); d(0x41,'EOR','izx',6); d(0x51,'EOR','izy',5,1);
+  d(0xE6,'INC','zp',5);  d(0xF6,'INC','zpx',6); d(0xEE,'INC','abs',6); d(0xFE,'INC','abx',7);
+  d(0xE8,'INX','imp',2); d(0xC8,'INY','imp',2);
+  d(0x4C,'JMP','abs',3); d(0x6C,'JMP','ind',5); d(0x20,'JSR','jsr',6); // JSR sequences its own cycles
+  d(0xA9,'LDA','imm',2); d(0xA5,'LDA','zp',3);  d(0xB5,'LDA','zpx',4); d(0xAD,'LDA','abs',4);
+  d(0xBD,'LDA','abx',4,1); d(0xB9,'LDA','aby',4,1); d(0xA1,'LDA','izx',6); d(0xB1,'LDA','izy',5,1);
+  d(0xA2,'LDX','imm',2); d(0xA6,'LDX','zp',3);  d(0xB6,'LDX','zpy',4); d(0xAE,'LDX','abs',4); d(0xBE,'LDX','aby',4,1);
+  d(0xA0,'LDY','imm',2); d(0xA4,'LDY','zp',3);  d(0xB4,'LDY','zpx',4); d(0xAC,'LDY','abs',4); d(0xBC,'LDY','abx',4,1);
+  d(0x4A,'LSR','acc',2); d(0x46,'LSR','zp',5);  d(0x56,'LSR','zpx',6); d(0x4E,'LSR','abs',6); d(0x5E,'LSR','abx',7);
+  d(0xEA,'NOP','imp',2);
+  d(0x09,'ORA','imm',2); d(0x05,'ORA','zp',3);  d(0x15,'ORA','zpx',4); d(0x0D,'ORA','abs',4);
+  d(0x1D,'ORA','abx',4,1); d(0x19,'ORA','aby',4,1); d(0x01,'ORA','izx',6); d(0x11,'ORA','izy',5,1);
+  d(0x48,'PHA','imp',3); d(0x08,'PHP','imp',3); d(0x68,'PLA','imp',4); d(0x28,'PLP','imp',4);
+  d(0x2A,'ROL','acc',2); d(0x26,'ROL','zp',5);  d(0x36,'ROL','zpx',6); d(0x2E,'ROL','abs',6); d(0x3E,'ROL','abx',7);
+  d(0x6A,'ROR','acc',2); d(0x66,'ROR','zp',5);  d(0x76,'ROR','zpx',6); d(0x6E,'ROR','abs',6); d(0x7E,'ROR','abx',7);
+  d(0x40,'RTI','imp',6); d(0x60,'RTS','imp',6);
+  d(0xE9,'SBC','imm',2); d(0xE5,'SBC','zp',3);  d(0xF5,'SBC','zpx',4); d(0xED,'SBC','abs',4);
+  d(0xFD,'SBC','abx',4,1); d(0xF9,'SBC','aby',4,1); d(0xE1,'SBC','izx',6); d(0xF1,'SBC','izy',5,1);
+  d(0x38,'SEC','imp',2); d(0xF8,'SED','imp',2); d(0x78,'SEI','imp',2);
+  d(0x85,'STA','zp',3);  d(0x95,'STA','zpx',4); d(0x8D,'STA','abs',4);
+  d(0x9D,'STA','abx',5); d(0x99,'STA','aby',5); d(0x81,'STA','izx',6); d(0x91,'STA','izy',6);
+  d(0x86,'STX','zp',3);  d(0x96,'STX','zpy',4); d(0x8E,'STX','abs',4);
+  d(0x84,'STY','zp',3);  d(0x94,'STY','zpx',4); d(0x8C,'STY','abs',4);
+  d(0xAA,'TAX','imp',2); d(0xA8,'TAY','imp',2); d(0xBA,'TSX','imp',2);
+  d(0x8A,'TXA','imp',2); d(0x9A,'TXS','imp',2); d(0x98,'TYA','imp',2);
+  // unofficial
+  d(0xA7,'LAX','zp',3);  d(0xB7,'LAX','zpy',4); d(0xAF,'LAX','abs',4); d(0xBF,'LAX','aby',4,1);
+  d(0xA3,'LAX','izx',6); d(0xB3,'LAX','izy',5,1); d(0xAB,'LAX','imm',2);
+  d(0x87,'SAX','zp',3);  d(0x97,'SAX','zpy',4); d(0x8F,'SAX','abs',4); d(0x83,'SAX','izx',6);
+  d(0xC7,'DCP','zp',5);  d(0xD7,'DCP','zpx',6); d(0xCF,'DCP','abs',6); d(0xDF,'DCP','abx',7);
+  d(0xDB,'DCP','aby',7); d(0xC3,'DCP','izx',8); d(0xD3,'DCP','izy',8);
+  d(0xE7,'ISB','zp',5);  d(0xF7,'ISB','zpx',6); d(0xEF,'ISB','abs',6); d(0xFF,'ISB','abx',7);
+  d(0xFB,'ISB','aby',7); d(0xE3,'ISB','izx',8); d(0xF3,'ISB','izy',8);
+  d(0x07,'SLO','zp',5);  d(0x17,'SLO','zpx',6); d(0x0F,'SLO','abs',6); d(0x1F,'SLO','abx',7);
+  d(0x1B,'SLO','aby',7); d(0x03,'SLO','izx',8); d(0x13,'SLO','izy',8);
+  d(0x27,'RLA','zp',5);  d(0x37,'RLA','zpx',6); d(0x2F,'RLA','abs',6); d(0x3F,'RLA','abx',7);
+  d(0x3B,'RLA','aby',7); d(0x23,'RLA','izx',8); d(0x33,'RLA','izy',8);
+  d(0x47,'SRE','zp',5);  d(0x57,'SRE','zpx',6); d(0x4F,'SRE','abs',6); d(0x5F,'SRE','abx',7);
+  d(0x5B,'SRE','aby',7); d(0x43,'SRE','izx',8); d(0x53,'SRE','izy',8);
+  d(0x67,'RRA','zp',5);  d(0x77,'RRA','zpx',6); d(0x6F,'RRA','abs',6); d(0x7F,'RRA','abx',7);
+  d(0x7B,'RRA','aby',7); d(0x63,'RRA','izx',8); d(0x73,'RRA','izy',8);
+  d(0x0B,'ANC','imm',2); d(0x2B,'ANC','imm',2); d(0x4B,'ALR','imm',2); d(0x6B,'ARR','imm',2);
+  d(0x8B,'XAA','imm',2); d(0xCB,'AXS','imm',2); d(0xEB,'SBC','imm',2);
+  d(0x93,'AHX','izy',6); d(0x9F,'AHX','aby',5); d(0x9C,'SHY','abx',5); d(0x9E,'SHX','aby',5);
+  d(0x9B,'TAS','aby',5); d(0xBB,'LAS','aby',4,1);
+  for (const c of [0x1A,0x3A,0x5A,0x7A,0xDA,0xFA]) d(c,'NOP','imp',2);
+  for (const c of [0x80,0x82,0x89,0xC2,0xE2]) d(c,'NOP','imm',2);
+  for (const c of [0x04,0x44,0x64]) d(c,'NOP','zp',3);
+  for (const c of [0x14,0x34,0x54,0x74,0xD4,0xF4]) d(c,'NOP','zpx',4);
+  d(0x0C,'NOP','abs',4);
+  for (const c of [0x1C,0x3C,0x5C,0x7C,0xDC,0xFC]) d(c,'NOP','abx',4,1);
+  for (const c of [0x02,0x12,0x22,0x32,0x42,0x52,0x62,0x72,0x92,0xB2,0xD2,0xF2]) d(c,'STP','imp',2);
+})();
+
+// ---------------------------------------------------------------- CPU
+class CPU6502 {
+  // bus must provide cpuRead(addr) -> byte and cpuWrite(addr, byte)
+  constructor(bus) {
+    this.bus = bus;
+    this.a = 0; this.x = 0; this.y = 0; this.sp = 0xFD; this.pc = 0;
+    this.p = 0x24;          // NV1B DIZC — bit 5 kept set, bit 4 kept clear internally
+    this.cycles = 0;        // total CPU cycles since power-on
+    this.nmiPending = false;
+    this.nmiStamp = -1;     // cycle at which NMI line was asserted (poll = before final cycle)
+    this.irqLine = false;
+    this.irqStamp = -1;
+    this.pendingStall = 0;  // DMA cycles queued by OAM DMA / DMC (applied between instructions)
+    this.tick = null;       // per-CPU-cycle callback: advances PPU 3 dots + APU 1 tick
+    this.halted = false;    // STP executed
+    this.bcd = false;       // decimal mode support: false on NES (2A03 ignores D flag),
+                            // true only in the SingleStepTests harness (real 6502 behavior)
+  }
+  reset() {
+    this.sp = (this.sp - 3) & 0xFF;
+    this.p |= FI;
+    this.pc = this.read16(0xFFFC);
+    this.cycles += 5;       // + the two vector reads above = 7 total
+    this.halted = false;
+    this.pendingStall = 0;
+  }
+  powerOn() {
+    this.a = this.x = this.y = 0; this.sp = 0xFD; this.p = 0x24 | FI;
+    this.halted = false; this.pendingStall = 0;
+    this.pc = this.read16(0xFFFC);
+    this.cycles = 7;        // nestest/log convention
+  }
+  // Every read/write is one CPU cycle: the clock advances (3 PPU dots + 1 APU
+  // tick) first, then the bus access happens — accesses sample/land late in the
+  // cycle (phi2), and 1-dot races at that boundary are handled in PPU.readReg/writeReg.
+  read(a) { this.cycles++; if (this.tick) this.tick(3); return this.bus.cpuRead(a & 0xFFFF) & 0xFF; }
+  write(a, v) { this.cycles++; if (this.tick) this.tick(3); this.bus.cpuWrite(a & 0xFFFF, v & 0xFF); }
+  read16(a) { return this.read(a) | (this.read(a + 1) << 8); }
+  push(v) { this.write(0x100 | this.sp, v); this.sp = (this.sp - 1) & 0xFF; }
+  pull() { this.sp = (this.sp + 1) & 0xFF; return this.read(0x100 | this.sp); }
+  push16(v) { this.push((v >> 8) & 0xFF); this.push(v & 0xFF); }
+  pull16() { const lo = this.pull(); return lo | (this.pull() << 8); }
+  setZN(v) { this.p = (this.p & ~(FZ | FN)) | (v === 0 ? FZ : 0) | (v & 0x80); }
+  // The CPU polls interrupts before an instruction's final cycle. An NMI (or IRQ)
+  // asserted DURING the final cycle misses the poll and waits one extra instruction.
+  // nmiStamp/irqStamp record the assert cycle; service requires stamp < current cycles.
+  nmi(early = false) {
+    if (!this.nmiPending) { this.nmiPending = true; this.nmiStamp = this.cycles - (early ? 1 : 0); }
+  }
+
+  _interrupt(vector) {           // NMI / IRQ entry: 7 cycles
+    this.read(this.pc); this.read(this.pc);            // 2 dummy opcode fetches
+    this.push((this.pc >> 8) & 0xFF); this.push(this.pc & 0xFF);
+    this.push((this.p | FU) & ~FB);
+    this.p |= FI;
+    const lo = this.read(vector), hi = this.read(vector + 1);
+    this.pc = lo | (hi << 8);
+  }
+  _drainStall() {
+    while (this.pendingStall > 0) {
+      const n = this.pendingStall; this.pendingStall = 0;
+      for (let i = 0; i < n; i++) { this.cycles++; if (this.tick) this.tick(3); }
+    }
+  }
+
+  // Execute one instruction (or service a pending interrupt). Returns cycles used.
+  // Cycle-accurate: every CPU cycle is a real bus access (including hardware dummy
+  // reads/writes), each ticking the PPU/APU via this.tick.
+  step() {
+    const c0 = this.cycles;
+    if (this.halted) { this.cycles++; if (this.tick) this.tick(3); return 1; }
+    if (this.nmiPending) {
+      if (this.nmiStamp < this.cycles) {
+        this.nmiPending = false; this._interrupt(0xFFFA); this._drainStall(); return this.cycles - c0;
+      }
+    } else if (this.irqLine && !(this.p & FI) && this.irqStamp < this.cycles) {
+      this._interrupt(0xFFFE); this._drainStall(); return this.cycles - c0;
+    }
+
+    const opcode = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+    const op = OPTABLE[opcode];
+    const mode = op.m, name = op.n;
+
+    // write/RMW instructions always perform the extra "fixup" read on indexed modes
+    const isStore = name === 'STA' || name === 'STX' || name === 'STY' || name === 'SAX' ||
+                    name === 'AHX' || name === 'SHX' || name === 'SHY' || name === 'TAS';
+    const isRMW = (name === 'ASL' || name === 'LSR' || name === 'ROL' || name === 'ROR' ||
+                   name === 'INC' || name === 'DEC' || name === 'SLO' || name === 'RLA' ||
+                   name === 'SRE' || name === 'RRA' || name === 'DCP' || name === 'ISB') && mode !== 'acc';
+
+    // --- address resolution with hardware access patterns ---
+    let addr = 0;
+    switch (mode) {
+      case 'imp': case 'acc': this.read(this.pc); break;                 // dummy fetch of next byte
+      case 'imm': addr = this.pc; this.pc = (this.pc + 1) & 0xFFFF; break;
+      case 'zp':  addr = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF; break;
+      case 'zpx': case 'zpy': {
+        const z = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+        this.read(z);                                                    // dummy read at unindexed address
+        addr = (z + (mode === 'zpx' ? this.x : this.y)) & 0xFF; break;
+      }
+      case 'abs': addr = this.read16(this.pc); this.pc = (this.pc + 2) & 0xFFFF; break;
+      case 'abx': case 'aby': {
+        const b = this.read16(this.pc); this.pc = (this.pc + 2) & 0xFFFF;
+        addr = (b + (mode === 'abx' ? this.x : this.y)) & 0xFFFF;
+        const crossed = ((b ^ addr) & 0xFF00) !== 0;
+        if (crossed || isStore || isRMW) this.read((b & 0xFF00) | (addr & 0xFF));  // fixup read
+        break;
+      }
+      case 'ind': { const p = this.read16(this.pc); this.pc = (this.pc + 2) & 0xFFFF;
+                    const lo = this.read(p);
+                    const hi = this.read((p & 0xFF00) | ((p + 1) & 0xFF)); // 6502 page-wrap bug
+                    addr = lo | (hi << 8); break; }
+      case 'izx': {
+        const z = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+        this.read(z);                                                    // dummy read at unindexed pointer
+        addr = this.read((z + this.x) & 0xFF) | (this.read((z + this.x + 1) & 0xFF) << 8); break;
+      }
+      case 'izy': {
+        const z = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+        const b = this.read(z) | (this.read((z + 1) & 0xFF) << 8);
+        addr = (b + this.y) & 0xFFFF;
+        const crossed = ((b ^ addr) & 0xFF00) !== 0;
+        if (crossed || isStore || isRMW) this.read((b & 0xFF00) | (addr & 0xFF));  // fixup read
+        break;
+      }
+      case 'rel': { let off = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+                    if (off & 0x80) off -= 256;
+                    addr = (this.pc + off) & 0xFFFF; break; }
+      case 'jsr': break;                                                 // JSR sequences itself below
+    }
+
+    const acc = mode === 'acc';
+    const rd = () => this.read(addr);
+    const rmw = (fn) => {
+      if (acc) { this.a = fn(this.a); }
+      else { const v = this.read(addr); this.write(addr, v); const r = fn(v); this.write(addr, r); return r; }
+    };
+    const branch = (cond) => {
+      if (cond) {
+        this.read(this.pc);                                              // dummy fetch at fall-through PC
+        if ((this.pc ^ addr) & 0xFF00) this.read((this.pc & 0xFF00) | (addr & 0xFF));  // wrong-page dummy
+        this.pc = addr;
+      }
+    };
+    const adc = (m) => {
+      if (this.bcd && (this.p & FD)) {          // NMOS 6502 decimal ADC (never taken on NES)
+        const c = this.p & FC;
+        const bin = this.a + m + c;
+        let lo = (this.a & 0x0F) + (m & 0x0F) + c;
+        if (lo > 9) lo += 6;
+        let hi = (this.a >> 4) + (m >> 4) + (lo > 0x0F ? 1 : 0);
+        const mid = ((hi << 4) & 0xF0) | (lo & 0x0F);
+        this.p = (this.p & ~(FC | FV | FZ | FN))
+          | ((bin & 0xFF) === 0 ? FZ : 0)
+          | ((hi & 0x08) ? FN : 0)
+          | ((~(this.a ^ m) & (this.a ^ (hi << 4)) & 0x80) ? FV : 0);
+        if (hi > 9) hi += 6;
+        this.p |= (hi > 0x0F ? FC : 0);
+        this.a = ((hi << 4) | (lo & 0x0F)) & 0xFF;
+        void mid;
+        return;
+      }
+      const r = this.a + m + (this.p & FC);
+      this.p = (this.p & ~(FC | FV)) | (r > 0xFF ? FC : 0) | ((~(this.a ^ m) & (this.a ^ r) & 0x80) ? FV : 0);
+      this.a = r & 0xFF; this.setZN(this.a);
+    };
+    const sbc = (m) => {
+      if (this.bcd && (this.p & FD)) {          // NMOS 6502 decimal SBC: flags from binary result
+        const borrow = (this.p & FC) ? 0 : 1;
+        const bin = this.a - m - borrow;
+        let lo = (this.a & 0x0F) - (m & 0x0F) - borrow;
+        let hi = (this.a >> 4) - (m >> 4);
+        if (lo & 0x10) { lo -= 6; hi--; }
+        if (hi & 0x10) hi -= 6;
+        const r = bin & 0xFF;
+        this.p = (this.p & ~(FC | FV | FZ | FN))
+          | (bin >= 0 ? FC : 0)
+          | ((this.a ^ m) & (this.a ^ r) & 0x80 ? FV : 0)
+          | (r === 0 ? FZ : 0) | (r & 0x80);
+        this.a = ((hi << 4) | (lo & 0x0F)) & 0xFF;
+        return;
+      }
+      adc(m ^ 0xFF);
+    };
+    const cmp = (reg, m) => {
+      const t = (reg - m) & 0x1FF;
+      this.p = (this.p & ~FC) | (reg >= m ? FC : 0); this.setZN(t & 0xFF);
+    };
+    const aslV = (v) => { this.p = (this.p & ~FC) | (v >> 7); const r = (v << 1) & 0xFF; this.setZN(r); return r; };
+    const lsrV = (v) => { this.p = (this.p & ~FC) | (v & 1); const r = v >> 1; this.setZN(r); return r; };
+    const rolV = (v) => { const c = this.p & FC; this.p = (this.p & ~FC) | (v >> 7); const r = ((v << 1) | c) & 0xFF; this.setZN(r); return r; };
+    const rorV = (v) => { const c = this.p & FC; this.p = (this.p & ~FC) | (v & 1); const r = (v >> 1) | (c << 7); this.setZN(r); return r; };
+
+    switch (op.n) {
+      case 'LDA': this.a = rd(); this.setZN(this.a); break;
+      case 'LDX': this.x = rd(); this.setZN(this.x); break;
+      case 'LDY': this.y = rd(); this.setZN(this.y); break;
+      case 'LAX': this.a = this.x = rd(); this.setZN(this.a); break;
+      case 'STA': this.write(addr, this.a); break;
+      case 'STX': this.write(addr, this.x); break;
+      case 'STY': this.write(addr, this.y); break;
+      case 'SAX': this.write(addr, this.a & this.x); break;
+      case 'ORA': this.a |= rd(); this.setZN(this.a); break;
+      case 'AND': this.a &= rd(); this.setZN(this.a); break;
+      case 'EOR': this.a ^= rd(); this.setZN(this.a); break;
+      case 'ADC': adc(rd()); break;
+      case 'SBC': sbc(rd()); break;
+      case 'CMP': cmp(this.a, rd()); break;
+      case 'CPX': cmp(this.x, rd()); break;
+      case 'CPY': cmp(this.y, rd()); break;
+      case 'BIT': { const m = rd();
+        this.p = (this.p & ~(FZ | FV | FN)) | ((this.a & m) === 0 ? FZ : 0) | (m & (FV | FN)); break; }
+      case 'ASL': rmw(aslV); break;
+      case 'LSR': rmw(lsrV); break;
+      case 'ROL': rmw(rolV); break;
+      case 'ROR': rmw(rorV); break;
+      case 'INC': rmw(v => { const r = (v + 1) & 0xFF; this.setZN(r); return r; }); break;
+      case 'DEC': rmw(v => { const r = (v - 1) & 0xFF; this.setZN(r); return r; }); break;
+      case 'SLO': { const r = rmw(aslV); this.a |= r; this.setZN(this.a); break; }
+      case 'RLA': { const r = rmw(rolV); this.a &= r; this.setZN(this.a); break; }
+      case 'SRE': { const r = rmw(lsrV); this.a ^= r; this.setZN(this.a); break; }
+      case 'RRA': { const r = rmw(rorV); adc(r); break; }
+      case 'DCP': { const r = rmw(v => (v - 1) & 0xFF); cmp(this.a, r); break; }
+      case 'ISB': { const r = rmw(v => (v + 1) & 0xFF); sbc(r); break; }
+      case 'INX': this.x = (this.x + 1) & 0xFF; this.setZN(this.x); break;
+      case 'INY': this.y = (this.y + 1) & 0xFF; this.setZN(this.y); break;
+      case 'DEX': this.x = (this.x - 1) & 0xFF; this.setZN(this.x); break;
+      case 'DEY': this.y = (this.y - 1) & 0xFF; this.setZN(this.y); break;
+      case 'TAX': this.x = this.a; this.setZN(this.x); break;
+      case 'TAY': this.y = this.a; this.setZN(this.y); break;
+      case 'TXA': this.a = this.x; this.setZN(this.a); break;
+      case 'TYA': this.a = this.y; this.setZN(this.a); break;
+      case 'TSX': this.x = this.sp; this.setZN(this.x); break;
+      case 'TXS': this.sp = this.x; break;
+      case 'PHA': this.push(this.a); break;
+      case 'PHP': this.push(this.p | FB | FU); break;
+      case 'PLA': this.read(0x100 | this.sp); this.a = this.pull(); this.setZN(this.a); break;
+      case 'PLP': this.read(0x100 | this.sp); this.p = (this.pull() & ~FB) | FU; break;
+      case 'JMP': this.pc = addr; break;
+      case 'JSR': { // hardware order: fetch lo, internal stack cycle, push return addr, THEN fetch hi
+        const lo = this.read(this.pc); this.pc = (this.pc + 1) & 0xFFFF;
+        this.read(0x100 | this.sp);                    // internal cycle (stack dummy read)
+        this.push16(this.pc);
+        const hi = this.read(this.pc);
+        this.pc = lo | (hi << 8); break; }
+      case 'RTS': this.read(0x100 | this.sp);
+                  this.pc = (this.pull16() + 1) & 0xFFFF;
+                  this.read((this.pc - 1) & 0xFFFF); break;   // PC-increment dummy cycle
+      case 'RTI': this.read(0x100 | this.sp);
+                  this.p = (this.pull() & ~FB) | FU; this.pc = this.pull16(); break;
+      case 'BRK': this.push16((this.pc + 1) & 0xFFFF); this.push(this.p | FB | FU);
+                  this.p |= FI; this.pc = this.read16(0xFFFE); break;
+      case 'BCC': branch(!(this.p & FC)); break;
+      case 'BCS': branch(this.p & FC); break;
+      case 'BNE': branch(!(this.p & FZ)); break;
+      case 'BEQ': branch(this.p & FZ); break;
+      case 'BPL': branch(!(this.p & FN)); break;
+      case 'BMI': branch(this.p & FN); break;
+      case 'BVC': branch(!(this.p & FV)); break;
+      case 'BVS': branch(this.p & FV); break;
+      case 'CLC': this.p &= ~FC; break;
+      case 'SEC': this.p |= FC; break;
+      case 'CLI': this.p &= ~FI; break;
+      case 'SEI': this.p |= FI; break;
+      case 'CLV': this.p &= ~FV; break;
+      case 'CLD': this.p &= ~FD; break;
+      case 'SED': this.p |= FD; break;
+      case 'NOP': if (mode !== 'imp') rd(); break;
+      case 'ANC': this.a &= rd(); this.setZN(this.a); this.p = (this.p & ~FC) | (this.a >> 7); break;
+      case 'ALR': this.a &= rd(); this.p = (this.p & ~FC) | (this.a & 1); this.a >>= 1; this.setZN(this.a); break;
+      case 'ARR': { const t = this.a & rd();
+                    let r = (t >> 1) | ((this.p & FC) << 7);
+                    this.setZN(r);
+                    if (this.bcd && (this.p & FD)) {   // NMOS decimal fixup (never taken on NES)
+                      this.p = (this.p & ~(FC | FV)) | (((r ^ t) & 0x40) ? FV : 0);
+                      if ((t & 0x0F) + (t & 0x01) > 5) r = (r & 0xF0) | ((r + 6) & 0x0F);
+                      if ((t & 0xF0) + (t & 0x10) > 0x50) { r = (r & 0x0F) | ((r + 0x60) & 0xF0); this.p |= FC; }
+                    } else {
+                      const b6 = (r >> 6) & 1, b5 = (r >> 5) & 1;
+                      this.p = (this.p & ~(FC | FV)) | (b6 ? FC : 0) | ((b6 ^ b5) ? FV : 0);
+                    }
+                    this.a = r; break; }
+      case 'AXS': { const m = rd(); const t = (this.a & this.x) - m;
+                    this.p = (this.p & ~FC) | (t >= 0 ? FC : 0); this.x = t & 0xFF; this.setZN(this.x); break; }
+      case 'XAA': this.a = (this.a | 0xEE) & this.x & rd(); this.setZN(this.a); break;
+      case 'LAS': { const v = rd() & this.sp; this.a = this.x = this.sp = v; this.setZN(v); break; }
+      case 'AHX': case 'SHX': case 'SHY': case 'TAS': {
+        const idx = (op.n === 'SHY') ? this.x : this.y;
+        const base = (addr - idx) & 0xFFFF;
+        const hi = ((base >> 8) + 1) & 0xFF;
+        let val;
+        if (op.n === 'SHY') val = this.y & hi;
+        else if (op.n === 'SHX') val = this.x & hi;
+        else val = this.a & this.x & hi;               // AHX, TAS
+        if (op.n === 'TAS') this.sp = this.a & this.x;
+        let ea = addr;
+        if ((base & 0xFF00) !== (addr & 0xFF00)) ea = (addr & 0xFF) | (val << 8); // corrupt hi on cross
+        this.write(ea, val); break;
+      }
+      case 'STP': this.halted = true; break;
+    }
+    this._drainStall();      // OAM DMA / DMC DMA queued during this instruction
+    return this.cycles - c0;
+  }
+
+  // nestest-style trace of the *next* instruction (registers before execution)
+  trace() {
+    const h = (v, n) => v.toString(16).toUpperCase().padStart(n, '0');
+    return `${h(this.pc,4)}  A:${h(this.a,2)} X:${h(this.x,2)} Y:${h(this.y,2)} P:${h(this.p,2)} SP:${h(this.sp,2)} CYC:${this.cycles}`;
+  }
+}
+
+// ---------------------------------------------------------------- cartridge (iNES)
+class Cartridge {
+  constructor(bytes) {
+    if (bytes.length < 16 || bytes[0] !== 0x4E || bytes[1] !== 0x45 || bytes[2] !== 0x53 || bytes[3] !== 0x1A)
+      throw new Error('Not an iNES file (bad magic)');
+    const prgBanks = bytes[4], chrBanks = bytes[5];
+    const f6 = bytes[6], f7 = bytes[7];
+    this.nes20 = (f7 & 0x0C) === 0x08;
+    let mapper = (f6 >> 4) | (f7 & 0xF0);
+    // dirty-header rule: if bytes 12-15 nonzero and not NES 2.0, trust only low nibble
+    if (!this.nes20 && (bytes[12] | bytes[13] | bytes[14] | bytes[15]) !== 0) mapper = f6 >> 4;
+    this.mapper = mapper;
+    this.mirroring = (f6 & 1) ? 'vertical' : 'horizontal';
+    this.fourScreen = !!(f6 & 8);
+    this.battery = !!(f6 & 2);
+    const trainer = (f6 & 4) ? 512 : 0;
+    let o = 16 + trainer;
+    this.prg = bytes.slice(o, o + prgBanks * 16384); o += prgBanks * 16384;
+    this.chrIsRam = chrBanks === 0;
+    this.chr = this.chrIsRam ? new Uint8Array(8192) : bytes.slice(o, o + chrBanks * 8192);
+    if (this.prg.length !== prgBanks * 16384) throw new Error('Truncated PRG ROM');
+    this.prgRam = new Uint8Array(8192);
+  }
+}
+
+// ---------------------------------------------------------------- mappers
+// Shared interface: cpuRead/cpuWrite ($4020-$FFFF), ppuRead/ppuWrite ($0000-$1FFF),
+// optional notifyScanline() (MMC3 IRQ), getState()/setState() for savestates.
+// Mappers may mutate cart.mirroring; the PPU reads it live.
+class MapperBase {
+  constructor(cart) { this.cart = cart; this.cpu = null; }
+  cpuRead(a) {
+    if (a >= 0x6000 && a < 0x8000) return this.cart.prgRam[a - 0x6000];
+    return 0;
+  }
+  cpuWrite(a, v) { if (a >= 0x6000 && a < 0x8000) this.cart.prgRam[a - 0x6000] = v; }
+  ppuRead(a) { return this.cart.chr[a & 0x1FFF]; }
+  ppuWrite(a, v) { if (this.cart.chrIsRam) this.cart.chr[a & 0x1FFF] = v; }
+  clockIrq() {}                        // A12 rising edge (filtered) — MMC3 uses this
+  getState() { return {}; }
+  setState(s) {}
+}
+
+class MapperNROM extends MapperBase { // mapper 0
+  constructor(cart) { super(cart); this.prgMask = cart.prg.length - 1; }
+  cpuRead(a) {
+    if (a >= 0x8000) return this.cart.prg[(a - 0x8000) & this.prgMask];
+    return super.cpuRead(a);
+  }
+}
+
+class MapperMMC1 extends MapperBase { // mapper 1: serial 5-bit shift register
+  constructor(cart) {
+    super(cart);
+    this.shift = 0; this.count = 0;
+    this.control = 0x0C;               // prg mode 3: fix last bank at $C000
+    this.chr0 = 0; this.chr1 = 0; this.prg = 0;
+    this.applyMirroring();
+  }
+  applyMirroring() {
+    this.cart.mirroring = ['single0', 'single1', 'vertical', 'horizontal'][this.control & 3];
+  }
+  cpuWrite(a, v) {
+    if (a < 0x8000) { super.cpuWrite(a, v); return; }
+    if (v & 0x80) { this.shift = 0; this.count = 0; this.control |= 0x0C; return; }
+    this.shift |= (v & 1) << this.count;
+    if (++this.count < 5) return;
+    const reg = this.shift & 0x1F; this.shift = 0; this.count = 0;
+    switch ((a >> 13) & 3) {
+      case 0: this.control = reg; this.applyMirroring(); break;
+      case 1: this.chr0 = reg; break;
+      case 2: this.chr1 = reg; break;
+      case 3: this.prg = reg & 0x0F; break;
+    }
+  }
+  cpuRead(a) {
+    if (a < 0x8000) return super.cpuRead(a);
+    const banks = this.cart.prg.length >> 14;      // 16K banks
+    const mode = (this.control >> 2) & 3;
+    let bank;
+    if (a < 0xC000) {
+      bank = mode < 2 ? (this.prg & ~1) : (mode === 2 ? 0 : this.prg);
+    } else {
+      bank = mode < 2 ? (this.prg | 1) : (mode === 2 ? this.prg : banks - 1);
+    }
+    return this.cart.prg[((bank % banks) << 14) | (a & 0x3FFF)];
+  }
+  chrAddr(a) {
+    const mask = this.cart.chr.length - 1;
+    if (this.control & 0x10) {                     // two 4K banks
+      const bank = a < 0x1000 ? this.chr0 : this.chr1;
+      return ((bank << 12) | (a & 0xFFF)) & mask;
+    }
+    return (((this.chr0 & ~1) << 12) | (a & 0x1FFF)) & mask;
+  }
+  ppuRead(a) { return this.cart.chr[this.chrAddr(a)]; }
+  ppuWrite(a, v) { if (this.cart.chrIsRam) this.cart.chr[this.chrAddr(a)] = v; }
+  getState() { return { shift: this.shift, count: this.count, control: this.control,
+                        chr0: this.chr0, chr1: this.chr1, prg: this.prg }; }
+  setState(s) { Object.assign(this, s); this.applyMirroring(); }
+}
+
+class MapperUNROM extends MapperBase { // mapper 2: 16K switchable + 16K fixed last
+  constructor(cart) { super(cart); this.bank = 0; }
+  cpuWrite(a, v) { if (a >= 0x8000) this.bank = v; else super.cpuWrite(a, v); }
+  cpuRead(a) {
+    if (a < 0x8000) return super.cpuRead(a);
+    const banks = this.cart.prg.length >> 14;
+    const bank = a < 0xC000 ? this.bank % banks : banks - 1;
+    return this.cart.prg[(bank << 14) | (a & 0x3FFF)];
+  }
+  getState() { return { bank: this.bank }; }
+  setState(s) { this.bank = s.bank; }
+}
+
+class MapperCNROM extends MapperBase { // mapper 3: 8K CHR banks
+  constructor(cart) { super(cart); this.bank = 0; this.prgMask = cart.prg.length - 1; }
+  cpuWrite(a, v) { if (a >= 0x8000) this.bank = v & 3; else super.cpuWrite(a, v); }
+  cpuRead(a) {
+    if (a >= 0x8000) return this.cart.prg[(a - 0x8000) & this.prgMask];
+    return super.cpuRead(a);
+  }
+  ppuRead(a) { return this.cart.chr[((this.bank << 13) | (a & 0x1FFF)) & (this.cart.chr.length - 1)]; }
+  getState() { return { bank: this.bank }; }
+  setState(s) { this.bank = s.bank; }
+}
+
+class MapperAOROM extends MapperBase { // mapper 7: 32K PRG banks + single-screen select
+  constructor(cart) { super(cart); this.bank = 0; cart.mirroring = 'single0'; }
+  cpuWrite(a, v) {
+    if (a < 0x8000) { super.cpuWrite(a, v); return; }
+    this.bank = v & 7;
+    this.cart.mirroring = (v & 0x10) ? 'single1' : 'single0';
+  }
+  cpuRead(a) {
+    if (a < 0x8000) return super.cpuRead(a);
+    return this.cart.prg[((this.bank << 15) | (a & 0x7FFF)) % this.cart.prg.length];
+  }
+  getState() { return { bank: this.bank, mirroring: this.cart.mirroring }; }
+  setState(s) { this.bank = s.bank; this.cart.mirroring = s.mirroring; }
+}
+
+class MapperMMC3 extends MapperBase { // mapper 4: 8K PRG banks, 1K/2K CHR banks, scanline IRQ
+  constructor(cart) {
+    super(cart);
+    this.bus = null;                                 // wired by NES (shared IRQ line)
+    this.bankSelect = 0;
+    this.R = new Uint8Array(8);
+    this.irqLatch = 0; this.irqCounter = 0; this.irqReload = false; this.irqEnabled = false;
+    this.irqPending = false;
+  }
+  cpuWrite(a, v) {
+    if (a < 0x8000) { super.cpuWrite(a, v); return; }
+    const odd = a & 1;
+    if (a < 0xA000) {
+      if (odd) this.R[this.bankSelect & 7] = v; else this.bankSelect = v;
+    } else if (a < 0xC000) {
+      if (!odd) { if (!this.cart.fourScreen) this.cart.mirroring = (v & 1) ? 'horizontal' : 'vertical'; }
+      // odd: PRG RAM protect — ignored
+    } else if (a < 0xE000) {
+      if (odd) { this.irqCounter = 0; this.irqReload = true; } else this.irqLatch = v;
+    } else {
+      if (odd) this.irqEnabled = true;
+      else { this.irqEnabled = false; this.irqPending = false; if (this.bus) this.bus.syncIrq(); }  // disable acknowledges
+    }
+  }
+  cpuRead(a) {
+    if (a < 0x8000) return super.cpuRead(a);
+    const banks = this.cart.prg.length >> 13;      // 8K banks
+    const mode = (this.bankSelect >> 6) & 1;
+    const slot = (a >> 13) & 3;                    // 0:$8000 1:$A000 2:$C000 3:$E000
+    let bank;
+    if (slot === 0) bank = mode ? banks - 2 : this.R[6];
+    else if (slot === 1) bank = this.R[7];
+    else if (slot === 2) bank = mode ? this.R[6] : banks - 2;
+    else bank = banks - 1;
+    return this.cart.prg[((bank % banks) << 13) | (a & 0x1FFF)];
+  }
+  chrAddr(a) {
+    const inv = (this.bankSelect & 0x80) ? 0x1000 : 0;
+    a ^= inv;                                      // chr mode flips the two halves
+    let off;
+    if (a < 0x800) off = ((this.R[0] & 0xFE) << 10) | (a & 0x7FF);
+    else if (a < 0x1000) off = ((this.R[1] & 0xFE) << 10) | (a & 0x7FF);
+    else off = (this.R[2 + ((a - 0x1000) >> 10)] << 10) | (a & 0x3FF);
+    return off & (this.cart.chr.length - 1);
+  }
+  ppuRead(a) { return this.cart.chr[this.chrAddr(a)]; }
+  ppuWrite(a, v) { if (this.cart.chrIsRam) this.cart.chr[this.chrAddr(a)] = v; }
+  clockIrq() {                                     // filtered A12 rising edge from the PPU
+    if (this.irqCounter === 0 || this.irqReload) { this.irqCounter = this.irqLatch; this.irqReload = false; }
+    else this.irqCounter--;
+    if (this.irqCounter === 0 && this.irqEnabled) { this.irqPending = true; if (this.bus) this.bus.syncIrq(); }
+  }
+  getState() {
+    return { bankSelect: this.bankSelect, R: Array.from(this.R), irqLatch: this.irqLatch,
+             irqCounter: this.irqCounter, irqReload: this.irqReload, irqEnabled: this.irqEnabled,
+             irqPending: this.irqPending, mirroring: this.cart.mirroring };
+  }
+  setState(s) {
+    this.bankSelect = s.bankSelect; this.R.set(s.R); this.irqLatch = s.irqLatch;
+    this.irqCounter = s.irqCounter; this.irqReload = s.irqReload; this.irqEnabled = s.irqEnabled;
+    this.irqPending = !!s.irqPending;
+    this.cart.mirroring = s.mirroring;
+  }
+}
+
+function createMapper(cart) {
+  switch (cart.mapper) {
+    case 0: return new MapperNROM(cart);
+    case 1: return new MapperMMC1(cart);
+    case 2: return new MapperUNROM(cart);
+    case 3: return new MapperCNROM(cart);
+    case 4: return new MapperMMC3(cart);
+    case 7: return new MapperAOROM(cart);
+    default: throw new Error(`Mapper ${cart.mapper} not supported yet (have 0,1,2,3,4,7)`);
+  }
+}
+
+// ---------------------------------------------------------------- PPU (2C02)
+// Dot-based: step() advances one PPU cycle (3 per CPU cycle on NTSC).
+// 262 scanlines x 341 dots. Visible 0-239, post 240, vblank 241-260, pre-render 261.
+class PPU {
+  constructor() {
+    this.ciram = new Uint8Array(0x1000);   // 4K so four-screen just works
+    this.palette = new Uint8Array(32);
+    this.oam = new Uint8Array(256);
+    this.fb = new Uint8Array(256 * 240);   // palette indices out
+    this.cart = null; this.mapper = null; this.cpu = null;
+    // secondary-OAM result for the line being drawn
+    this.sprX = new Int16Array(8); this.sprAttr = new Uint8Array(8);
+    this.sprPatLo = new Uint8Array(8); this.sprPatHi = new Uint8Array(8);
+    this.sprIsZero = new Uint8Array(8);
+    this.sprAddr = new Uint16Array(8); this.sprUsed = new Uint8Array(8);  // pending fetches (dots 257-320)
+    this.reset();
+  }
+  reset() {
+    this.v = 0; this.t = 0; this.x = 0; this.w = 0;          // loopy registers
+    this.ctrl = 0; this.mask = 0; this.status = 0; this.oamAddr = 0;
+    this.readBuf = 0;
+    this.scanline = 261; this.dot = 0; this.odd = false; this.frameDone = false;
+    this.ntByte = 0; this.atByte = 0; this.ptLo = 0; this.ptHi = 0; this.ptAddr = 0;
+    this.shLo = 0; this.shHi = 0; this.shAtLo = 0; this.shAtHi = 0;
+    this.sprCount = 0;
+    this.cycleCount = 0;               // total PPU cycles (for the A12 filter)
+    this.lastA12High = -1000;
+    this.suppressVbl = false;          // $2002 read race armed this frame
+  }
+  renderingEnabled() { return (this.mask & 0x18) !== 0; }
+
+  // MMC3 IRQ clocking: the mapper watches PPU address line A12. A rising edge
+  // after A12 has been low for a while (filter) clocks the IRQ counter. Called
+  // for every address the PPU puts on the bus (fetches, $2006/$2007 accesses).
+  watchA12(a) {
+    if (a & 0x1000) {
+      if (this.cycleCount - this.lastA12High >= 10 && this.mapper) this.mapper.clockIrq();
+      this.lastA12High = this.cycleCount;
+    }
+  }
+
+  // --- memory ---
+  ntIndex(a) {                       // nametable address -> CIRAM offset
+    a &= 0xFFF;
+    if (this.cart && this.cart.fourScreen) return a;
+    const mode = this.cart ? this.cart.mirroring : 'horizontal';
+    const nt = (a >> 10) & 3;
+    let bank;
+    if (mode === 'vertical') bank = nt & 1;
+    else if (mode === 'horizontal') bank = nt >> 1;
+    else if (mode === 'single0') bank = 0;
+    else if (mode === 'single1') bank = 1;
+    else bank = nt & 1;
+    return bank * 0x400 + (a & 0x3FF);
+  }
+  vramRead(a) {
+    a &= 0x3FFF;
+    if (a < 0x2000) return this.mapper ? this.mapper.ppuRead(a) : 0;
+    if (a < 0x3F00) return this.ciram[this.ntIndex(a)];
+    let p = a & 0x1F; if ((p & 0x13) === 0x10) p &= ~0x10;   // $3F10/14/18/1C mirror $3F00/04/08/0C
+    return this.palette[p];
+  }
+  vramWrite(a, val) {
+    a &= 0x3FFF;
+    if (a < 0x2000) { if (this.mapper) this.mapper.ppuWrite(a, val); return; }
+    if (a < 0x3F00) { this.ciram[this.ntIndex(a)] = val; return; }
+    let p = a & 0x1F; if ((p & 0x13) === 0x10) p &= ~0x10;
+    this.palette[p] = val;
+  }
+
+  // --- CPU-visible registers $2000-$2007 ---
+  readReg(r) {
+    switch (r & 7) {
+      case 2: {
+        const res = this.status & 0xE0;
+        // $2002 race: reading within a few dots BEFORE the VBL-set dot (241,1)
+        // returns clear and suppresses the flag + NMI for this frame; reading
+        // just AFTER still suppresses the NMI (flag already visible).
+        if (this.scanline === 241 && this.dot === 1)
+          this.suppressVbl = true;                      // read lands on the dot before set: reads clear, never set
+        else if (this.scanline === 241 && (this.dot === 2 || this.dot === 3) && this.cpu)
+          this.cpu.nmiPending = false;                  // flag just set: read returns it but kills the NMI
+        this.status &= ~0x80; this.w = 0; return res;
+      }
+      case 4: return this.oam[this.oamAddr];
+      case 7: {
+        const a = this.v & 0x3FFF; let res;
+        this.watchA12(a);
+        if (a >= 0x3F00) { res = this.vramRead(a); this.readBuf = this.ciram[this.ntIndex(a)]; }
+        else { res = this.readBuf; this.readBuf = this.vramRead(a); }
+        this.v = (this.v + ((this.ctrl & 4) ? 32 : 1)) & 0x7FFF;
+        this.watchA12(this.v & 0x3FFF);       // bus holds post-increment v afterwards
+        return res;
+      }
+      default: return 0;
+    }
+  }
+  writeReg(r, val) {
+    switch (r & 7) {
+      case 0: {
+        const rose = !(this.ctrl & 0x80) && (val & 0x80);
+        const fell = (this.ctrl & 0x80) && !(val & 0x80);
+        this.ctrl = val;
+        this.t = (this.t & ~0x0C00) | ((val & 3) << 10);
+        // Enabling while VBL flag set fires an NMI — unless the flag clears on the
+        // very next dot (261,1): the hardware write lands after the clear.
+        if (rose && (this.status & 0x80) && !(this.scanline === 261 && this.dot === 1) && this.cpu)
+          this.cpu.nmi();
+        // Disabling right as VBL sets (241, set processed on this cycle's last dot):
+        // the write beats the CPU's NMI edge sample — cancel the pending NMI.
+        if (fell && this.scanline === 241 && (this.dot === 2 || this.dot === 3) && this.cpu)
+          this.cpu.nmiPending = false;
+        break;
+      }
+      case 1: this.mask = val; break;
+      case 3: this.oamAddr = val; break;
+      case 4: this.oam[this.oamAddr] = val; this.oamAddr = (this.oamAddr + 1) & 0xFF; break;
+      case 5:
+        if (!this.w) { this.t = (this.t & ~0x001F) | (val >> 3); this.x = val & 7; this.w = 1; }
+        else { this.t = (this.t & ~0x73E0) | ((val & 7) << 12) | ((val >> 3) << 5); this.w = 0; }
+        break;
+      case 6:
+        if (!this.w) { this.t = (this.t & 0x00FF) | ((val & 0x3F) << 8); this.w = 1; }
+        else { this.t = (this.t & 0x7F00) | val; this.v = this.t; this.w = 0; this.watchA12(this.v & 0x3FFF); }
+        break;
+      case 7:
+        this.watchA12(this.v & 0x3FFF);
+        this.vramWrite(this.v & 0x3FFF, val);
+        this.v = (this.v + ((this.ctrl & 4) ? 32 : 1)) & 0x7FFF;
+        this.watchA12(this.v & 0x3FFF);       // bus holds post-increment v afterwards
+        break;
+    }
+  }
+
+  // --- loopy helpers ---
+  incX() { if ((this.v & 0x1F) === 31) { this.v &= ~0x1F; this.v ^= 0x0400; } else this.v++; }
+  incY() {
+    if ((this.v & 0x7000) !== 0x7000) { this.v += 0x1000; return; }
+    this.v &= ~0x7000;
+    let y = (this.v >> 5) & 0x1F;
+    if (y === 29) { y = 0; this.v ^= 0x0800; } else if (y === 31) y = 0; else y++;
+    this.v = (this.v & ~0x03E0) | (y << 5);
+  }
+  copyX() { this.v = (this.v & ~0x041F) | (this.t & 0x041F); }
+  copyY() { this.v = (this.v & ~0x7BE0) | (this.t & 0x7BE0); }
+  shiftBg() { this.shLo = (this.shLo << 1) & 0xFFFF; this.shHi = (this.shHi << 1) & 0xFFFF;
+              this.shAtLo = (this.shAtLo << 1) & 0xFFFF; this.shAtHi = (this.shAtHi << 1) & 0xFFFF; }
+  reloadBg() {
+    this.shLo = (this.shLo & 0xFF00) | this.ptLo;
+    this.shHi = (this.shHi & 0xFF00) | this.ptHi;
+    this.shAtLo = (this.shAtLo & 0xFF00) | ((this.atByte & 1) ? 0xFF : 0);
+    this.shAtHi = (this.shAtHi & 0xFF00) | ((this.atByte & 2) ? 0xFF : 0);
+  }
+
+  // Evaluate sprites for the NEXT scanline (dot 257). Pattern fetches happen
+  // later at their real dots (257-320, two per 8-dot slot) so MMC3 sees
+  // correctly-timed A12 activity and mid-frame CHR bank switches land right.
+  evalSprites() {
+    const line = this.scanline === 261 ? -1 : this.scanline;   // compare line (hw: sprites shift down 1)
+    this.sprCount = 0;
+    this.sprUsed.fill(0);
+    const h = (this.ctrl & 0x20) ? 16 : 8;
+    const dummyBase = (h === 16) ? 0x1000 : ((this.ctrl & 8) ? 0x1000 : 0);
+    this.sprAddr.fill(dummyBase + 0xFF * 16);                  // hw fetches tile $FF for empty slots
+    if (line + 1 > 239) return;
+    for (let i = 0; i < 64; i++) {
+      const y = this.oam[i * 4];
+      const row = line - y;
+      if (row < 0 || row >= h) continue;
+      if (this.sprCount === 8) { this.status |= 0x20; break; }  // overflow (simplified, no hw bug)
+      const n = this.sprCount++;
+      const attr = this.oam[i * 4 + 2];
+      let r = (attr & 0x80) ? h - 1 - row : row;                // vertical flip
+      let tile = this.oam[i * 4 + 1], base;
+      if (h === 16) { base = (tile & 1) << 12; tile &= 0xFE; if (r >= 8) { tile++; r -= 8; } }
+      else base = (this.ctrl & 8) ? 0x1000 : 0;
+      this.sprAddr[n] = base + tile * 16 + r;
+      this.sprAttr[n] = attr;
+      this.sprX[n] = this.oam[i * 4 + 3];
+      this.sprIsZero[n] = i === 0 ? 1 : 0;
+      this.sprUsed[n] = 1;
+    }
+  }
+  fetchSpriteSlot(slot, phase) {                               // phase 4: low plane, 6: high plane
+    const a = this.sprAddr[slot] + (phase === 6 ? 8 : 0);
+    this.watchA12(a);
+    let v = this.vramRead(a);
+    if (!this.sprUsed[slot]) v = 0;                            // dummy fetch: transparent
+    else if (this.sprAttr[slot] & 0x40) v = REVBITS[v];        // horizontal flip
+    if (phase === 4) this.sprPatLo[slot] = v; else this.sprPatHi[slot] = v;
+  }
+
+  renderPixel(px, py) {
+    const m = this.mask;
+    let bg = 0, bgPal = 0;
+    if ((m & 0x08) && (px >= 8 || (m & 0x02))) {
+      const bit = 15 - this.x;
+      bg = (((this.shHi >> bit) & 1) << 1) | ((this.shLo >> bit) & 1);
+      bgPal = (((this.shAtHi >> bit) & 1) << 1) | ((this.shAtLo >> bit) & 1);
+    }
+    let spr = 0, sprPal = 0, behind = false, zero = false;
+    if ((m & 0x10) && (px >= 8 || (m & 0x04))) {
+      for (let i = 0; i < this.sprCount; i++) {
+        const off = px - this.sprX[i];
+        if (off < 0 || off > 7) continue;
+        const bit = 7 - off;
+        const p = (((this.sprPatHi[i] >> bit) & 1) << 1) | ((this.sprPatLo[i] >> bit) & 1);
+        if (!p) continue;
+        spr = p; sprPal = this.sprAttr[i] & 3; behind = !!(this.sprAttr[i] & 0x20); zero = !!this.sprIsZero[i];
+        break;                                                 // first opaque sprite wins
+      }
+    }
+    let idx;
+    if (!bg && !spr) idx = this.palette[0];
+    else if (!bg) idx = this.palette[0x10 + sprPal * 4 + spr];
+    else if (!spr) idx = this.palette[bgPal * 4 + bg];
+    else {
+      if (zero && px < 255) this.status |= 0x40;               // sprite 0 hit
+      idx = behind ? this.palette[bgPal * 4 + bg] : this.palette[0x10 + sprPal * 4 + spr];
+    }
+    if (m & 1) idx &= 0x30;                                    // greyscale
+    this.fb[py * 256 + px] = idx & 0x3F;
+  }
+
+  step() {
+    const sl = this.scanline, d = this.dot;
+    const visible = sl < 240, preline = sl === 261;
+    const rendering = this.renderingEnabled();
+
+    if (rendering && (visible || preline)) {
+      if ((d >= 2 && d <= 257) || (d >= 322 && d <= 337)) this.shiftBg();
+      if ((d >= 1 && d <= 256) || (d >= 321 && d <= 336)) {
+        switch ((d - 1) & 7) {
+          case 0: this.reloadBg(); this.ntByte = this.vramRead(0x2000 | (this.v & 0x0FFF)); break;
+          case 2: {
+            const a = 0x23C0 | (this.v & 0x0C00) | ((this.v >> 4) & 0x38) | ((this.v >> 2) & 7);
+            let at = this.vramRead(a);
+            if (this.v & 0x0040) at >>= 4;                     // coarse Y bit 1
+            if (this.v & 0x0002) at >>= 2;                     // coarse X bit 1
+            this.atByte = at & 3; break;
+          }
+          case 3: {   // pattern address goes on the bus one dot before the data is consumed
+            const base = (this.ctrl & 0x10) ? 0x1000 : 0;
+            this.ptAddr = base + this.ntByte * 16 + ((this.v >> 12) & 7);
+            this.watchA12(this.ptAddr); break;
+          }
+          case 4: this.ptLo = this.vramRead(this.ptAddr); break;
+          case 5: this.watchA12(this.ptAddr + 8); break;
+          case 6: this.ptHi = this.vramRead(this.ptAddr + 8); break;
+          case 7: this.incX(); if (d === 256) this.incY(); break;
+        }
+      }
+      if (d === 257) { this.copyX(); this.oamAddr = 0; this.evalSprites(); }
+      if (d >= 257 && d <= 320) {                              // sprite pattern fetch window
+        const phase = (d - 257) & 7;
+        if (phase === 3 || phase === 5) this.fetchSpriteSlot((d - 257) >> 3, phase === 3 ? 4 : 6);
+      }
+      if (preline && d >= 280 && d <= 304) this.copyY();
+    }
+
+    if (visible && d >= 1 && d <= 256) this.renderPixel(d - 1, sl);
+
+    if (sl === 241 && d === 1) {
+      if (!this.suppressVbl) {
+        this.status |= 0x80;
+        // NMI asserted on the first dot of a CPU cycle is caught by that cycle's poll
+        if ((this.ctrl & 0x80) && this.cpu) this.cpu.nmi(this.tickPhase === 0);
+      }
+      this.suppressVbl = false;
+      this.frameDone = true;
+    }
+    if (preline && d === 1) this.status &= ~0xE0;              // clear vblank / sprite0 / overflow
+
+    // odd-frame dot skip: hardware samples BG-enable a couple dots before the
+    // skipped dot (calibrated with blargg 10-even_odd_timing)
+    if (preline && d === 338) this.oddSkipArmed = this.odd && rendering;
+    this.cycleCount++;
+    this.dot++;
+    if (this.dot > 340 || (preline && this.dot === 340 && this.oddSkipArmed)) {
+      this.oddSkipArmed = false;
+      this.dot = 0; this.scanline++;
+      if (this.scanline > 261) { this.scanline = 0; this.odd = !this.odd; }
+    }
+  }
+}
+// bit-reversal table for horizontal sprite flip
+const REVBITS = new Uint8Array(256);
+for (let i = 0; i < 256; i++) {
+  let r = 0; for (let b = 0; b < 8; b++) if (i & (1 << b)) r |= 0x80 >> b;
+  REVBITS[i] = r;
+}
+
+// ---------------------------------------------------------------- APU (2A03 audio)
+// Clocked once per CPU cycle via step(n). Produces float samples into sampleBuf
+// (drained by the UI); sample generation never feeds back into emulation state,
+// so the core stays deterministic.
+const LENGTH_TABLE = [10,254,20,2,40,4,80,6,160,8,60,10,14,12,26,14,
+                      12,16,24,18,48,20,96,22,192,24,72,26,16,28,32,30];
+const DUTY_TABLE = [0b01000000, 0b01100000, 0b01111000, 0b10011111];
+const NOISE_PERIODS = [4,8,16,32,64,96,128,160,202,254,380,508,762,1016,2034,4068];
+const DMC_RATES = [428,380,340,320,286,254,226,214,190,160,142,128,106,84,72,54];
+
+class PulseChannel {
+  constructor(isPulse1) {
+    this.isPulse1 = isPulse1;
+    this.enabled = false; this.duty = 0; this.seq = 0;
+    this.timer = 0; this.period = 0;
+    this.len = 0; this.halt = false;
+    this.constVol = false; this.vol = 0;
+    this.envStart = false; this.envDivider = 0; this.envDecay = 0;
+    this.sweepEnable = false; this.sweepPeriod = 0; this.sweepNegate = false;
+    this.sweepShift = 0; this.sweepDivider = 0; this.sweepReload = false;
+  }
+  write(r, v) {
+    switch (r) {
+      case 0: this.duty = v >> 6; this.halt = !!(v & 0x20); this.constVol = !!(v & 0x10); this.vol = v & 15; break;
+      case 1: this.sweepEnable = !!(v & 0x80); this.sweepPeriod = (v >> 4) & 7;
+              this.sweepNegate = !!(v & 8); this.sweepShift = v & 7; this.sweepReload = true; break;
+      case 2: this.period = (this.period & 0x700) | v; break;
+      case 3: this.period = (this.period & 0xFF) | ((v & 7) << 8);
+              if (this.enabled) this.len = LENGTH_TABLE[v >> 3];
+              this.seq = 0; this.envStart = true; break;
+    }
+  }
+  sweepTarget() {
+    const c = this.period >> this.sweepShift;
+    if (!this.sweepNegate) return this.period + c;
+    return this.period - c - (this.isPulse1 ? 1 : 0);
+  }
+  clockSweep() {
+    if (this.sweepDivider === 0 && this.sweepEnable && this.sweepShift > 0) {
+      const t = this.sweepTarget();
+      if (this.period >= 8 && t <= 0x7FF) this.period = t & 0x7FF;
+    }
+    if (this.sweepDivider === 0 || this.sweepReload) { this.sweepDivider = this.sweepPeriod; this.sweepReload = false; }
+    else this.sweepDivider--;
+  }
+  clockEnvelope() {
+    if (this.envStart) { this.envStart = false; this.envDecay = 15; this.envDivider = this.vol; }
+    else if (this.envDivider === 0) {
+      this.envDivider = this.vol;
+      if (this.envDecay > 0) this.envDecay--; else if (this.halt) this.envDecay = 15;
+    } else this.envDivider--;
+  }
+  clockLength() { if (!this.halt && this.len > 0) this.len--; }
+  tick() {          // every 2 CPU cycles
+    if (this.timer === 0) { this.timer = this.period; this.seq = (this.seq + 1) & 7; }
+    else this.timer--;
+  }
+  output() {
+    if (this.len === 0 || this.period < 8 || this.sweepTarget() > 0x7FF) return 0;
+    if (!((DUTY_TABLE[this.duty] << this.seq) & 0x80)) return 0;
+    return this.constVol ? this.vol : this.envDecay;
+  }
+  getState() { const s = {}; for (const k of Object.keys(this)) s[k] = this[k]; return s; }
+  setState(s) { Object.assign(this, s); }
+}
+
+class APU {
+  constructor(bus) {
+    this.bus = bus; this.cpu = null;
+    this.p1 = new PulseChannel(true); this.p2 = new PulseChannel(false);
+    // triangle
+    this.triEnabled = false; this.triLen = 0; this.triHalt = false;
+    this.triLinear = 0; this.triLinearReload = 0; this.triReloadFlag = false;
+    this.triTimer = 0; this.triPeriod = 0; this.triSeq = 0;
+    // noise
+    this.nzEnabled = false; this.nzLen = 0; this.nzHalt = false;
+    this.nzConstVol = false; this.nzVol = 0;
+    this.nzEnvStart = false; this.nzEnvDivider = 0; this.nzEnvDecay = 0;
+    this.nzMode = false; this.nzPeriod = NOISE_PERIODS[0]; this.nzTimer = 0; this.nzLfsr = 1;
+    // DMC
+    this.dmcIrqEnable = false; this.dmcLoop = false; this.dmcRate = DMC_RATES[0]; this.dmcTimer = 0;
+    this.dmcOutput = 0; this.dmcSampleAddr = 0xC000; this.dmcSampleLen = 1;
+    this.dmcAddr = 0xC000; this.dmcBytesLeft = 0; this.dmcBuffer = -1;
+    this.dmcShift = 0; this.dmcBits = 0; this.dmcSilence = true;
+    // frame counter
+    this.fcMode5 = false; this.fcInhibit = false; this.fcCycles = 0;
+    this.frameIrq = false; this.dmcIrq = false;
+    this.oddCycle = false;
+    // sample generation (output only — not part of emulation state)
+    this.sampleRate = 44100; this.sampleEvery = 1789773 / 44100; this.sampleAcc = 0;
+    this.sampleBuf = [];
+  }
+  setSampleRate(r) { this.sampleRate = r; this.sampleEvery = 1789773 / r; }
+
+  writeReg(a, v) {
+    if (a <= 0x4003) { this.p1.write(a & 3, v); return; }
+    if (a <= 0x4007) { this.p2.write(a & 3, v); return; }
+    switch (a) {
+      case 0x4008: this.triHalt = !!(v & 0x80); this.triLinearReload = v & 0x7F; break;
+      case 0x400A: this.triPeriod = (this.triPeriod & 0x700) | v; break;
+      case 0x400B: this.triPeriod = (this.triPeriod & 0xFF) | ((v & 7) << 8);
+                   if (this.triEnabled) this.triLen = LENGTH_TABLE[v >> 3];
+                   this.triReloadFlag = true; break;
+      case 0x400C: this.nzHalt = !!(v & 0x20); this.nzConstVol = !!(v & 0x10); this.nzVol = v & 15; break;
+      case 0x400E: this.nzMode = !!(v & 0x80); this.nzPeriod = NOISE_PERIODS[v & 15]; break;
+      case 0x400F: if (this.nzEnabled) this.nzLen = LENGTH_TABLE[v >> 3]; this.nzEnvStart = true; break;
+      case 0x4010: this.dmcIrqEnable = !!(v & 0x80); this.dmcLoop = !!(v & 0x40);
+                   this.dmcRate = DMC_RATES[v & 15];
+                   if (!this.dmcIrqEnable) { this.dmcIrq = false; this.bus.syncIrq(); } break;
+      case 0x4011: this.dmcOutput = v & 0x7F; break;
+      case 0x4012: this.dmcSampleAddr = 0xC000 + v * 64; break;
+      case 0x4013: this.dmcSampleLen = v * 16 + 1; break;
+      case 0x4015:
+        this.p1.enabled = !!(v & 1); if (!this.p1.enabled) this.p1.len = 0;
+        this.p2.enabled = !!(v & 2); if (!this.p2.enabled) this.p2.len = 0;
+        this.triEnabled = !!(v & 4); if (!this.triEnabled) this.triLen = 0;
+        this.nzEnabled = !!(v & 8); if (!this.nzEnabled) this.nzLen = 0;
+        this.dmcIrq = false;               // clear first: the restart below may re-raise it
+        if (v & 0x10) { if (this.dmcBytesLeft === 0) this.dmcRestart(); this.dmcFillBuffer(); }
+        else this.dmcBytesLeft = 0;
+        this.bus.syncIrq();
+        break;
+      case 0x4017:
+        this.fcMode5 = !!(v & 0x80); this.fcInhibit = !!(v & 0x40);
+        if (this.fcInhibit) { this.frameIrq = false; this.bus.syncIrq(); }
+        this.fcCycles = this.oddCycle ? -4 : -3;   // reset takes effect 3-4 cycles after the write
+        if (this.fcMode5) { this.clockQuarter(); this.clockHalf(); }
+        break;
+    }
+  }
+  readStatus() {          // $4015
+    let v = 0;
+    if (this.p1.len > 0) v |= 1;
+    if (this.p2.len > 0) v |= 2;
+    if (this.triLen > 0) v |= 4;
+    if (this.nzLen > 0) v |= 8;
+    if (this.dmcBytesLeft > 0) v |= 0x10;
+    if (this.frameIrq) v |= 0x40;
+    if (this.dmcIrq) v |= 0x80;
+    this.frameIrq = false; this.bus.syncIrq();
+    return v;
+  }
+
+  dmcRestart() { this.dmcAddr = this.dmcSampleAddr; this.dmcBytesLeft = this.dmcSampleLen; }
+  dmcFillBuffer() {
+    if (this.dmcBuffer >= 0 || this.dmcBytesLeft === 0) return;
+    this.dmcBuffer = this.bus.cpuRead(this.dmcAddr);
+    if (this.cpu) this.cpu.pendingStall += 4;              // DMA steal (approx.)
+    this.dmcAddr = this.dmcAddr === 0xFFFF ? 0x8000 : this.dmcAddr + 1;
+    if (--this.dmcBytesLeft === 0) {
+      if (this.dmcLoop) this.dmcRestart();
+      else if (this.dmcIrqEnable) { this.dmcIrq = true; this.bus.syncIrq(); }
+    }
+  }
+
+  clockQuarter() {        // envelopes + triangle linear counter
+    this.p1.clockEnvelope(); this.p2.clockEnvelope();
+    if (this.nzEnvStart) { this.nzEnvStart = false; this.nzEnvDecay = 15; this.nzEnvDivider = this.nzVol; }
+    else if (this.nzEnvDivider === 0) {
+      this.nzEnvDivider = this.nzVol;
+      if (this.nzEnvDecay > 0) this.nzEnvDecay--; else if (this.nzHalt) this.nzEnvDecay = 15;
+    } else this.nzEnvDivider--;
+    if (this.triReloadFlag) this.triLinear = this.triLinearReload;
+    else if (this.triLinear > 0) this.triLinear--;
+    if (!this.triHalt) this.triReloadFlag = false;
+  }
+  clockHalf() {           // length counters + sweeps
+    this.p1.clockLength(); this.p2.clockLength();
+    this.p1.clockSweep(); this.p2.clockSweep();
+    if (!this.triHalt && this.triLen > 0) this.triLen--;
+    if (!this.nzHalt && this.nzLen > 0) this.nzLen--;
+  }
+
+  tick() {                // one CPU cycle
+    // frame counter (NTSC cycle counts)
+    const c = ++this.fcCycles;
+    if (!this.fcMode5) {
+      if (c === 7457 || c === 22371) this.clockQuarter();
+      else if (c === 14913) { this.clockQuarter(); this.clockHalf(); }
+      else if (c === 29828) { if (!this.fcInhibit) { this.frameIrq = true; this.bus.syncIrq(); } }
+      else if (c === 29829) {
+        this.clockQuarter(); this.clockHalf();
+        if (!this.fcInhibit) { this.frameIrq = true; this.bus.syncIrq(); }
+      }
+      else if (c === 29830) {          // full period is 29830 CPU cycles; IRQ also set here
+        if (!this.fcInhibit) { this.frameIrq = true; this.bus.syncIrq(); }
+        this.fcCycles = 0;
+      }
+    } else {
+      if (c === 7457 || c === 22371) this.clockQuarter();
+      else if (c === 14913) { this.clockQuarter(); this.clockHalf(); }
+      else if (c === 37281) this.clockQuarter(), this.clockHalf();
+      else if (c === 37282) this.fcCycles = 0;
+    }
+    // timers
+    this.oddCycle = !this.oddCycle;
+    if (this.oddCycle) { this.p1.tick(); this.p2.tick(); }   // pulse timers run at CPU/2
+    if (this.triTimer === 0) {                               // triangle at CPU rate
+      this.triTimer = this.triPeriod;
+      if (this.triLen > 0 && this.triLinear > 0 && this.triPeriod >= 2)
+        this.triSeq = (this.triSeq + 1) & 31;
+    } else this.triTimer--;
+    if (this.nzTimer === 0) {                                // noise LFSR
+      this.nzTimer = this.nzPeriod - 1;
+      const fb = (this.nzLfsr ^ (this.nzLfsr >> (this.nzMode ? 6 : 1))) & 1;
+      this.nzLfsr = (this.nzLfsr >> 1) | (fb << 14);
+    } else this.nzTimer--;
+    if (this.dmcTimer === 0) {                               // DMC output unit
+      this.dmcTimer = this.dmcRate - 1;
+      if (!this.dmcSilence) {
+        if (this.dmcShift & 1) { if (this.dmcOutput <= 125) this.dmcOutput += 2; }
+        else if (this.dmcOutput >= 2) this.dmcOutput -= 2;
+        this.dmcShift >>= 1;
+      }
+      if (--this.dmcBits <= 0) {
+        this.dmcBits = 8;
+        if (this.dmcBuffer >= 0) { this.dmcShift = this.dmcBuffer; this.dmcBuffer = -1; this.dmcSilence = false; }
+        else this.dmcSilence = true;
+        this.dmcFillBuffer();          // the 1-byte buffer refills immediately when emptied
+      }
+    } else this.dmcTimer--;
+    // sample output
+    this.sampleAcc++;
+    if (this.sampleAcc >= this.sampleEvery) {
+      this.sampleAcc -= this.sampleEvery;
+      if (this.sampleBuf.length < 65536) this.sampleBuf.push(this.mix());  // cap: headless runs never drain
+    }
+  }
+  step(n) { for (let i = 0; i < n; i++) this.tick(); this.dmcFillBuffer(); }
+
+  mix() {                 // nesdev mixer formulas
+    const p = this.p1.output() + this.p2.output();
+    const tri = this.triSeq < 16 ? 15 - this.triSeq : this.triSeq - 16;  // holds last value when halted
+    const nz = (this.nzLen > 0 && !(this.nzLfsr & 1)) ? (this.nzConstVol ? this.nzVol : this.nzEnvDecay) : 0;
+    const pulseOut = p > 0 ? 95.88 / (8128 / p + 100) : 0;
+    const tnd = tri / 8227 + nz / 12241 + this.dmcOutput / 22638;
+    const tndOut = tnd > 0 ? 159.79 / (1 / tnd + 100) : 0;
+    return pulseOut + tndOut - 0.5;   // center roughly around 0
+  }
+  drain() { const s = this.sampleBuf; this.sampleBuf = []; return s; }
+
+  getState() {
+    const s = { p1: this.p1.getState(), p2: this.p2.getState() };
+    for (const k of ['triEnabled','triLen','triHalt','triLinear','triLinearReload','triReloadFlag',
+                     'triTimer','triPeriod','triSeq','nzEnabled','nzLen','nzHalt','nzConstVol','nzVol',
+                     'nzEnvStart','nzEnvDivider','nzEnvDecay','nzMode','nzPeriod','nzTimer','nzLfsr',
+                     'dmcIrqEnable','dmcLoop','dmcRate','dmcTimer','dmcOutput','dmcSampleAddr',
+                     'dmcSampleLen','dmcAddr','dmcBytesLeft','dmcBuffer','dmcShift','dmcBits',
+                     'dmcSilence','fcMode5','fcInhibit','fcCycles','frameIrq','dmcIrq','oddCycle'])
+      s[k] = this[k];
+    return s;
+  }
+  setState(s) {
+    this.p1.setState(s.p1); this.p2.setState(s.p2);
+    for (const k of Object.keys(s)) if (k !== 'p1' && k !== 'p2') this[k] = s[k];
+  }
+}
+
+// ---------------------------------------------------------------- bus
+class Bus {
+  constructor() {
+    this.ram = new Uint8Array(0x800);
+    this.mapper = null;
+    this.ppu = null;                   // wired by NES
+    this.apu = null;                   // wired by NES
+    this.cpu = null;                   // wired by NES (needed for OAM DMA stall)
+    this.controllers = [0, 0];         // live button state (bit0 A,1 B,2 Sel,3 Start,4 Up,5 Down,6 Left,7 Right)
+    this._shift = [0, 0];
+    this._strobe = 0;
+  }
+  // The 2A03 IRQ line is shared: mapper (MMC3) OR APU frame counter OR DMC.
+  syncIrq() {
+    if (!this.cpu) return;
+    const v = !!((this.mapper && this.mapper.irqPending) ||
+                 (this.apu && (this.apu.frameIrq || this.apu.dmcIrq)));
+    if (v && !this.cpu.irqLine) this.cpu.irqStamp = this.cpu.cycles;   // record assert time for polling
+    this.cpu.irqLine = v;
+  }
+  cpuRead(a) {
+    if (a < 0x2000) return this.ram[a & 0x7FF];
+    if (a < 0x4000) return this.ppu ? this.ppu.readReg(a & 7) : 0;
+    if (a === 0x4015) return this.apu ? this.apu.readStatus() : 0;
+    if (a === 0x4016 || a === 0x4017) {
+      const i = a & 1;
+      if (this._strobe & 1) return (this.controllers[i] & 1) | 0x40;
+      const bit = this._shift[i] & 1;
+      this._shift[i] = (this._shift[i] >> 1) | 0x80;
+      return bit | 0x40;
+    }
+    if (a < 0x4020) return 0;          // APU — silent v1
+    return this.mapper ? this.mapper.cpuRead(a) : 0;
+  }
+  cpuWrite(a, v) {
+    if (a < 0x2000) { this.ram[a & 0x7FF] = v; return; }
+    if (a < 0x4000) { if (this.ppu) this.ppu.writeReg(a & 7, v); return; }
+    if (a === 0x4014) {                // OAM DMA: copy a 256-byte page, stall CPU 513/514 cycles
+      if (this.ppu) {
+        const base = v << 8;
+        for (let i = 0; i < 256; i++)
+          this.ppu.oam[(this.ppu.oamAddr + i) & 0xFF] = this.cpuRead(base + i);
+      }
+      if (this.cpu) this.cpu.pendingStall += 513 + (this.cpu.cycles & 1);
+      return;
+    }
+    if (a === 0x4016) {
+      this._strobe = v;
+      if (v & 1) { this._shift[0] = this.controllers[0]; this._shift[1] = this.controllers[1]; }
+      return;
+    }
+    if (a < 0x4020) { if (this.apu) this.apu.writeReg(a, v); return; }   // $4000-$4013, $4015, $4017
+    if (this.mapper) this.mapper.cpuWrite(a, v);
+  }
+}
+
+// ---------------------------------------------------------------- machine
+class NES {
+  constructor() {
+    this.bus = new Bus();
+    this.cpu = new CPU6502(this.bus);
+    this.ppu = new PPU();
+    this.apu = new APU(this.bus);
+    this.bus.ppu = this.ppu;
+    this.bus.apu = this.apu;
+    this.bus.cpu = this.cpu;
+    this.ppu.cpu = this.cpu;
+    this.apu.cpu = this.cpu;
+    // one CPU cycle = 3 PPU dots + 1 APU tick, interleaved WITHIN instructions.
+    // tick(3) = full cycle (reads); tick(2)+tick(1) = split around a write.
+    // tickPhase tells the PPU where each dot falls inside the CPU cycle (NMI edge timing).
+    const p = this.ppu;
+    this.cpu.tick = () => {
+      this.apu.tick();
+      p.tickPhase = 0; p.step();
+      p.tickPhase = 1; p.step();
+      p.tickPhase = 2; p.step();
+    };
+    this.cart = null;
+    this.frame = 0;
+    this.framebuffer = this.ppu.fb;    // 256x240 palette indices
+  }
+  loadROM(bytes) {
+    this.cart = new Cartridge(bytes);
+    this.bus.mapper = createMapper(this.cart);
+    this.bus.mapper.cpu = this.cpu;
+    this.bus.mapper.bus = this.bus;
+    this.ppu.mapper = this.bus.mapper;
+    this.ppu.cart = this.cart;
+    this.ppu.reset();
+    this.apu.setState(new APU(this.bus).getState());   // power-on APU state
+    this.cpu.irqLine = false;
+    this.cpu.nmiPending = false;
+    this.cpu.powerOn();
+    this.ppu.step();                   // CPU/PPU power-up phase (calibrated to blargg's reference)
+    this.frame = 0;
+  }
+  reset() {           // console reset button
+    this.ppu.reset();
+    this.cpu.irqLine = false;
+    this.cpu.nmiPending = false;
+    this.cpu.reset();
+  }
+
+  // ---- savestates: everything needed to resume identically ----
+  saveState() {
+    const c = this.cpu, p = this.ppu, b = this.bus;
+    return {
+      frame: this.frame,
+      cpu: { a: c.a, x: c.x, y: c.y, sp: c.sp, pc: c.pc, p: c.p, cycles: c.cycles,
+             nmiPending: c.nmiPending, nmiStamp: c.nmiStamp, irqLine: c.irqLine,
+             irqStamp: c.irqStamp, pendingStall: c.pendingStall, halted: c.halted },
+      ppu: { v: p.v, t: p.t, x: p.x, w: p.w, ctrl: p.ctrl, mask: p.mask, status: p.status,
+             oamAddr: p.oamAddr, readBuf: p.readBuf, scanline: p.scanline, dot: p.dot,
+             odd: p.odd, ntByte: p.ntByte, atByte: p.atByte, ptLo: p.ptLo, ptHi: p.ptHi,
+             ptAddr: p.ptAddr, shLo: p.shLo, shHi: p.shHi, shAtLo: p.shAtLo, shAtHi: p.shAtHi,
+             sprCount: p.sprCount, cycleCount: p.cycleCount, lastA12High: p.lastA12High,
+             ciram: p.ciram.slice(), palette: p.palette.slice(), oam: p.oam.slice(),
+             sprX: p.sprX.slice(), sprAttr: p.sprAttr.slice(),
+             sprPatLo: p.sprPatLo.slice(), sprPatHi: p.sprPatHi.slice(), sprIsZero: p.sprIsZero.slice(),
+             sprAddr: p.sprAddr.slice(), sprUsed: p.sprUsed.slice() },
+      bus: { ram: b.ram.slice(), shift: b._shift.slice(), strobe: b._strobe },
+      apu: this.apu.getState(),
+      prgRam: this.cart.prgRam.slice(),
+      chrRam: this.cart.chrIsRam ? this.cart.chr.slice() : null,
+      mapper: this.bus.mapper.getState(),
+      mirroring: this.cart.mirroring,
+    };
+  }
+  loadState(s) {
+    const c = this.cpu, p = this.ppu, b = this.bus;
+    Object.assign(c, s.cpu);
+    const pp = s.ppu;
+    for (const k of ['v','t','x','w','ctrl','mask','status','oamAddr','readBuf','scanline',
+                     'dot','odd','ntByte','atByte','ptLo','ptHi','ptAddr','shLo','shHi',
+                     'shAtLo','shAtHi','sprCount','cycleCount','lastA12High']) p[k] = pp[k];
+    p.ciram.set(pp.ciram); p.palette.set(pp.palette); p.oam.set(pp.oam);
+    p.sprX.set(pp.sprX); p.sprAttr.set(pp.sprAttr);
+    p.sprPatLo.set(pp.sprPatLo); p.sprPatHi.set(pp.sprPatHi); p.sprIsZero.set(pp.sprIsZero);
+    p.sprAddr.set(pp.sprAddr); p.sprUsed.set(pp.sprUsed);
+    b.ram.set(s.bus.ram); b._shift = Array.from(s.bus.shift); b._strobe = s.bus.strobe;
+    if (s.apu) this.apu.setState(s.apu);
+    this.cart.prgRam.set(s.prgRam);
+    if (s.chrRam && this.cart.chrIsRam) this.cart.chr.set(s.chrRam);
+    this.bus.mapper.setState(s.mapper);
+    this.cart.mirroring = s.mirroring;
+    this.frame = s.frame;
+  }
+  // Deterministic step: advance exactly one frame (until the PPU enters vblank)
+  // with the given pad states. This is the ONLY way time advances — key for netplay.
+  stepFrame(pad1 = 0, pad2 = 0) {
+    this.bus.controllers[0] = pad1 & 0xFF;
+    this.bus.controllers[1] = pad2 & 0xFF;
+    this.ppu.frameDone = false;
+    let guard = 200000;                // safety: ~6 frames of CPU work
+    while (!this.ppu.frameDone && !this.cpu.halted && guard-- > 0) this.cpu.step();
+    this.frame++;
+  }
+}
+
+// ---------------------------------------------------------------- state serialization
+// Portable JSON form of a savestate: typed arrays become tagged base64/arrays.
+function b64FromBytes(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode.apply(null, u8.subarray(i, i + 4096));
+  return btoa(s);
+}
+function bytesFromB64(b) {
+  const s = atob(b), u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u;
+}
+function encodeState(o) {
+  if (o instanceof Uint8Array) return { __u8: b64FromBytes(o) };
+  if (ArrayBuffer.isView(o)) return { __ta: o.constructor.name, v: Array.from(o) };
+  if (Array.isArray(o)) return o.map(encodeState);
+  if (o && typeof o === 'object') {
+    const r = {};
+    for (const k of Object.keys(o)) r[k] = encodeState(o[k]);
+    return r;
+  }
+  return o;
+}
+const TA_TYPES = { Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array, Uint8Array, Int8Array };
+function decodeState(o) {
+  if (o && typeof o === 'object') {
+    if (o.__u8 !== undefined) return bytesFromB64(o.__u8);
+    if (o.__ta !== undefined) return new (TA_TYPES[o.__ta] || Array)(o.v);
+    if (Array.isArray(o)) return o.map(decodeState);
+    const r = {};
+    for (const k of Object.keys(o)) r[k] = decodeState(o[k]);
+    return r;
+  }
+  return o;
+}
+NES.prototype.exportState = function () { return JSON.stringify(encodeState(this.saveState())); };
+NES.prototype.importState = function (json) { this.loadState(decodeState(JSON.parse(json))); };
+// Fast state fingerprint for desync detection (RAM + CPU registers).
+NES.prototype.hashLite = function () {
+  let h = 2166136261 >>> 0;
+  const r = this.bus.ram;
+  for (let i = 0; i < r.length; i++) { h ^= r[i]; h = (h * 16777619) >>> 0; }
+  const c = this.cpu;
+  for (const v of [c.pc & 0xFF, c.pc >> 8, c.a, c.x, c.y, c.sp, c.p]) { h ^= v; h = (h * 16777619) >>> 0; }
+  return h;
+};
+
+// ---------------------------------------------------------------- netplay (lockstep)
+// Transport-agnostic deterministic-lockstep session. Both peers run the full
+// emulator; only controller inputs cross the wire (plus a one-time savestate
+// from host to guest, and periodic hashes for desync detection).
+// Host is player 1, guest is player 2. Local input is scheduled `delay` frames
+// ahead; frame F steps only when both sides' inputs for F are known.
+const NET_CHUNK = 12000;
+class NetSession {
+  constructor(nes, isHost, send, now = () => Date.now()) {
+    this.nes = nes; this.isHost = isHost; this.send = send; this.now = now;
+    this.state = 'connecting';   // connecting -> syncing -> running (or desync/closed)
+    this.frame = 0;
+    this.delay = 3;
+    this.myInputs = new Map();
+    this.theirInputs = new Map();
+    this.myHashes = new Map();
+    this.rtt = null;
+    this._chunks = null;
+    this._pingT = 0;
+    this.onStatus = () => {};
+    this.romHash = 0;
+    this.stalled = false;
+  }
+  status(s) { this.state = s; this.onStatus(s); }
+  begin(romHash) {             // call when the channel opens
+    this.romHash = romHash;
+    this.send({ t: 'hello', rom: romHash });
+    this.send({ t: 'ping', ts: this.now() });
+    this.status('syncing');
+  }
+  _startSync() {               // host -> guest: full state, then start
+    const json = this.nes.exportState();
+    for (let i = 0; i < json.length; i += NET_CHUNK)
+      this.send({ t: 'state', i: i / NET_CHUNK, n: Math.ceil(json.length / NET_CHUNK), d: json.slice(i, i + NET_CHUNK) });
+    if (this.rtt !== null) this.delay = Math.min(8, Math.max(2, Math.ceil(this.rtt / 2 / 16.7) + 1));
+    this._reset();
+    this.send({ t: 'start', delay: this.delay });
+    this.status('running');
+  }
+  _reset() { this.frame = 0; this.myInputs.clear(); this.theirInputs.clear(); this.myHashes.clear(); }
+  onMessage(m) {
+    switch (m.t) {
+      case 'hello':
+        if (m.rom !== this.romHash) { this.status('rom-mismatch'); return; }
+        if (this.isHost) setTimeout(() => this._startSync(), 300);   // give ping a beat to measure RTT
+        break;
+      case 'state': {
+        if (!this._chunks || this._chunks.n !== m.n) this._chunks = { n: m.n, parts: new Array(m.n).fill(null) };
+        this._chunks.parts[m.i] = m.d;
+        break;
+      }
+      case 'start': {
+        if (this._chunks && this._chunks.parts.every(p => p !== null))
+          this.nes.importState(this._chunks.parts.join(''));
+        this._chunks = null;
+        this.delay = m.delay;
+        this._reset();
+        this.status('running');
+        break;
+      }
+      case 'input': this.theirInputs.set(m.f, m.b); break;
+      case 'hash': {
+        const mine = this.myHashes.get(m.f);
+        if (mine !== undefined) {
+          this.myHashes.delete(m.f);
+          if (mine !== m.h) {
+            if (this.isHost) { this.status('resync'); this._startSync(); }
+            else this.status('desync');   // wait for host resync
+          }
+        } else this.myHashes.set(m.f, m.h);   // theirs arrived first; compare when we get there
+        break;
+      }
+      case 'ping': this.send({ t: 'pong', ts: m.ts }); break;
+      case 'pong': this.rtt = this.now() - m.ts; break;
+      case 'pause': this.onPause && this.onPause(true); break;
+      case 'resume': this.onPause && this.onPause(false); break;
+    }
+  }
+  // Attempt to advance exactly one frame with the current local pad bits.
+  // Returns true if the frame was stepped, false if waiting on the peer.
+  tryStep(localBits) {
+    if (this.state !== 'running') return false;
+    const f = this.frame;
+    if (!this.myInputs.has(f + this.delay)) {
+      this.myInputs.set(f + this.delay, localBits & 0xFF);
+      this.send({ t: 'input', f: f + this.delay, b: localBits & 0xFF });
+    }
+    const mine = f < this.delay ? 0 : this.myInputs.get(f);
+    const theirs = f < this.delay ? 0 : this.theirInputs.get(f);
+    if (theirs === undefined || mine === undefined) { this.stalled = true; return false; }
+    this.stalled = false;
+    // desync check every 120 frames: hash BEFORE stepping so both sides agree
+    if (f > 0 && f % 120 === 0) {
+      const h = this.nes.hashLite();
+      const theirsH = this.myHashes.get(f);
+      if (theirsH !== undefined) {
+        this.myHashes.delete(f);
+        if (theirsH !== h) {
+          if (this.isHost) { this.status('resync'); this._startSync(); }
+          else this.status('desync');
+          return false;
+        }
+      } else this.myHashes.set(f, h);
+      this.send({ t: 'hash', f, h });
+    }
+    this.nes.stepFrame(this.isHost ? mine : theirs, this.isHost ? theirs : mine);
+    this.myInputs.delete(f - 2); this.theirInputs.delete(f - 2);
+    this.frame++;
+    // keep-alive ping every ~2s of frames
+    if (f - this._pingT >= 120) { this._pingT = f; this.send({ t: 'ping', ts: this.now() }); }
+    return true;
+  }
+}
+
+// exports for the Node test harness
+if (typeof globalThis !== 'undefined') {
+  globalThis.NESCore = { CPU6502, Cartridge, Bus, NES, MapperNROM, createMapper, OPTABLE, NetSession };
+}
+//</NES-CORE>
+
+// ---------------------------------------------------------------- built-in ROM
+// LJ65 v0.41 by Damian Yerrick (free software; NROM, 24KB). Base64 of the iNES file.
+const BUILTIN_ROM_LJ65 = "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dnl6IHp6c3F3eSAgICAgICAgICB5dnogdXUgdX18dXx6fHV1dXV3cXZ5eHN0fXh1d3MgICAgICAgICAgTElORVMgICAgMFNDICAgICAgIDAPABAwDwYWJg8CEiIPEicqDwAQMA8AEDAPABAwDwAQMAIUAAAgICAgICAgICAgQTogICBTVEFSVBwdHh86ICBTRVQgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIE1VU0lDICAgICAgICAgICAgICAgICAgICAgICAgIEdBUkJBR0UgICAgICAgICAgICAgICAgICAgICAgIFNQRUVEICAgICAgICAgICAgICAgICAgICAgICAgIFJPVEFUSU9OICAgICAgICAgICAgT1BUSU9OUzogICAgICAgICAgICBUTyBMSjY1ISAgV0VMQ09NRSAggGsAAAAAAAAAAAAAbICAgICAgGsAAAAAAAAAAAAAbIAAAAAAYEAgAODAoIBgQCAA4MCggGBAIAAAAACAYCMjIyMiIiIiIiIiIiEhISEhISEhAAAAICAAChQeKDI8RlBaZG54goyWoKq0vsjS3ObwAAABAgRTTE9XIE1FREZBU1QgMjBHICBDRU5URVIgIEJPVFRPTSAgICAgT0ZGICAgIFRFTVAgICBLLjIzMQQeyAAAAAAUIE9GRiBPTiEgU0lOR0xFICBET1VCTEUgIFRSSVBMRSBIT01FIFJVTiAgIENPTUJPIFJFR0lPTiBDT0RJTkcgRkFJTEVEISAgICAgICAgICAgVEhJUyBHQU1FIFBBSyBJUyBERVNJR05FRCBGT1IgICBOVFNDIE5FUyBBTkQgRkFNSUNPTSBPTkxZLiAgICAgABGq3aoAAP//VYhVu1nbAAZl2wACadsACHnbDAJ92wAPm9sAGc3bAAbZ2zAR+9s8ER3cDAgt3AwITyREJE8pRClPLkQuTzBEMI8TjQ+LDIkJhweFBYMDgQIGAwMDTydOKk0sTCdLKUosiSeIKocshieFKYQsgyeCKoEsTydOKk0sTCdLKUosiSeIKocshidPKk4tTS9MKkssSi+JKogthy+GKoUshC+DKoItgS9PEE0TSxZJGUccRR8PBw8HDgcNBwwHCwcKBwkHCAcHBwYHBQcEBwMHAgcBBwEHDwwPDQ4ODQ4MDgsOCg4JDggOBw4G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elUqtW2JVVVVWrWqaqk3UUlbFWyqLam6IkWrXSJTt1rqlqoqtU2lttolUqoqgW2tqlRbStRWq1Jt2wq1qpZSbVWSXrVKqaoSWVVZLdWqqrSqKlVtW1KtWlWqtaRqm5UkVSlVVSupVa1K7SqVZKvaSrVaKtVqS6kt1UqqVCqlbUqqpZpqb6WWrKpqUlVVqTVpJd2VdqkqRFW1pUqrSqtaVVVVVamqqq2WWkuqUq3SqmpFqqqqVFVV1VWlqpbVqqpKq2ppVUmrUmVVS62kKpVa1VRVW0urTUXVSlXVqlVJVdJaZVXVVC2lqmqplqqqrVJWVVWrUlW1qqpUJa0qtalW1UqlUmtWVbWyqqpKpVWVqqpV1SpVpVZVpVqpTVWVqqqqqpZVa1WqKqtUVatUVZWm1Kqq0qpqVVVTS1VV1VStVqpKVaWqalVlVaqpalVVVVVVVbVUVVVVVVUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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4AAI+eP//w8fPy/+AAAAEDDw4OD8+PDgwAAAAMP/////9lzwPAAAAAAAAADgwMCAAAAAAAAAAAAAAAAAAACA4ODw+PgAAIDg4PD4+AAAAQcHDx8fAAABBwcPHx8AAIAAQAAAAAAAAICAgICAAAABAAIAAAAAAAABAQEBAQAAAIBAoFCqAAAAAAAAAAAAAAAAAQIFqgAAAAAAAAAAuxGDx4MRu/+7EYPHgxG7/7sRg8eDEbv/uxGDx4MRu/+7EYPHgxG7/7sRg8eDEbv/uxGDx4MRu/+7EYPHgxG7/7sRg8eDEbv/uxGDx4MRu/+7EYPHgxG7/7sRg8eDEbv////AwMDAwMD//////////8DAwMDAwL9/////////wID+/QMDAwMDA//+/Pz8/Pz8AwMDAwMD///8/Pz8/PwAAP//////vz7/gYGBgYHBwUAAAAAAfx7/PQAAAAA/YUHDAAAAAIDAAIAAAAAAwICAAAAAAAAPDwMLAAAAAAcEDAwAAAAA/////wAAAAD/AAAAAAAAAPz8/PwAAAAA/AQEBP///////////4GBgYGBgYH//////////4GBgYGBgYGBHwc/D39f/z8IGBAwIGBAwP35//////+9HgcAAAAAAH4AgHDY7PT8+gDA4DAYDAYGf38fX///P78gIGBgQEDAwP35//////+9fgcAAAAAAH7///////18/4GBgYGBg4MCv///////n79/AQEBAQHhf/3///////n9/oCAgICAh/4BAAMABwEPAwABAQMCBgQM/nv89vjs8PiDhgYMDBgYEFrnfr29fudaPH7Dw8PDfjwfHwcXPz8PLwgIGBgQEDAw/////4CA4MAAAAA/YGBAQPz8/PwAAAAABAQE/AAAAAAAAAAAAIAAoAAAAAAAAIDAAAAAAAABAAUAAAAAAAABA//+////vz7/gIGBgYHBwUClAIEAAIEApcOBAAAAAIHD/3z9///9fP8Cg4OBgYODAv8AAAAAAAD//wAAAAAAAH+lAAEAAAEApcMBAAAAAAHDXz8vNxsOAQBgYDAYDAcDAL3//////5m9fgAAAAAA5376/PTs2HCAAAYGDBgw4MAA/4CAgICAgIAAf39/f39/f/8AAAAAAAAAAP/////////+AQEBAQEBAQH/////////uxGDx4MRu/+7EYPHgxG7/wABAwcPHz9//vz48ODAgACAwODw+Pz+/38/Hw8HAwEAAQADBw8fP3/+/fjw4MCAAAAAAIDQ4MCA////fz8/f/8BAgQIECBAgAABAwcPHz9/AQIECBAgQID//vz48ODAgAAAAAAAAAAA/38/Hw8HAwEAAAAAAAAAAIDA4PD4/P7/AAMECBAgQIABAQMHDx8/fwCAwGAwIECAAIDA4PDgwIABAgQIAAAAAAABAwcHAwEA//////////8OpKqu/////4CAgICAgICAf39/f39/f388QpmhoZlCPDxCmaGhmUI8AQEBAQEBAQH//////////wABAwcHAwEA/vz48Pj8/v///vz48ODAgAEDBw8fP3///38/Hw8HAwEAgMDg8Pj8/v/////dAIbG/////+aAAIb/+/D5vRgYCP/88PB+MBAY/////3PBwfH//3///WBgYf////9/Dw8H/////58PD4//////+/Liwf/////88OPi//vg8X04IBD//PDw/jAQGP//f/93cGdn//////jiwsL//fj4GAg4OP/+8PDIGBgY/3////fGQuP//39/TwIDQ///94+HAYkP///vxwEBB4eAgICAgICAf39/f39/f3//AAAAAAAAAP///////////wEBAQEBAQH///////////8AAAD/AP///wAAAAD/////wMDAwPj4+PjAwMDA+Pj4+LsRg8eDEbv/uxGDx4MRu//Hx8bGwASDp4aGhoCAhwPDCAgYEDD4//8YGBgwcP////Hx8WFhYf//YWFhAAD///8HBwcDA4///4+PjwcH////4OPB4fj4///Aw+Pg8P///xDw8KBg+P//GPj4EDD///9DcGYAAM/OwOLgx0BgwMfgOPgwABAYH384ePgQAA8fP+Pj4wEB4///Q0NDQUH///8PDw0Aw+f//4eHh4GB////////////////b2ppa2ub///////////////bWltTav//////////////GfYw1zn/////////////98e3t7fH/////////////5treHtrm/////////////9HW1tHV1v//////////////463trWOv/////////////9yrTOjLfP/////////////n28Pf5///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==";
+
+// ---------------------------------------------------------------- NES master palette (2C02, RGB)
+const NES_PALETTE = new Uint8Array([
+   84, 84, 84,   0, 30,116,   8, 16,144,  48,  0,136,  68,  0,100,  92,  0, 48,  84,  4,  0,  60, 24,  0,
+   32, 42,  0,   8, 58,  0,   0, 64,  0,   0, 60,  0,   0, 50, 60,   0,  0,  0,   0,  0,  0,   0,  0,  0,
+  152,150,152,   8, 76,196,  48, 50,236,  92, 30,228, 136, 20,176, 160, 20,100, 152, 34, 32, 120, 60,  0,
+   84, 90,  0,  40,114,  0,   8,124,  0,   0,118, 40,   0,102,120,   0,  0,  0,   0,  0,  0,   0,  0,  0,
+  236,238,236,  76,154,236, 120,124,236, 176, 98,236, 228, 84,236, 236, 88,180, 236,106,100, 212,136, 32,
+  160,170,  0, 116,196,  0,  76,208, 32,  56,204,108,  56,180,204,  60, 60, 60,   0,  0,  0,   0,  0,  0,
+  236,238,236, 168,204,236, 188,188,236, 212,178,236, 236,174,236, 236,174,212, 236,180,176, 228,196,144,
+  204,210,120, 180,222,120, 168,226,144, 152,226,180, 160,214,228, 160,162,160,   0,  0,  0,   0,  0,  0,
+]);
+
+// ---------------------------------------------------------------- UI (browser only)
+(function ui() {
+  if (typeof document === 'undefined') return;
+  const canvas = document.getElementById('screen');
+  const ctx = canvas.getContext('2d');
+  const status = document.getElementById('status');
+  const drop = document.getElementById('drop');
+  const fileInput = document.getElementById('rom');
+  const nes = new NES();
+  const img = ctx.createImageData(256, 240);
+  img.data.fill(255);
+  let running = false;
+
+  function setStatus(html) { status.innerHTML = html; }
+
+  function blit() {
+    const fb = nes.framebuffer, data = img.data;
+    for (let i = 0; i < 61440; i++) {
+      const p = fb[i] * 3, o = i * 4;
+      data[o] = NES_PALETTE[p]; data[o + 1] = NES_PALETTE[p + 1]; data[o + 2] = NES_PALETTE[p + 2];
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // gamepads: standard mapping; pad index 0 -> P1, 1 -> P2 (merged with keyboard)
+  function pollGamepad(gp) {
+    if (!gp || !gp.connected) return 0;
+    const b = (i) => gp.buttons[i] && gp.buttons[i].pressed;
+    let v = 0;
+    if (b(0) || b(2)) v |= 0x01;                       // A (accept B/X face buttons too)
+    if (b(1) || b(3)) v |= 0x02;                       // B
+    if (b(8)) v |= 0x04; if (b(9)) v |= 0x08;          // Select, Start
+    if (b(12)) v |= 0x10; if (b(13)) v |= 0x20;        // d-pad up/down
+    if (b(14)) v |= 0x40; if (b(15)) v |= 0x80;        // d-pad left/right
+    if (gp.axes.length >= 2) {                         // left stick fallback
+      if (gp.axes[1] < -0.5) v |= 0x10; if (gp.axes[1] > 0.5) v |= 0x20;
+      if (gp.axes[0] < -0.5) v |= 0x40; if (gp.axes[0] > 0.5) v |= 0x80;
+    }
+    return v;
+  }
+
+  // 60.0988 fps stepping decoupled from display refresh (so 120Hz+ monitors don't fast-forward)
+  const FRAME_MS = 1000 / 60.0988;
+  let acc = 0, last = 0, paused = false;
+  let fpsFrames = 0, fpsT0 = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (!running || paused) { last = now; return; }
+    acc += Math.min(now - last, 100);  // clamp huge gaps (tab was hidden)
+    last = now;
+    const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+    const p1 = pad1 | pollGamepad(gps[0]);
+    const p2 = pad2 | pollGamepad(gps[1]);
+    let stepped = false;
+    while (acc >= FRAME_MS) {
+      acc -= FRAME_MS;
+      if (net) {                       // netplay: lockstep gates stepping; local pad is P1 keys for both sides
+        if (net.state !== 'running' || !net.tryStep(p1)) break;
+      } else {
+        nes.stepFrame(p1, p2);
+      }
+      stepped = true;
+      fpsFrames++;
+      if (nes.cpu.halted) { running = false; setStatus('<span class="err">CPU halted (STP instruction)</span>'); break; }
+    }
+    if (stepped) blit();
+    if (net && net.state === 'running' && net.stalled) setMpStatus('waiting for peer…');
+    else if (net && net.state === 'running' && mpStatus.textContent.startsWith('waiting'))
+      setMpStatus(`connected — you are P${net.isHost ? 1 : 2}` + (net.rtt !== null ? ` (ping ${Math.round(net.rtt)}ms)` : ''), 'ok');
+    const samples = nes.apu.drain();
+    if (audioReady && samples.length && !paused) audioNode.port.postMessage(Float32Array.from(samples));
+    if (now - fpsT0 >= 500) {
+      if (fpsT0) document.getElementById('fps').textContent = (fpsFrames * 1000 / (now - fpsT0)).toFixed(1) + ' fps';
+      fpsT0 = now; fpsFrames = 0;
+    }
+  }
+  requestAnimationFrame(loop);
+
+  // ---- audio: AudioWorklet ring buffer fed from apu.drain() each rAF ----
+  let audioCtx = null, audioNode = null, gainNode = null, audioReady = false;
+  let muted = false, volume = 0.5;
+  function applyGain() { if (gainNode) gainNode.gain.value = muted ? 0 : volume; }
+  async function ensureAudio() {
+    if (audioCtx) { audioCtx.resume(); return; }
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      nes.apu.setSampleRate(audioCtx.sampleRate);
+      const workletSrc = `
+        class NesAudio extends AudioWorkletProcessor {
+          constructor() { super();
+            this.buf = new Float32Array(32768); this.r = 0; this.w = 0; this.last = 0;
+            this.port.onmessage = e => { const d = e.data;
+              for (let i = 0; i < d.length; i++) if (this.w - this.r < 32768) { this.buf[this.w & 32767] = d[i]; this.w++; } };
+          }
+          process(inputs, outputs) { const out = outputs[0][0];
+            for (let n = 0; n < out.length; n++) {
+              if (this.r < this.w) { this.last = this.buf[this.r & 32767]; this.r++; }
+              out[n] = this.last;
+            }
+            return true; }
+        }
+        registerProcessor('nes-audio', NesAudio);`;
+      await audioCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletSrc], { type: 'application/javascript' })));
+      audioNode = new AudioWorkletNode(audioCtx, 'nes-audio', { outputChannelCount: [1] });
+      gainNode = audioCtx.createGain();
+      applyGain();
+      audioNode.connect(gainNode).connect(audioCtx.destination);
+      audioReady = true;
+    } catch (e) { console.warn('audio unavailable:', e); }
+  }
+  const muteBtn = document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', () => { muted = !muted; muteBtn.textContent = muted ? 'Unmute' : 'Mute'; applyGain(); });
+  document.getElementById('vol').addEventListener('input', e => { volume = e.target.value / 100; applyGain(); });
+
+  // ---- battery saves: persist $6000-$7FFF for battery carts, keyed by ROM hash ----
+  let saveKey = null, saveTimer = null;
+  function romHash(bytes) {
+    let h = 5381 >>> 0;
+    for (let i = 0; i < bytes.length; i++) h = ((h * 33) ^ bytes[i]) >>> 0;
+    return h.toString(16);
+  }
+  function persistSave() {
+    if (!nes.cart || !nes.cart.battery || !saveKey) return;
+    try {
+      let s = ''; const r = nes.cart.prgRam;
+      for (let i = 0; i < r.length; i++) s += String.fromCharCode(r[i]);
+      localStorage.setItem(saveKey, btoa(s));
+    } catch (e) { /* storage unavailable — play on without persistence */ }
+  }
+  function restoreSave(bytes) {
+    saveKey = 'nes.sav.' + romHash(bytes);
+    if (!nes.cart.battery) return;
+    try {
+      const d = localStorage.getItem(saveKey);
+      if (d) { const bin = atob(d); for (let i = 0; i < bin.length && i < nes.cart.prgRam.length; i++) nes.cart.prgRam[i] = bin.charCodeAt(i); }
+    } catch (e) { /* ignore */ }
+    clearInterval(saveTimer);
+    saveTimer = setInterval(persistSave, 5000);
+  }
+  addEventListener('beforeunload', persistSave);
+
+  // transport controls + savestates (one in-memory slot)
+  let saveSlot = null;
+  const pauseBtn = document.getElementById('pauseBtn');
+  function setPaused(v, fromNet = false) {
+    paused = v; pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+    if (net && !fromNet && net.state === 'running') net.send({ t: paused ? 'pause' : 'resume' });
+  }
+  pauseBtn.addEventListener('click', () => setPaused(!paused));
+  document.getElementById('resetBtn').addEventListener('click', () => { if (nes.cart && !net) { nes.reset(); setPaused(false); } });
+  document.getElementById('saveBtn').addEventListener('click', () => { if (nes.cart && !net) saveSlot = nes.saveState(); });
+  document.getElementById('loadBtn').addEventListener('click', () => { if (nes.cart && saveSlot && !net) { nes.loadState(saveSlot); blit(); } });
+  document.getElementById('fsBtn').addEventListener('click', () => canvas.requestFullscreen && canvas.requestFullscreen());
+
+  // ---- multiplayer: WebRTC with copy-paste signaling (no server) ----
+  let net = null, pc = null, chan = null, lastRomHash = 0;
+  const mpStatus = document.getElementById('mpStatus');
+  const mpExchange = document.getElementById('mpExchange');
+  const mpHint = document.getElementById('mpHint');
+  const mpOut = document.getElementById('mpOut');
+  const mpIn = document.getElementById('mpIn');
+  const leaveBtn = document.getElementById('leaveBtn');
+  let joining = false;
+
+  function romHash32(bytes) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = (h * 16777619) >>> 0; }
+    return h;
+  }
+  function setMpStatus(text, cls = '') { mpStatus.textContent = text; mpStatus.className = cls; }
+  function iceComplete(p) {
+    return new Promise(res => {
+      if (p.iceGatheringState === 'complete') return res();
+      const t = setTimeout(res, 3000);   // ship whatever candidates we have after 3s
+      p.addEventListener('icegatheringstatechange', () => {
+        if (p.iceGatheringState === 'complete') { clearTimeout(t); res(); }
+      });
+    });
+  }
+  function newPC() {
+    endNet('');
+    pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] });
+    pc.onconnectionstatechange = () => {
+      if (pc && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) endNet('connection lost');
+    };
+  }
+  function wireChannel(c, isHost) {
+    chan = c;
+    c.onopen = () => {
+      net = new NetSession(nes, isHost, m => { try { c.send(JSON.stringify(m)); } catch (e) {} }, () => performance.now());
+      net.onPause = v => setPaused(v, true);
+      net.onStatus = st => {
+        if (st === 'running') {
+          mpExchange.hidden = true;
+          setMpStatus(`connected — you are P${isHost ? 1 : 2}` + (net.rtt !== null ? ` (ping ${Math.round(net.rtt)}ms)` : ''), 'ok');
+          leaveBtn.hidden = false;
+          setPaused(false, true);
+        }
+        else if (st === 'rom-mismatch') setMpStatus('different ROMs loaded on each side!', 'err');
+        else if (st === 'desync') setMpStatus('desync — waiting for host to resync…', 'err');
+        else if (st === 'resync') setMpStatus('desync detected — resyncing…', 'err');
+        else if (st === 'syncing') setMpStatus('syncing…');
+      };
+      c.onmessage = e => net.onMessage(JSON.parse(e.data));
+      net.begin(lastRomHash);
+    };
+    c.onclose = () => endNet('peer left');
+  }
+  function endNet(msg) {
+    if (chan) { chan.onclose = null; try { chan.close(); } catch (e) {} }
+    if (pc) { try { pc.close(); } catch (e) {} }
+    net = null; pc = null; chan = null; joining = false;
+    mpExchange.hidden = true; leaveBtn.hidden = true;
+    mpOut.value = ''; mpIn.value = '';
+    if (msg) setMpStatus(msg, 'err'); else setMpStatus('');
+  }
+  document.getElementById('hostBtn').addEventListener('click', async () => {
+    if (!nes.cart) { setMpStatus('load a ROM first', 'err'); return; }
+    newPC(); joining = false;
+    wireChannel(pc.createDataChannel('nes'), true);
+    await pc.setLocalDescription(await pc.createOffer());
+    await iceComplete(pc);
+    mpOut.value = btoa(JSON.stringify(pc.localDescription));
+    mpExchange.hidden = false;
+    mpHint.textContent = '1) Send the top code to your friend (they click Join and paste it). 2) Paste their reply below and Apply.';
+    setMpStatus('hosting — waiting for answer…');
+  });
+  document.getElementById('joinBtn').addEventListener('click', () => {
+    if (!nes.cart) { setMpStatus('load the same ROM as the host first', 'err'); return; }
+    endNet(''); joining = true;
+    mpExchange.hidden = false;
+    mpOut.value = '';
+    mpHint.textContent = 'Paste the host\'s code below and press Apply, then send back the code that appears on top.';
+    setMpStatus('joining…');
+  });
+  document.getElementById('mpApply').addEventListener('click', async () => {
+    try {
+      const desc = JSON.parse(atob(mpIn.value.trim()));
+      if (joining) {
+        newPC(); joining = true;
+        pc.ondatachannel = e => wireChannel(e.channel, false);
+        await pc.setRemoteDescription(desc);
+        await pc.setLocalDescription(await pc.createAnswer());
+        await iceComplete(pc);
+        mpOut.value = btoa(JSON.stringify(pc.localDescription));
+        setMpStatus('answer created — send it to the host', 'ok');
+      } else {
+        await pc.setRemoteDescription(desc);
+        setMpStatus('connecting…');
+      }
+      mpIn.value = '';
+    } catch (e) { setMpStatus('bad code: ' + e.message, 'err'); }
+  });
+  document.getElementById('mpCopy').addEventListener('click', () => {
+    mpOut.select(); navigator.clipboard ? navigator.clipboard.writeText(mpOut.value) : document.execCommand('copy');
+  });
+  leaveBtn.addEventListener('click', () => endNet('left game'));
+
+  function loadBytes(name, bytes) {
+    try {
+      if (net) endNet('');             // loading a new ROM ends any session
+      nes.loadROM(bytes);
+      lastRomHash = romHash32(bytes);
+      restoreSave(bytes);
+      ensureAudio();
+      running = true;
+      setPaused(false);
+      const c = nes.cart;
+      setStatus(
+        `<span class="ok">Running:</span> ${name}  —  ` +
+        `PRG ${c.prg.length / 1024}K, CHR ${c.chrIsRam ? 'RAM 8K' : c.chr.length / 1024 + 'K'}, ` +
+        `mapper ${c.mapper}, ${c.mirroring}${c.battery ? ', battery' : ''}`
+      );
+    } catch (e) {
+      running = false;
+      setStatus(`<span class="err">Error:</span> ${e.message}`);
+    }
+  }
+
+  function loadFile(file) {
+    const r = new FileReader();
+    r.onload = () => loadBytes(file.name, new Uint8Array(r.result));
+    r.readAsArrayBuffer(file);
+  }
+
+  // Built-in test ROM: LJ65 by Damian Yerrick — an action puzzle game for NES,
+  // distributed as free software (see its README; source at pineight.com).
+  // Embedded so the emulator is testable with zero external files.
+  document.getElementById('builtin').addEventListener('click', () => {
+    const b64 = BUILTIN_ROM_LJ65;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    loadBytes('lj65.nes (built-in)', bytes);
+  });
+
+  fileInput.addEventListener('change', () => fileInput.files[0] && loadFile(fileInput.files[0]));
+  for (const ev of ['dragover', 'dragleave', 'drop']) drop.addEventListener(ev, e => {
+    e.preventDefault();
+    drop.classList.toggle('hover', ev === 'dragover');
+    if (ev === 'drop' && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  // keyboard → controller bits
+  const KEYMAP1 = { KeyX: 0, KeyZ: 1, ShiftLeft: 2, ShiftRight: 2, Enter: 3,
+                    ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7 };
+  const KEYMAP2 = { KeyM: 0, KeyN: 1, KeyI: 4, KeyK: 5, KeyJ: 6, KeyL: 7 };
+  let pad1 = 0, pad2 = 0;
+  addEventListener('keydown', e => {
+    if (e.code === 'KeyP') { setPaused(!paused); e.preventDefault(); return; }
+    if (e.code === 'F5') { if (nes.cart && !net) saveSlot = nes.saveState(); e.preventDefault(); return; }
+    if (e.code === 'F9') { if (nes.cart && saveSlot && !net) { nes.loadState(saveSlot); blit(); } e.preventDefault(); return; }
+    const b1 = KEYMAP1[e.code], b2 = KEYMAP2[e.code];
+    if (b1 !== undefined) { pad1 |= 1 << b1; e.preventDefault(); }
+    if (b2 !== undefined) { pad2 |= 1 << b2; e.preventDefault(); }
+  });
+  addEventListener('keyup', e => {
+    const b1 = KEYMAP1[e.code], b2 = KEYMAP2[e.code];
+    if (b1 !== undefined) { pad1 &= ~(1 << b1); e.preventDefault(); }
+    if (b2 !== undefined) { pad2 &= ~(1 << b2); e.preventDefault(); }
+  });
+})();
+</script>
+<footer style="margin:8px auto 20px;max-width:650px;text-align:center;color:#aeb9c8;font-size:12px">
+The NES emulator is by <a href="https://github.com/TrevorS/nes.html" target="_blank" rel="noopener noreferrer" style="color:#f0b8b8">TrevorS (MIT license)</a>. LJ65 is free homebrew by Damian Yerrick; original authors retain their rights. Gamepads and keyboard controls supported.
+</footer>
+<script>
+// Load the already-bundled free game. The emulator and cartridge bytes are
+// embedded in this HTML and make no network requests during play.
+window.addEventListener("load",()=>{
+  const builtin=document.getElementById("builtin");
+  if(builtin) builtin.click();
+},{once:true});
+</script>
+</body>
+</html>
