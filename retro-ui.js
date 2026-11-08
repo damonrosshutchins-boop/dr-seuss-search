@@ -81,17 +81,22 @@ document.querySelectorAll("[data-retro-category]").forEach(b=>
 for(const [id,icon,name,detail] of EMULATORS){
  emulatorGrid.append(card(icon,name,detail,()=>openPage("dos-arcade.html",id,name)));
 }
-emulatorGrid.append(card("💻","FreeDOS (built-in games)","v86 · preloaded disk image",()=>{
+for(const [name,icon,description] of [
+ ["FreeDOS","💻","v86 · preloaded DOS with built-in games"],
+ ["KolibriOS","🖥️","v86 · preloaded desktop with applications"]
+]){
+ emulatorGrid.append(card(icon,name,description,()=>{
  const vm=window.DSSVM;
- const system=vm?.SYSTEMS?.find(s=>s.name==="FreeDOS");
+ const system=vm?.SYSTEMS?.find(s=>s.name===name);
  if(!system){
-  $("retro-cache-status").textContent="FreeDOS emulator is not ready yet.";
+  $("retro-cache-status").textContent=name+" emulator is not ready yet.";
   return;
  }
  dialog.close();
  window.openVMTab?.();
  void vm.bootV86({name:system.name,opts:system.opts,mem:Math.max(64,system.mem)});
-}));
+ }));
+}
 dialog.addEventListener("close",()=>hideRetro(false));
 listOffline();
 
