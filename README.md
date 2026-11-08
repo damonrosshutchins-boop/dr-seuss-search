@@ -348,8 +348,9 @@ messages distinguish local loader errors, missing remote runtime, emulator
 ready, and a started game. Compatibility is not guaranteed, especially for
 Libdragon N64 game-jam cartridges.
 
-The loader is reused unchanged under the upstream EmulatorJS GNU GPL v3
-license: https://github.com/EmulatorJS/EmulatorJS/blob/main/LICENSE .
+The loader uses the upstream EmulatorJS GNU GPL v3 license. A full copy
+is included in `EMUJS-GPLv3-LICENSE.txt`, and the upstream source is at
+https://github.com/EmulatorJS/EmulatorJS/blob/main/data/loader.js .
 The optional console cache now stores the new local loader instead of the
 previous external loader script. No new paid services or proprietary ROMs.
 
