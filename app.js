@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-more-gamefixes-20261107";
+const PROXY_WORKER_VERSION = "greeneggs-console-only-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1400,9 +1400,8 @@ function showEmbeddingNotice(target, options = {}) {
 	}
 }
 const FIRST_PARTY_GAME_FILES = new Set([
-	"offline-arcade.html","retro-arcade.html","nes-homebrew.html",
-	"offline-games.html","offline-pack.html","dos-arcade.html",
-	"console-emulators.html"
+	"nes-homebrew.html","console-emulators.html",
+	"dos-arcade.html","offline-pack.html"
 ]);
 // Game pages often use WebAssembly fetch, WebGL, and IndexedDB on their own
 // origin. An opaque sandbox origin breaks those APIs even for otherwise
@@ -1881,13 +1880,13 @@ $("search-form").addEventListener("submit", (e) => {
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
 const gamesDialog = $("games-dialog");
 $("open-games").addEventListener("click", () => gamesDialog.showModal());
-// The first-party worker caches the seven trusted offline game/menu pages.
+// The first-party worker caches only the remaining console/VM pages.
 // Custom Loader itself still needs no worker.
 const offlineButton = $("library-enable-offline");
 const offlineStatus = $("library-offline-status");
 offlineButton.addEventListener("click", async () => {
   offlineButton.disabled = true;
-  offlineStatus.textContent = "Saving all seven offline game pages to this browser…";
+  offlineStatus.textContent = "Saving three trusted console/VM pages to this browser…";
   try {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:")
       throw new Error("Offline page caching requires a modern HTTPS browser.");
@@ -1925,7 +1924,7 @@ offlineButton.addEventListener("click", async () => {
       const failed=(reply.files||[]).filter(x=>!x.ok).map(x=>x.file).join(", ");
       throw new Error(reply.error||("Couldn't cache "+(failed||"the game pages")+"."));
     }
-    offlineStatus.textContent = "Seven offline pages saved, including the new 28-game hub. Bookmark offline-games.html to open the retro arcade without Wi-Fi. Emulator assets require separate preparation.";
+    offlineStatus.textContent = "NES and console HTML pages saved, along with the existing VM DOS player. NES LJ65 runs offline; other console games need external runtimes or internet.";
   } catch (error) {
     offlineStatus.textContent = "Offline setup failed: "+(error?.message||String(error));
   } finally {
@@ -1944,59 +1943,13 @@ for (const button of document.querySelectorAll("#games-dialog [data-proxy-url],#
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
-// Green Eggs and Ham has instant filtering. Library games use the lean
-// native Seuss Browser frame; the original host must allow embedding.
-const greenEggsMain = $("games-main-view");
-const greenEggsView = $("green-eggs-view");
-const greenEggsSearch = $("green-eggs-search");
-const greenEggsCards = [...$("green-eggs-grid").querySelectorAll("[data-proxy-url]")];
-const greenEggsLauncher = $("open-green-eggs");
-function filterGreenEggs() {
-	const words = greenEggsSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-	let visible = 0;
-	for (const card of greenEggsCards) {
-		const haystack = (card.textContent + " " + (card.dataset.search || "")).toLowerCase();
-		const matches = words.every(word => haystack.includes(word));
-		card.hidden = !matches;
-		if (card.parentElement?.classList.contains("game-launch-choices"))
-			card.parentElement.hidden = !matches;
-		if (matches) visible++;
-	}
-	$("green-eggs-count").textContent = visible + " of " + greenEggsCards.length +
-		(visible === 1 ? " game" : " games");
-	$("green-eggs-empty").hidden = visible !== 0;
-}
-function showGreenEggs() {
-	if (!requireSeussAccount()) return;
-	greenEggsMain.hidden = true;
-	greenEggsView.hidden = false;
-	gamesDialog.classList.add("green-eggs-open");
-	greenEggsLauncher.setAttribute("aria-expanded", "true");
-	greenEggsSearch.value = "";
-	filterGreenEggs();
-	greenEggsSearch.focus();
-}
-function showRegularGames(restoreFocus = true) {
-	greenEggsView.hidden = true;
-	greenEggsMain.hidden = false;
-	gamesDialog.classList.remove("green-eggs-open");
-	greenEggsLauncher.setAttribute("aria-expanded", "false");
-	if (restoreFocus && gamesDialog.open) greenEggsLauncher.focus();
-}
-greenEggsLauncher.addEventListener("click", showGreenEggs);
-$("green-eggs-back").addEventListener("click", () => showRegularGames());
-greenEggsSearch.addEventListener("input", filterGreenEggs);
-gamesDialog.addEventListener("close", () => showRegularGames(false));
-filterGreenEggs();
-
-
 // Every externally hosted game gets a visible original-host fallback.
 // This is only a link to the game's own site; no third-party scripts, ROMs
 // or game assets are copied into Seuss Search. Remote embedded play retains
 // the site's existing destination-policy checks.
 function addOriginalGameLinks() {
 	for (const card of document.querySelectorAll("#games-dialog [data-proxy-url]")) {
-		if (!card.closest(".library-grid, .green-eggs-grid")) continue;
+		if (!card.closest(".library-grid")) continue;
 		let url;
 		try {
 			url = new URL(card.dataset.proxyUrl);
@@ -2066,8 +2019,6 @@ document.querySelectorAll("[data-local-url]").forEach(button => {
 });
 // Remote cloud sites may refuse embedding or require approved streaming
 // integrations; don't pretend an iframe can remove their restrictions.
-$("library-nowgg").addEventListener("click", event => launchLibraryGame(event, "https://now.gg/"));
-$("library-geforce").addEventListener("click", event => launchLibraryGame(event, "https://play.geforcenow.com/"));
 $("b-home").onclick = goHome;
 $("b-back").onclick = () => {
 	const tab = currentSiteTab();
