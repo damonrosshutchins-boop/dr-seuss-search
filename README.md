@@ -211,3 +211,38 @@ evict it. Some browser/iframe setups may restrict WebAssembly workers.
 The new retro-style games are original implementations of arcade mechanics,
 not copies of commercial ROMs or artwork. We do not supply game console ROMs
 that would otherwise need to be acquired or configured.
+
+
+## NES, Nintendo 64 and PlayStation 1 emulator games
+
+A **Console Games** subcategory is available under **Games → Retro Arcade &
+Emulators**, and the main Games grid also links to a standalone
+\`console-emulators.html\` page.
+
+- **NES LJ65**: \`nes-homebrew.html\` is a complete MIT-licensed, single-file
+  NES emulator adapted from TrevorS/nes.html with its included LJ65 homebrew
+  game by Damian Yerrick. It launches automatically and needs **no internet,
+  ROM file or BIOS**; save the HTML file to use independently of site caching.
+- **NES 2048**: a free MIT-licensed NES homebrew from the
+  Mylittlestories/recalbox-os-web free-games collection, launched with
+  EmulatorJS/FCEUmm. Requires first-time online loading of the core and ROM.
+- **Nintendo 64**: **Kumi-Daiko Beatoff 64**, a CC0 homebrew game-jam
+  cartridge by Team Riistahillo, launched in EmulatorJS/Mupen64Plus Next.
+  Requires first-time online loading. Compatibility varies by browser/device.
+- **PlayStation 1**: the official [PSoXide browser demo disc](https://bonnie-studios.itch.io/psoxide)
+  supplies real homebrew PS1 games and runs without manual BIOS/game uploads,
+  **but requires internet** and may refuse iframe embedding. A separate
+  open-source PSX test program can be attempted using EmulatorJS/PCSX ReARMed;
+  it is a diagnostic, not a complete PS1 game, and BIOS-free compatibility
+  is not guaranteed.
+
+The source ROM assets for the last three EmulatorJS demos are requested from a
+fixed revision of Mylittlestories/recalbox-os-web; they are *not copied into
+this repository*. The official EmulatorJS assets come from its stable CDN.
+**Prepare offline console files** explicitly downloads the relevant browser
+emulation assets and the pinned sample programs into service-worker CacheStorage.
+The current offline cache covers a fixed allowlist of public, licensed files.
+It does not proxy arbitrary websites or copy commercial cartridge/disc images.
+Offline WASM boot after caching is experimental and may fail if a core requests
+an uncached dependency, the upstream server lacks CORS, or the browser clears
+site storage. The PSoXide externally hosted demo remains online-only.
