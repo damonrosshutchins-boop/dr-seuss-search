@@ -402,3 +402,26 @@ This code-level change addresses the known opaque-origin WebAssembly failure
 class, but it cannot guarantee that every independent third-party game
 server works, supplies game assets, supports the user's device, or permits
 framing. No commercial ROM files are copied or rehosted.
+
+
+## November 2026 — More game compatibility fixes
+
+- **Curated browser games:** Back and Forward restore the game-compatible
+  iframe origin settings stored with each previously launched history entry.
+  Ordinary browsing stays in its more restrictive sandbox.
+- **SuperTux:** The Games Library now uses the official browser-game chooser
+  instead of depending on one hard-coded release link.
+- **N64/PS1 collections:** Choosing a minigame inside a shared N64 cartridge
+  or PS1 demo disc retains the selected title in the URL and when retrying
+  the N64 graphics core. The player still requires choosing the game from
+  the cartridge/disc menu itself.
+- **352-game catalog:** The iframe `load` event is no longer presented as
+  proof of successful gameplay when it could represent a blocked/error page.
+  The status provides an accurate local-copy troubleshooting option.
+- The first-party HTML game cache is versioned to **v4**, retaining previous
+  v3, v2 and v1 pages as offline fallbacks. This ensures modified game HTML
+  can replace older cached copies after deployment.
+
+These are verified code changes, not an assertion that all third-party
+games work in real browsers. Independent game hosts and WebAssembly support
+can still prevent gameplay. No third-party game assets were copied.
