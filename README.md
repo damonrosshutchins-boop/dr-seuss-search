@@ -296,3 +296,29 @@ preselected NES homebrew cartridges to the existing fixed allowlist. The
 NES LJ65 standalone HTML remains the reliably fully offline option. All
 other browser-console gameplay depends on upstream availability, browser
 support, CORS rules or compatibility with the emulation core.
+
+
+## DuckDuckGo Custom Loader search and offline retro launch fix
+
+When **Browsing engine → Custom Loader** is selected, entering plain search
+terms opens a **DuckDuckGo** search pane instead of the native Seuss Search
+(Wikipedia) results. The pane offers the genuine DuckDuckGo results URL and
+an optional browser-framed preview. DuckDuckGo can reject embedding; this
+change cannot override CORS, CSP or X-Frame-Options. Direct HTTPS URL loading
+through Custom Loader still uses the existing limited CORS HTML viewer.
+Other browsing modes retain their selected search engines and previous behavior.
+
+First-party offline game files now launch in dedicated internal site tabs
+**without going through the external-site iframe/network-policy route**.
+The external game browsing path and site rule checks are unchanged. Trusted
+first-party game HTML keeps its native origin, which is needed for indexed
+storage and offline game asset loading.
+
+The new standalone `offline-games.html` hub links to **28 built-in offline
+retro/homebrew games**. To use it with Wi-Fi turned off, visit Games →
+**Enable offline access** while connected, then **bookmark
+`offline-games.html` directly**. This caches seven trusted first-party
+game/menu pages, and the service worker serves them cache-first. Browsers
+can evict cached data; downloading the individual standalone arcade HTML
+files is more reliable. The full authenticated Seuss Search home page is
+not promised to work offline, because login requires online services.
