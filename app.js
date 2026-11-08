@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-more-console-games-20261107";
+const PROXY_WORKER_VERSION = "greeneggs-ddg-retro-offlinefix-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1847,13 +1847,13 @@ $("search-form").addEventListener("submit", (e) => {
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
 const gamesDialog = $("games-dialog");
 $("open-games").addEventListener("click", () => gamesDialog.showModal());
-// Offline games use the existing first-party worker solely to cache two
-// locally hosted HTML pages. The Custom Loader itself still needs no worker.
+// The first-party worker caches the seven trusted offline game/menu pages.
+// Custom Loader itself still needs no worker.
 const offlineButton = $("library-enable-offline");
 const offlineStatus = $("library-offline-status");
 offlineButton.addEventListener("click", async () => {
   offlineButton.disabled = true;
-  offlineStatus.textContent = "Saving all six offline game pages to this browser…";
+  offlineStatus.textContent = "Saving all seven offline game pages to this browser…";
   try {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:")
       throw new Error("Offline page caching requires a modern HTTPS browser.");
@@ -1891,7 +1891,7 @@ offlineButton.addEventListener("click", async () => {
       const failed=(reply.files||[]).filter(x=>!x.ok).map(x=>x.file).join(", ");
       throw new Error(reply.error||("Couldn't cache "+(failed||"the game pages")+"."));
     }
-    offlineStatus.textContent = "Six offline pages saved: arcades, catalog, DOS launcher, NES LJ65, and console chooser. Download emulator runtime assets separately for offline console emulation.";
+    offlineStatus.textContent = "Seven offline pages saved, including the new 28-game hub. Bookmark offline-games.html to open the retro arcade without Wi-Fi. Emulator assets require separate preparation.";
   } catch (error) {
     offlineStatus.textContent = "Offline setup failed: "+(error?.message||String(error));
   } finally {
