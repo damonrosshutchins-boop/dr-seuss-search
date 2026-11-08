@@ -505,3 +505,29 @@ https://github.com/wasmdotrip/wasm.rip/blob/main/games.json
   guarantee. The source catalog may also be updated after this snapshot.
 
 No paid service or account migration is needed.
+
+
+## WASM.RIP proxy launch reliability update
+
+**All 43 WASM.RIP cards now default to the existing Scramjet rewriting
+proxy**, rather than the ordinary Seuss Browser native external iframe.
+The initial game URL is still checked by the site's account/site policy
+before a Scramjet frame starts, and subsequent proxy navigations retain
+the existing policy checks. This fix uses the site's **existing Wisp
+transport**, not a new tunnel, relay or service.
+
+- Game frames request ordinary game capabilities (fullscreen, autoplay,
+  gamepad); existing Scramjet sandbox/rewriting is otherwise unchanged.
+- Cards offer a **Try direct embed (no proxy)** fallback, plus the original
+  site's link. A separate small toolbar on proxied game tabs also offers
+  Retry proxy, Try direct embed and Original game website.
+- All fallback navigations retain the same account and site-policy checks.
+- Upstream verified: the source `wasmdotrip/wasm.rip` Git tree contains
+  all 41 local `games.json` entrypoint HTML files; the other two game
+  entries link to external providers. Paths are not a guarantee of working
+  game assets or runtime playability.
+- The proxy cannot guarantee all 43 games: external server outages, very
+  large WebAssembly assets, WebSockets/WebRTC, cross-origin isolation,
+  third-party APIs or unusual browser engines may still fail. The website
+  doesn't fetch or rehost third-party game files and no unlicensed game
+  assets were added. Live browser play still needs to be tested.
