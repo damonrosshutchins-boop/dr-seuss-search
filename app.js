@@ -943,6 +943,12 @@ function activateSiteTab(id) {
 	uvBanner.hidden = !tab.uvFallback || !!tab.uvFallbackDismissed;
 	const liteHelper = $("lite-helper");
 	liteHelper.hidden = !tab.liteEngine || !!tab.liteTipDismissed || !!tab.searchPage;
+	const wasmProxyHelper = $("wasm-proxy-helper");
+	wasmProxyHelper.hidden = tab.type !== "web" || !tab.wasmRipGameUrl;
+	if (!wasmProxyHelper.hidden) {
+		const original = $("wasm-proxy-original");
+		original.href = tab.wasmRipGameUrl;
+	}
 	$("lite-back-to-results").hidden = !tab.liteEngine || !tab.liteSearchQuery;
 	if (tab.liteEngine) {
 		$("lite-source-link").href = tab.url;
@@ -1054,7 +1060,14 @@ function createFrameForTab(tab) {
 	pane.hidden = true;
 	const instance = scramjet.createFrame();
 	instance.frame.id = "sj-frame-" + tab.id;
-	instance.frame.title = "Proxied page";
+	instance.frame.title = tab.wasmRipGameUrl ?
+		"WASM.RIP game loaded through Scramjet" : "Proxied page";
+	if (tab.wasmRipGameUrl) {
+		// Fullscreen, gamepad and user-initiated audio are normal game
+		// capabilities. Do not change Scramjet's sandbox or proxy routing.
+		instance.frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
+		instance.frame.setAttribute("allowfullscreen", "");
+	}
 	pane.appendChild(instance.frame);
 	$("frame-host").appendChild(pane);
 	tab.frame = instance;
@@ -1408,6 +1421,19 @@ const FIRST_PARTY_GAME_FILES = new Set([
 // embeddable games (including the SM3DAS 64 port). Only URLs explicitly listed
 // in the site's curated Games Library can request the compatibility sandbox.
 // Arbitrary websites, search results and the Custom Loader stay isolated.
+// Only entries sourced from the WASM.RIP game list are offered the explicit
+// Scramjet launch path. Arbitrary site navigation does not gain game mode.
+function isCuratedWasmRipGameUrl(url) {
+  try {
+    const target = new URL(url);
+    return target.protocol === "https:" && Array.from(
+      document.querySelectorAll("#wasm-rip-grid [data-proxy-url]")
+    ).some(card => {
+      try { return new URL(card.dataset.proxyUrl).href === target.href; }
+      catch { return false; }
+    });
+  } catch { return false; }
+}
 function isCuratedRemoteGameUrl(url) {
 	try {
 		const target = new URL(url);
@@ -1816,8 +1842,12 @@ async function go(input, options = {}) {
 	tab.type = "web";
 	tab.uvFallback = !!options.uvFallback;
 	tab.uvFallbackDismissed = false;
+	// The WASM.RIP game remains inside a genuine Scramjet frame. Keep the
+	// source URL only for user-triggered retry/fallback controls.
+	tab.wasmRipGameUrl = options.wasmRipProxy === true &&
+		isCuratedWasmRipGameUrl(url) ? url : null;
 	tab.url = url;
-	tab.title = siteTabTitle(url);
+	tab.title = options.title || siteTabTitle(url);
 	tab.loading = true;
 	tab.loadStartedAt = Date.now();
 	tab.loadStartHandled = proxyRequestSnapshot.handled;
@@ -1863,6 +1893,7 @@ function goHome() {
 	tab.searchPage = false;
 	tab.duckDuckGoSearch = false;
 	tab.uvFallback = false;
+	tab.wasmRipGameUrl = null;
 	if (tab.searchAbort) tab.searchAbort.abort();
 	activateSiteTab(tab.id);
 	$("address").focus();
@@ -1939,6 +1970,35 @@ for (const button of document.querySelectorAll("#games-dialog [data-proxy-url]")
     detail.textContent += " · Internet required";
 }
 
+// These controls appear only while an actual WASM.RIP Scramjet game tab
+// is active. All destinations still pass through the normal policy check.
+$("wasm-proxy-embed").addEventListener("click", () => {
+  const tab = currentSiteTab();
+  if (!tab?.wasmRipGameUrl) return;
+  void go(tab.wasmRipGameUrl, {
+    forceLite:true,gameEmbed:true,newTab:true,title:tab.title
+  });
+});
+$("wasm-proxy-retry").addEventListener("click", () => {
+  const tab = currentSiteTab();
+  if (!tab?.wasmRipGameUrl) return;
+  void go(tab.wasmRipGameUrl, {
+    forceScramjet:true,wasmRipProxy:true,newTab:true,title:tab.title
+  });
+});
+$("wasm-proxy-original").addEventListener("click", async e => {
+  e.preventDefault();
+  const tab = currentSiteTab();
+  if (!tab?.wasmRipGameUrl || !requireSeussAccount()) return;
+  try {
+    if (typeof window.dssSitePolicyCheck !== "function" ||
+      !(await window.dssSitePolicyCheck(tab.wasmRipGameUrl))) return;
+    window.location.assign(tab.wasmRipGameUrl);
+  } catch {
+    showError("Unable to check the game website.",
+      "Please retry when site rules are available.");
+  }
+});
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
@@ -2011,6 +2071,22 @@ function addOriginalGameLinks() {
 		} catch { continue; }
 		const group = document.createElement("div");
 		group.className = "game-launch-choices";
+		// WASM.RIP games launch in the actual Scramjet proxy by default.
+		// Users can still try direct embedding in a separate in-site tab,
+		// which may work better for large WebAssembly/browser-storage games.
+		if (card.classList.contains("wasm-rip-game")) {
+			const embed = document.createElement("button");
+			embed.type = "button";
+			embed.className = "game-embed-link";
+			embed.textContent = "Try direct embed (no proxy)";
+			embed.addEventListener("click", event => {
+				launchLibraryGame(event, url.href, {
+					forceEmbed:true,
+					title:card.querySelector("strong")?.textContent?.trim()
+				});
+			});
+			group.append(card, embed);
+		}
 		const fallback = document.createElement("a");
 		fallback.className = "game-original-link";
 		fallback.textContent = "Play on original website";
@@ -2035,16 +2111,22 @@ function addOriginalGameLinks() {
 			}
 		});
 		card.replaceWith(group);
-		group.append(card, fallback);
+		if (!group.contains(card)) group.append(card);
+		group.append(fallback);
 	}
 }
 addOriginalGameLinks();
 
-function launchLibraryGame(event, url) {
+function launchLibraryGame(event, url, options = {}) {
 	event.preventDefault();
 	event.stopPropagation();
 	if (!requireSeussAccount()) return;
-	const gameTitle = event.currentTarget?.querySelector("strong")?.textContent?.trim() || siteTabTitle(url);
+	const gameTitle = options.title ||
+		event.currentTarget?.querySelector("strong")?.textContent?.trim() ||
+		siteTabTitle(url);
+	const isWasmGame = !options.forceEmbed &&
+		event.currentTarget?.classList?.contains("wasm-rip-game") === true &&
+		isCuratedWasmRipGameUrl(url);
 	gamesDialog.close();
 	// First-party offline games must not pass through external-site
 	// moderation/network checks or an opaque sandbox.
@@ -2057,10 +2139,17 @@ function launchLibraryGame(event, url) {
 			return;
 		}
 	} catch {}
-	// External games retain the site policy check. The curated game context
-	// enables the game's own origin only if this exact URL is in the library.
-	// A visible original-host link is provided for sites that disallow framing.
-	go(url, { forceLite:true, gameEmbed:true, newTab:true, title:gameTitle });
+	// WASM.RIP cards now use the genuine Scramjet request-rewriting proxy,
+	// not an iframe pointed directly at the original host. An explicitly
+	// chosen direct-embed fallback and original-site link remain available.
+	// go() checks the destination site policy before either launch.
+	if (isWasmGame) {
+		void go(url, {
+			forceScramjet:true,wasmRipProxy:true,newTab:true,title:gameTitle
+		});
+		return;
+	}
+	void go(url, { forceLite:true, gameEmbed:true, newTab:true, title:gameTitle });
 }
 document.querySelectorAll("[data-proxy-url]").forEach(button => {
 	button.addEventListener("click", event => launchLibraryGame(event, button.dataset.proxyUrl));
