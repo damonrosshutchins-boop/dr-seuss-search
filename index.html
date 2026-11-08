@@ -801,6 +801,7 @@
 			<label>Primary Wisp relay
 				<select id="s-wisp-preset" aria-label="Choose a Wisp relay">
 					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
+					<option value="wss://seuss-scramjet-private.onrender.com/wisp/">Render Wisp (optional — your Render service)</option>
 					<option value="wss://anura.pro/">anura.pro</option>
 					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
 					<option value="wss://mages.io/">mages.io</option>
@@ -809,7 +810,7 @@
 					<option value="wss://wisp.terbiumon.top/">wisp.terbiumon.top</option>
 					<option value="custom">Custom Wisp relay…</option>
 				</select>
-				<small>Choose a relay, or select Custom to enter your own. These are candidate addresses; availability and Wisp support have not been verified.</small>
+				<small>Choose a relay or select Custom. Render Wisp is optional; your current Wisp remains the default. Render can sleep or disconnect on the free plan. These addresses are candidates, not guarantees of website availability.</small>
 			</label>
 			<label>Primary Wisp address
 				<input id="s-wisp" type="url" placeholder="wss://wisp.mercurywork.shop/" spellcheck="false" required />
@@ -823,6 +824,7 @@
 				<select id="s-fallback-wisp-preset" aria-label="Choose a fallback Wisp relay">
 					<option value="">Disabled — use primary only</option>
 					<option value="wss://wisp.mercurywork.shop/">wisp.mercurywork.shop</option>
+					<option value="wss://seuss-scramjet-private.onrender.com/wisp/">Render Wisp (optional — your Render service)</option>
 					<option value="wss://anura.pro/">anura.pro</option>
 					<option value="wss://motor-cycle-part.org/">motor-cycle-part.org</option>
 					<option value="wss://mages.io/">mages.io</option>
@@ -921,7 +923,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261108-render-worker-refresh"></script>
+	<script src="app.js?v=20261108-render-wisp-option"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
