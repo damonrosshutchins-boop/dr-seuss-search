@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: seuss-scramjet-private
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ACCESS_PIN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
