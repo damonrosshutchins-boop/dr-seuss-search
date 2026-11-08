@@ -154,7 +154,7 @@ const descriptions={
  n64:"N64: Kumi-Daiko and the 20-minigame N64brew 2024 cartridge need no manual ROM setup. The 2024 Libdragon cartridge may NOT run in EmulatorJS; it is an experimental option.",
  ps1:"PS1: The PSoXide disc contains many genuine homebrew games. Launch its official browser player, then select a game in the disc menu. No Sony BIOS or uploads required."
 };
-let current="nes",liveEmulator=null;
+let current="nes",liveEmulator=null,selectedGameId=null;
 let runtimeReady=false,loadTimer=0;
 const compatibilityMode=new URLSearchParams(location.search).get("compat")==="1";
 function showRetry(item){
@@ -162,9 +162,10 @@ function showRetry(item){
 }
 $("retry-n64").addEventListener("click",()=>{
   if(!liveEmulator)return;
-  const requested=CATALOG.find(item=>item.id===liveEmulator);
   const params=new URLSearchParams();
-  params.set("game",requested?.id||"kumi");
+  // A minigame can be a selection inside a larger cartridge. Keep that
+  // selected title when switching to the compatibility core.
+  params.set("game",selectedGameId||liveEmulator||"kumi");
   params.set("compat","1");
   // EmulatorJS maintains global state; a full page reload ensures a clean
   // launch when switching its renderer or trying an alternative N64 core.
@@ -208,6 +209,7 @@ function clear(){
   return true;
  }
  $("player").hidden=true;$("stage").replaceChildren();
+ selectedGameId=null;
  $("retry-n64").hidden=true;
  $("external").hidden=true;$("external").removeAttribute("href");status("");
  if(loadTimer){clearTimeout(loadTimer);loadTimer=0}
@@ -215,27 +217,30 @@ function clear(){
  return false;
 }
 function showPlayer(item){
- $("player").hidden=false;$("playing").textContent=item.label;
+ $("player").hidden=false;$("playing").textContent=
+  item.chosen?item.chosen+" · "+item.label:item.label;
  $("stage").replaceChildren();$("external").hidden=true;
  showRetry(item);
  $("external").removeAttribute("href");
- try{history.replaceState(null,"","?game="+encodeURIComponent(item.id))}catch{}
+ try{history.replaceState(null,"","?game="+encodeURIComponent(item.chosenId||item.id))}catch{}
  $("player").scrollIntoView?.({block:"start",behavior:"smooth"});
 }
 function launch(item){
  if(item.kind==="collection"){
   const parent=CATALOG.find(g=>g.id===item.parent);
   if(!parent)return;
-  return launch({...parent,chosen:item.label});
+  return launch({...parent,chosen:item.label,chosenId:item.id});
  }
  if(item.kind==="local"){
   location.href=new URL("nes-homebrew.html",location.href).href;
   return;
  }
  if(liveEmulator){
-  location.href=location.pathname+"?game="+encodeURIComponent(item.id);
+  location.href=location.pathname+"?game="+encodeURIComponent(item.chosenId||item.id);
   return;
  }
+ // Remember the original catalog choice, not only its parent ROM/disc.
+ selectedGameId=item.chosenId||item.id;
  showPlayer(item);
  if(item.kind==="hosted"){
   const hint=item.chosen ? " Find '"+item.chosen+"' in the disc menu." : "";
