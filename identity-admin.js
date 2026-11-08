@@ -52,6 +52,12 @@
   // their internal traffic. Limit the experimental options to verified admins.
   window.seussCanUseExperimentalProxy = async () =>
     loggedIn && isAdmin && !!(await server("site_check_admin"));
+  // Used only for server-side admin verification of a one-time settings action.
+  window.seussGetAdminRelayAccessToken = async () => {
+    if (!(await window.seussCanUseExperimentalProxy())) return null;
+    const { data, error } = await api.auth.getSession();
+    return error ? null : data.session?.access_token || null;
+  };
   function setLock(state) {
     if (state === lastState) return;
     lastState = state;
