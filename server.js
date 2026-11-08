@@ -24,7 +24,7 @@ const types = {
 const blocked = new Set(['server.js','package.json','package-lock.json','render.yaml','.env','.gitignore']);
 function headers(res,status,extra={}) {
   res.writeHead(status,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
-  'Referrer-Policy':'no-referrer','X-Frame-Options':'DENY',...extra});
+  'Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',...extra});
 }
 const server=http.createServer((req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
