@@ -37,6 +37,11 @@ before(async () => {
 
 after(() => { if (processHandle && processHandle.exitCode === null) processHandle.kill(); });
 
+test("Render permits own-origin frames without allowing cross-origin frames", async () => {
+  const res = await fetch(baseUrl + "/");
+  assert.equal(res.headers.get("x-frame-options"), "SAMEORIGIN");
+});
+
 test("Render serves the application home page", async () => {
   const res = await fetch(baseUrl + "/");
   assert.equal(res.status, 200);
