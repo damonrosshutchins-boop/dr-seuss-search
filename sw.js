@@ -4,11 +4,12 @@ importScripts("scram/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
-// Cache ONLY the two first-party, self-contained offline game pages.
+// Cache ONLY the trusted first-party offline game pages and their hub.
 // Never try to mirror third-party game hosts, authentication APIs, or
 // Scramjet-encoded websites.
-const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
-const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html", "nes-homebrew.html", "console-emulators.html"];
+const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v2";
+const PREVIOUS_OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
+const OFFLINE_GAME_FILES = ["offline-games.html", "offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html", "nes-homebrew.html", "console-emulators.html"];
 const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
   new URL(file, self.registration.scope).href
 );
@@ -16,26 +17,37 @@ const OFFLINE_GAME_PATHS = new Set(OFFLINE_GAME_URLS.map(url => new URL(url).pat
 
 async function prepareOfflineGames() {
   const cache = await caches.open(OFFLINE_GAME_CACHE);
+  const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const results = [];
   for (const url of OFFLINE_GAME_URLS) {
+    const file = new URL(url).pathname.split("/").pop();
     try {
+      // Online refresh should use the latest game; don't throw away a saved
+      // copy if the network fails while the browser is already offline.
       const response = await fetch(url, {cache:"reload", credentials:"same-origin"});
       if (!response.ok || response.type !== "basic")
         throw new Error("HTTP " + response.status);
       await cache.put(url, response);
-      results.push({file:new URL(url).pathname.split("/").pop(),ok:true});
+      results.push({file,ok:true});
     } catch (err) {
-      results.push({file:new URL(url).pathname.split("/").pop(),ok:false,
-        error:String(err?.message||err).slice(0,120)});
+      try {
+        const saved = await cache.match(url) || await previous.match(url);
+        if (!saved) throw err;
+        await cache.put(url, saved.clone());
+        results.push({file,ok:true,cached:true});
+      } catch {
+        results.push({file,ok:false,error:String(err?.message||err).slice(0,120)});
+      }
     }
   }
   return results;
 }
 async function serveOfflineGamePage(request) {
   const cache = await caches.open(OFFLINE_GAME_CACHE);
+  const previous = await caches.open(PREVIOUS_OFFLINE_GAME_CACHE);
   const url = new URL(request.url);
   const canonicalUrl = new URL(url.pathname, url.origin).href;
-  const saved = await cache.match(canonicalUrl);
+  const saved = await cache.match(canonicalUrl) || await previous.match(canonicalUrl);
   if (saved) return saved;
   try {
     const response = await fetch(request);
