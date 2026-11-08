@@ -88,7 +88,7 @@ const CDN="https://cdn.emulatorjs.org/stable/data/";
 // The loader itself is a GPLv3-licensed first-party copy, so starting an
 // emulator no longer depends on loading loader.js from a third-party host.
 // The large emulator runtime and game assets still use their official URLs.
-const LOCAL_LOADER=new URL("emujs-loader.js?v=20261107-vm-n64-fix1",location.href).href;
+const LOCAL_LOADER=new URL("emujs-loader.js",location.href).href;
 const JAM="https://github.com/n64brew/N64brew-GameJam2024/releases/download/1.2.1/gamejam2024.z64";
 const PS1="https://bonnie-studios.itch.io/psoxide";
 const $=id=>document.getElementById(id);
