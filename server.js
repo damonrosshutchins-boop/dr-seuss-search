@@ -2,6 +2,33 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const { server: wisp } = require('@mercuryworkshop/wisp-js/server');
+
+// The optional relay is deliberately restricted to public web traffic.
+// Never expose Render's loopback, metadata, private IPs, or non-web ports.
+wisp.options.allow_private_ips = false;
+wisp.options.allow_loopback_ips = false;
+wisp.options.allow_direct_ip = false;
+wisp.options.allow_udp_streams = false;
+wisp.options.port_whitelist = [80, 443];
+wisp.options.stream_limit_total = 32;
+wisp.options.stream_limit_per_host = 12;
+wisp.options.hostname_blacklist = [
+  /(^|\\.)localhost\\.?$/i,
+  /(^|\\.)internal\\.?$/i,
+  /(^|\\.)local\\.?$/i,
+  /^metadata\\.google\\.internal\\.?$/i
+];
+const ALLOWED_WISP_ORIGINS = new Set([
+  'https://damonrosshutchins-boop.github.io',
+  'https://seuss-scramjet-private.onrender.com'
+]);
+let activeWispConnections = 0;
+const MAX_WISP_CONNECTIONS = 32;
+function denyUpgrade(socket, status, reason) {
+  socket.end('HTTP/1.1 ' + status + ' ' + reason +
+    '\\r\\nConnection: close\\r\\nContent-Length: 0\\r\\n\\r\\n');
+}
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 10000);
 const types = {
@@ -62,4 +89,30 @@ const server=http.createServer((req,res)=>{
     fs.createReadStream(filename).pipe(res);
   });
 });
-server.listen(PORT,'0.0.0.0',()=>console.log('Render Scramjet hosting listening on '+PORT));
+// All public Render traffic (HTTP + WebSocket) goes through this one port.
+server.on('upgrade', (req, socket, head) => {
+  let pathname;
+  try { pathname = new URL(req.url, 'http://localhost').pathname; }
+  catch { denyUpgrade(socket, 400, 'Bad Request'); return; }
+  if (pathname !== '/wisp/') {
+    denyUpgrade(socket, 404, 'Not Found'); return;
+  }
+  // Browser origins are checked to reduce unintended public consumption.
+  // Origin is not authentication and can be forged by non-browser clients.
+  if (!ALLOWED_WISP_ORIGINS.has(req.headers.origin)) {
+    denyUpgrade(socket, 403, 'Forbidden'); return;
+  }
+  if (activeWispConnections >= MAX_WISP_CONNECTIONS) {
+    denyUpgrade(socket, 503, 'Service Unavailable'); return;
+  }
+  activeWispConnections++;
+  socket.once('close', () => { activeWispConnections--; });
+  try {
+    req.url = '/wisp/';
+    const result = wisp.routeRequest(req, socket, head);
+    if (result && typeof result.catch === 'function') result.catch(() => socket.destroy());
+  } catch {
+    socket.destroy();
+  }
+});
+server.listen(PORT,'0.0.0.0',()=>console.log('Render Scramjet hosting + optional Wisp relay listening on '+PORT));
