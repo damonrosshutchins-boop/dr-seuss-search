@@ -64,7 +64,7 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 <main>
 <div class="tabs" role="group" aria-label="Choose console">
 <button class="tab" type="button" data-system="nes" aria-pressed="true">NES</button>
-<button class="tab" type="button" data-system="n64" aria-pressed="false">N64 Homebrew</button>
+<button class="tab" type="button" data-system="n64" aria-pressed="false">N64 Games &amp; Homebrew</button>
 <button class="tab" type="button" data-system="classics" aria-pressed="false">Famous N64 Classics</button>
 <button class="tab" type="button" data-system="ps1" aria-pressed="false">PlayStation 1</button>
 </div>
@@ -118,7 +118,6 @@ const CATALOG=[
   {id:"kumi",system:"n64",label:"Kumi-Daiko Beatoff 64",icon:"🥁",kind:"ejs",core:"n64",url:RAW+"kumi-daiko.n64",detail:"CC0 homebrew · browser compatibility varies",note:"Original Nintendo 64 game-jam arena game; no ROM upload needed.",author:"Team Riistahillo · CC0"},
   {id:"jam",system:"n64",label:"N64brew Game Jam 2024: 20 Minigames",icon:"🎉",kind:"ejs",core:"n64",url:JAM,detail:"Official release · experimental browser emulation",note:"A single genuine N64 cartridge containing 20 community minigames. Choose games inside the cartridge menu; browser Libdragon compatibility is unverified.",author:"N64brew community · official GitHub release",fallback:"https://github.com/n64brew/N64brew-GameJam2024/releases/tag/1.2.1"},
   {id:"psoxide",system:"ps1",label:"PSoXide Homebrew Demo Disc",icon:"💿",kind:"hosted",url:PS1,detail:"Author-hosted browser emulator · internet required",note:"Play several genuine PS1 homebrew games from the demo disc menu. No BIOS, ROM, or manual upload.",author:"Bonnie Studios"},
-  {id:"psxtest",system:"ps1",label:"PS1 Open-Source Test",icon:"🧪",kind:"ejs",core:"psx",url:RAW+"psxtest.exe",detail:"Experimental diagnostic (not a complete game)",note:"A small open-source emulator test, not a fully playable game. Browser compatibility uncertain.",author:"libretro"},
 ];
 const JAM_GAMES=[
 ["64Beats","🎵","Follow the rhythm and hit arrows"],
