@@ -1707,3 +1707,20 @@ body:not(.site-authenticated) #site-login:not([open]) {
 .wasm-rip-grid .game-launch-choices{min-width:0}
 .wasm-rip-icon{background:#315e64!important;color:#fff!important;font-size:.78rem;letter-spacing:-.02em}
 @media(max-width:620px){.wasm-rip-heading{display:grid}.wasm-rip-grid .game-original-link{font-size:.8rem}}
+
+/* WASM.RIP: visible per-game fallback for large WebAssembly ports. */
+.game-embed-link {display:block;width:100%;text-align:center;padding:8px 9px;
+  border:2px solid #587d9b;border-radius:10px;background:#e2f1fa;color:#18374d;
+  font:800 .79rem/1.2 var(--body);cursor:pointer;}
+.game-embed-link:hover {background:#cae6f8;}
+.game-embed-link:focus-visible {outline:3px solid var(--teal);outline-offset:2px;}
+.wasm-proxy-helper[hidden]{display:none!important}
+.wasm-proxy-helper{padding:10px 14px;margin:8px 10px;background:var(--paper,#fff);
+  border:2px solid var(--teal,#257970);border-radius:12px;color:var(--ink,#172f39);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.84rem}
+.wasm-proxy-helper>span{flex:1 1 270px;line-height:1.4}
+.wasm-proxy-actions{display:flex;gap:8px;flex-wrap:wrap}
+.wasm-proxy-actions button,.wasm-proxy-actions a{font:800 .78rem var(--body);
+  color:#123f3d;background:#b9f0dd;text-decoration:none;padding:7px 10px;
+  border:1px solid #4c8b7d;border-radius:8px;cursor:pointer}
+.wasm-proxy-actions button:hover,.wasm-proxy-actions a:hover{background:#e1fff4}
