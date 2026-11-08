@@ -343,11 +343,11 @@ self.addEventListener("message", (event) => {
   event.waitUntil(check);
 });
 self.addEventListener("install", event => {
-  event.waitUntil((async () => {
-    // Network failure must not block Scramjet's worker from installing.
-    try { await prepareOfflineGames(); } catch {}
-    await self.skipWaiting();
-  })());
+  // Do not hold installation open while downloading optional offline games.
+  // A stalled first-party fetch can otherwise prevent Scramjet from controlling
+  // the page on both GitHub Pages and Render. Offline download remains an
+  // explicit, separate action triggered by the Games menu.
+  event.waitUntil(self.skipWaiting());
 });
 self.addEventListener("activate", event => event.waitUntil((async()=>{
   // Remove only the three retired AI arcade HTML pages; preserve saved
