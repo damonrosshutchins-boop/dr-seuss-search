@@ -50,6 +50,12 @@
 	let current = null;  // last boot request (for restart)
 	let paused = false;
 	let bootGeneration = 0;
+	let dosBootTimer = null;
+	let dosStarted = false;
+	const gameActions = $("vm-game-actions");
+	const compatButton = $("vm-game-compat");
+	const directButton = $("vm-game-direct");
+	const DOS_BOOT_TIMEOUT_MS = 25000;
 
 	/* ---------- helpers ---------- */
 	function loadScript(src) {
@@ -83,7 +89,10 @@
 		li.appendChild(b);
 		return li;
 	}
-	for (const g of GAMES) $("game-grid").appendChild(card(g, () => bootDos({ name: g.name, url: vmAt(g.url), tip: g.tip })));
+	for (const g of GAMES) $("game-grid").appendChild(card(g, () => bootDos({
+		name: g.name, id: g.url.split("/").pop().replace(/\.jsdos$/,""),
+		url: vmAt(g.url), tip: g.tip
+	})));
 	for (const s of SYSTEMS) $("os-grid").appendChild(card(s, () => bootV86({ name: s.name, opts: s.opts, mem: Math.max(s.mem, +ui.mem.value) })));
 	for (const s of WEB_SYSTEMS) $("web-os-grid").appendChild(card(s, () => bootWeb(s)));
 	const localDesktop = SYSTEMS.find(system => system.name === "KolibriOS");
@@ -114,6 +123,9 @@
 	/* ---------- shutdown ---------- */
 	async function shutdown(invalidate = true) {
 		if (invalidate) bootGeneration++;
+		if (dosBootTimer) { clearTimeout(dosBootTimer); dosBootTimer = null; }
+		dosStarted = false;
+		gameActions.hidden = true;
 		const e = emulator, d = dos;
 		emulator = null; dos = null; engine = null; paused = false;
 		if (e) { try { await e.destroy(); } catch {} }
@@ -212,6 +224,29 @@
 	}
 
 	/* ---------- js-dos (Game Arcade) ---------- */
+	// The Dos() constructor only creates the UI. "ci-ready" is the actual
+	// startup event when the DOSBox backend is running. Avoid false success
+	// messages and allow a no-worker alternative for incompatible browsers.
+	function showDosRecovery(req) {
+		gameActions.hidden = false;
+		compatButton.textContent = req.compat
+			? "Restart with standard worker" : "Retry in compatibility mode";
+	}
+	compatButton.onclick = () => {
+		if (!current || current.kind !== "dos") return;
+		void bootDos({ ...current.req, compat: !current.req.compat });
+	};
+	directButton.onclick = () => {
+		if (!current || current.kind !== "dos") return;
+		const req = current.req;
+		const page = new URL("dos-arcade.html" +
+			(req.id ? "#" + encodeURIComponent(req.id) : ""), document.baseURI).href;
+		if (typeof window.openDirectSiteTab === "function") {
+			window.openDirectSiteTab(page, "DOS Arcade · " + req.name);
+		} else {
+			window.location.assign(page);
+		}
+	};
 	async function bootDos(req) {
 		const generation = ++bootGeneration;
 		await shutdown(false);
@@ -220,40 +255,83 @@
 		enterStage(req.name);
 		engine = "dos";
 		ui.stage.classList.add("dos");
-		ui.hint.textContent = (req.tip ? req.tip + " " : "") + "Click the game to capture the mouse.";
-		setStatus("Fetching DOSBox…");
-		try { await loadDos(); } catch (err) { if (generation === bootGeneration) setStatus("Couldn't load the arcade emulator: " + err.message, true); return; }
-		if (generation !== bootGeneration || engine !== "dos") return;
-		ui.dosHost.hidden = false;
-		const el = document.createElement("div");
-		el.style.cssText = "width:100%;height:100%";
-		ui.dosHost.appendChild(el);
-		const mode = SCALE_MODES[scaleIdx];
+		ui.hint.textContent = (req.tip ? req.tip + " " : "") +
+			"Click the game to focus it. If it remains blank, use compatibility mode.";
+		showDosRecovery(req);
+		setStatus("Loading DOSBox runtime…");
 		try {
-		dos = window.Dos(el, {
-			url: req.url,
-			pathPrefix: vmAt("jsdos/emulators/"),
-			theme: "dark",
-			backend: "dosbox",
-			backendLocked: true,
-			noCloud: true,
-			autoStart: true,
-			countDownStart: 0,
-			kiosk: true,
-			autoSave: false,
-			workerThread: true,
-			mouseCapture: true,
-			imageRendering: mode.dosRender,
-			renderAspect: mode.dosAspect,
-			volume: 0.8,
-		});
-		if (generation !== bootGeneration) { try { dos && dos.stop(); } catch {} return; }
-		setStatus(req.name + " is running · click it to play", true);
-		setTools({ pause: 1, restart: 1, power: 1, mouse: 1 });
+			await loadDos();
 		} catch (err) {
 			if (generation === bootGeneration) {
-				setStatus("Couldn't start " + req.name + ": " + (err && err.message || err), true);
-				setTools({});
+				setStatus("DOSBox script could not load: " + (err?.message || String(err)), true);
+				setTools({ restart:1, power:1 });
+			}
+			return;
+		}
+		if (generation !== bootGeneration || engine !== "dos") return;
+		ui.dosHost.hidden = false;
+		const mount = document.createElement("div");
+		mount.className = "dos-arcade-player";
+		ui.dosHost.replaceChildren(mount);
+		const mode = SCALE_MODES[scaleIdx];
+		try {
+			dosStarted = false;
+			setStatus("Starting DOSBox" + (req.compat ? " (compatibility mode)" : "") + "…");
+			dos = window.Dos(mount, {
+				url: req.url,
+				pathPrefix: vmAt("jsdos/emulators/"),
+				theme: "dark",
+				backend: "dosbox",
+				backendLocked: true,
+				noCloud: true,
+				autoStart: true,
+				countDownStart: 0,
+				kiosk: true,
+				autoSave: false,
+				workerThread: !req.compat,
+				offscreenCanvas: false,
+				renderBackend: "canvas",
+				mouseCapture: true,
+				imageRendering: mode.dosRender,
+				renderAspect: mode.dosAspect,
+				volume: 0.8,
+				onEvent: (event, ci) => {
+					if (generation !== bootGeneration || engine !== "dos") return;
+					if (event === "emu-ready") {
+						setStatus("DOSBox emulator loaded. Starting the game…");
+					} else if (event === "bnd-play") {
+						setStatus("Loading the selected game bundle…");
+					} else if (event === "ci-ready") {
+						dosStarted = true;
+						if (dosBootTimer) { clearTimeout(dosBootTimer); dosBootTimer = null; }
+						setStatus(req.name + " is running · click the screen to play", true);
+						setTools({ pause:1, restart:1, power:1, mouse:1 });
+						try {
+							ci?.events?.()?.onMessage?.((kind, ...details) => {
+								if (generation === bootGeneration && kind === "error")
+									setStatus("DOSBox reported: " + details.join(" ").slice(0,240), true);
+							});
+						} catch {}
+					}
+				},
+			});
+			if (generation !== bootGeneration) {
+				try { await dos?.stop?.(); } catch {}
+				return;
+			}
+			// Don't enable the pause button until the emulator has booted.
+			setTools({ restart:1, power:1 });
+			if (!dosStarted) {
+				dosBootTimer = setTimeout(() => {
+					dosBootTimer = null;
+					if (generation !== bootGeneration || engine !== "dos" || dosStarted) return;
+					setStatus("Game did not start yet. Try compatibility mode or the dedicated DOS player.", true);
+				}, DOS_BOOT_TIMEOUT_MS);
+			}
+		} catch (err) {
+			if (generation === bootGeneration) {
+				setStatus("DOSBox could not start: " + (err?.message || String(err)), true);
+				setTools({ restart:1, power:1 });
 			}
 		}
 	}
