@@ -121,7 +121,18 @@
 		const text = ui.screen.querySelector(".vm-text");
 		const canvas = ui.screen.querySelector("canvas");
 		if (text) text.textContent = "";
-		if (canvas) { canvas.style.display = "none"; canvas.width = canvas.height = 0; }
+		// v86 owns the graphics canvas, including its display-mode changes and
+		// pixel dimensions. Reset only after the old emulator is destroyed.
+		if (canvas) {
+			canvas.style.display = "none";
+			canvas.style.removeProperty("width");
+			canvas.style.removeProperty("height");
+			canvas.style.removeProperty("image-rendering");
+			canvas.width = canvas.height = 0;
+		}
+		ui.screen.style.transform = "";
+		ui.fitInner.style.width = "";
+		ui.fitInner.style.height = "";
 		ui.dosHost.innerHTML = ""; ui.dosHost.hidden = true;
 		if (webFrame) { webFrame.src = "about:blank"; webFrame.remove(); webFrame = null; }
 		ui.webHost.replaceChildren(); ui.webHost.hidden = true; ui.webFallback.hidden = true;
@@ -167,31 +178,30 @@
 		emulator.add_listener("download-error", () => { if (generation === bootGeneration) setStatus("A system file failed to download. Check your connection and retry.", true); });
 		emulator.add_listener("emulator-ready", () => {
 			if (generation !== bootGeneration) return;
-			// The VM stylesheet hides its canvas until graphics mode is ready.
-			// v86 keeps the display canvas inside screen_container, so reveal it
-			// here or graphics-mode guests can appear as a permanently black screen.
-			ui.screen.querySelectorAll("canvas").forEach((canvas) => {
-				canvas.style.display = "block";
-				canvas.style.maxWidth = "100%";
-				canvas.style.height = "auto";
-			});
+			// Do not show/resize the canvas here! v86 switches between its
+			// text DIV and graphics canvas itself. Forcing display:block causes
+			// blank/overlapping frames when a guest changes video modes.
 			setStatus(req.name + " is running", true);
 			setTools({ cad: 1, mouse: 1, shot: 1, pause: 1, restart: 1, power: 1 });
 			requestAnimationFrame(() => {
+				if (generation !== bootGeneration) return;
 				refit();
-				// A second layout pass catches canvas dimensions applied by v86
-				// immediately after its ready event.
-				requestAnimationFrame(refit);
+				requestAnimationFrame(() => {
+					if (generation === bootGeneration) refit();
+				});
 			});
 		});
 		emulator.add_listener("emulator-error", (err) => { if (generation === bootGeneration) setStatus("VM error: " + (err && err.message || "unknown emulator error"), true); });
 		emulator.add_listener("screen-set-size", () => {
-			ui.screen.querySelectorAll("canvas").forEach((canvas) => {
-				canvas.style.display = "block";
-				canvas.style.maxWidth = "100%";
-				canvas.style.height = "auto";
+			// The adapter already changed its own canvas dimensions and display
+			// mode. Only the outer viewport should be fitted to the available
+			// space; doing another canvas resize can corrupt its backing buffer.
+			requestAnimationFrame(() => {
+				if (generation !== bootGeneration) return;
+				requestAnimationFrame(() => {
+					if (generation === bootGeneration) refit();
+				});
 			});
-			requestAnimationFrame(() => requestAnimationFrame(refit));
 		});
 		} catch (err) {
 			if (generation === bootGeneration) {
@@ -310,12 +320,21 @@
 		const aw = ui.fit.clientWidth, ah = ui.fit.clientHeight;
 		if (!sw || !sh || !aw || !ah) return;
 		const mode = SCALE_MODES[scaleIdx].id;
-		let sx = Math.min(aw / sw, ah / sh), sy = sx;
-		if (mode === "pixel") { const f = Math.floor(sx); sx = sy = f >= 1 ? f : sx; }
+		let sx = Math.min(1, aw / sw, ah / sh), sy = sx;
+		if (mode === "pixel") {
+			// Integer upscale only if there's actually room. Fractional
+			// downscales are unavoidable on smaller displays.
+			const fitted = Math.min(aw / sw, ah / sh);
+			sx = sy = fitted >= 1 ? Math.max(1, Math.floor(fitted)) : fitted;
+		}
 		if (mode === "stretch") { sx = aw / sw; sy = ah / sh; }
-		ui.screen.style.transform = `scale(${sx}, ${sy})`;
-		ui.fitInner.style.width = sw * sx + "px";
-		ui.fitInner.style.height = sh * sy + "px";
+		// Don't repeatedly mutate the transform on every ResizeObserver tick:
+		// Firefox can re-composite an actively updating canvas otherwise.
+		const transform = `scale(${sx}, ${sy})`;
+		if (ui.screen.style.transform !== transform) ui.screen.style.transform = transform;
+		const width = Math.round(sw * sx) + "px", height = Math.round(sh * sy) + "px";
+		if (ui.fitInner.style.width !== width) ui.fitInner.style.width = width;
+		if (ui.fitInner.style.height !== height) ui.fitInner.style.height = height;
 	}
 	if ("ResizeObserver" in window) {
 		new ResizeObserver(() => requestAnimationFrame(refit)).observe(ui.fit);

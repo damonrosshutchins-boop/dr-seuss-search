@@ -38,7 +38,9 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 #status{font-weight:800;color:var(--aqua);min-height:24px;font-size:.91rem}
 #external{margin:12px 0 0;display:block;font-size:.91rem}
 .offline{font-size:.9rem;color:var(--soft);margin:16px 0}
-#close-player{border:1px solid #6486a0;background:#203e52;border-radius:11px;color:var(--text);padding:9px 14px}
+#close-player,#retry-n64{border:1px solid #6486a0;background:#203e52;border-radius:11px;color:var(--text);padding:9px 14px}
+#retry-n64{background:#225d51;border-color:#70cbb2;font-weight:850;margin:8px 0}
+#status{overflow-wrap:anywhere}
 .note{color:var(--soft);font-size:.86rem;line-height:1.5}
 [hidden]{display:none!important}
 @media(max-width:640px){.cards{grid-template-columns:1fr 1fr}.card{padding:11px}.card h2{font-size:.98rem}#stage{min-height:280px}}
@@ -69,6 +71,7 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 <section class="panel" id="player" hidden>
 <div class="panel-head"><h2 id="playing">Game</h2><button type="button" id="close-player">Back to game selection</button></div>
 <p id="status" role="status" aria-live="polite">Preparing emulator…</p>
+<button id="retry-n64" type="button" hidden>Retry N64 with compatibility graphics</button>
 <div id="stage"></div>
 <a id="external" href="https://bonnie-studios.itch.io/psoxide" target="_blank" rel="noopener noreferrer" hidden>Open the original PS1 homebrew player directly</a>
 </section>
@@ -82,6 +85,10 @@ main{max-width:1120px;margin:auto;padding:18px clamp(14px,3vw,28px) 48px}
 const REV="35252504279bdc946156b1a002ce0de9f8b9d01b";
 const RAW="https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/"+REV+"/www/roms/";
 const CDN="https://cdn.emulatorjs.org/stable/data/";
+// The loader itself is a GPLv3-licensed first-party copy, so starting an
+// emulator no longer depends on loading loader.js from a third-party host.
+// The large emulator runtime and game assets still use their official URLs.
+const LOCAL_LOADER=new URL("emujs-loader.js",location.href).href;
 const JAM="https://github.com/n64brew/N64brew-GameJam2024/releases/download/1.2.1/gamejam2024.z64";
 const PS1="https://bonnie-studios.itch.io/psoxide";
 const $=id=>document.getElementById(id);
@@ -148,6 +155,21 @@ const descriptions={
  ps1:"PS1: The PSoXide disc contains many genuine homebrew games. Launch its official browser player, then select a game in the disc menu. No Sony BIOS or uploads required."
 };
 let current="nes",liveEmulator=null;
+let runtimeReady=false,loadTimer=0;
+const compatibilityMode=new URLSearchParams(location.search).get("compat")==="1";
+function showRetry(item){
+  $("retry-n64").hidden=item?.system!=="n64";
+}
+$("retry-n64").addEventListener("click",()=>{
+  if(!liveEmulator)return;
+  const requested=CATALOG.find(item=>item.id===liveEmulator);
+  const params=new URLSearchParams();
+  params.set("game",requested?.id||"kumi");
+  params.set("compat","1");
+  // EmulatorJS maintains global state; a full page reload ensures a clean
+  // launch when switching its renderer or trying an alternative N64 core.
+  location.href=location.pathname+"?"+params.toString();
+});
 const params=new URLSearchParams(location.search);
 const requested=params.get("game");
 const selection=CATALOG.find(g=>g.id===requested);
@@ -186,12 +208,16 @@ function clear(){
   return true;
  }
  $("player").hidden=true;$("stage").replaceChildren();
+ $("retry-n64").hidden=true;
  $("external").hidden=true;$("external").removeAttribute("href");status("");
+ if(loadTimer){clearTimeout(loadTimer);loadTimer=0}
+ runtimeReady=false;
  return false;
 }
 function showPlayer(item){
  $("player").hidden=false;$("playing").textContent=item.label;
  $("stage").replaceChildren();$("external").hidden=true;
+ showRetry(item);
  $("external").removeAttribute("href");
  try{history.replaceState(null,"","?game="+encodeURIComponent(item.id))}catch{}
  $("player").scrollIntoView?.({block:"start",behavior:"smooth"});
@@ -228,14 +254,31 @@ function launch(item){
  game.style.cssText="width:100%;height:100%;min-height:425px";
  $("stage").append(game);
  window.EJS_player="#console-screen";
- window.EJS_core=item.core;
+ window.EJS_core=item.system==="n64"&&compatibilityMode?"parallel-n64":item.core;
  window.EJS_gameUrl=item.url;
  window.EJS_gameName=item.label;
  window.EJS_biosUrl="";
  window.EJS_pathtodata=CDN;
  window.EJS_startOnLoaded=true;
  window.EJS_color="#2e7b72";
+ window.EJS_threads=false; // GitHub Pages does not set cross-origin isolation headers.
+ window.EJS_forceLegacyCores=item.system==="n64"&&compatibilityMode;
  window.EJS_DEBUG_XX=false;
+ window.EJS_ready=()=>{
+  if(liveEmulator!==item.id)return;
+  runtimeReady=true;
+  if(loadTimer){clearTimeout(loadTimer);loadTimer=0}
+  status("Emulator ready for "+item.label+". Loading/starting the game…");
+ };
+ window.EJS_onGameStart=()=>{
+  if(liveEmulator!==item.id)return;
+  runtimeReady=true;
+  if(loadTimer){clearTimeout(loadTimer);loadTimer=0}
+  status(item.label+" is running. Click or tap the game to control it.");
+ };
+ window.EJS_onExit=()=>{
+  if(liveEmulator===item.id)status(item.label+" has stopped. Select Back to play something else.");
+ };
  const chosen=item.chosen?" Once loaded, select '"+item.chosen+"' in the cartridge menu.":"";
  status("Starting "+item.label+" in EmulatorJS… This may take a little time."+chosen+(item.id==="jam"?" This Libdragon game may be incompatible with this emulator.":""));
  if(item.fallback){
@@ -243,9 +286,20 @@ function launch(item){
   link.textContent="Official game developer and release page";link.hidden=false;
  }
  const script=document.createElement("script");
- script.src=CDN+"loader.js";script.crossOrigin="anonymous";
- script.onerror=()=>status("The emulator couldn't load. No setup is needed on your end, but this game may be incompatible or the server may be unavailable.");
+ script.src=LOCAL_LOADER;
+ script.onload=()=>{
+  if(liveEmulator===item.id&&!runtimeReady)
+   status("Local emulator loader started. Downloading the official EmulatorJS runtime and "+item.label+"…"+chosen);
+ };
+ script.onerror=()=>{
+  if(liveEmulator===item.id)status("The local EmulatorJS loader did not load from this GitHub Pages site. Refresh after the latest site deployment.");
+ };
  document.body.append(script);
+ loadTimer=setTimeout(()=>{
+  if(liveEmulator!==item.id||runtimeReady)return;
+  status("The local loader started, but the emulator has not become ready. The official EmulatorJS CDN or game-file host may be unavailable, or this browser may lack the required WebAssembly/WebGL features."+
+    (item.system==="n64"?" Try the compatibility graphics button below.":""));
+ },35000);
 }
 for(const tab of document.querySelectorAll("[data-system]"))tab.addEventListener("click",()=>{
  const next=tab.dataset.system;

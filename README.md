@@ -322,3 +322,43 @@ game/menu pages, and the service worker serves them cache-first. Browsers
 can evict cached data; downloading the individual standalone arcade HTML
 files is more reliable. The full authenticated Seuss Search home page is
 not promised to work offline, because login requires online services.
+
+
+## VM graphics, N64 emulator loader, DuckDuckGo embedding (November 2026)
+
+**v86 graphics:** The v86 adapter owns the canvas visibility, pixel buffer
+dimensions and text/graphics mode. VM UI code no longer forces `display:block`
+or caps video canvas width/height after screen-set-size or emulator-ready.
+This fixes the reported double-scaling and overlapping text/graphics mode
+artifacts. The outer VM viewport alone is fitted when the window is resized,
+and only when the scale actually changes. VM pixel/fit/stretch controls
+remain available. If an individual guest's VGA driver is incompatible, this
+CSS-level fix cannot solve that guest-side issue.
+
+**EmulatorJS N64:** The official GPLv3 loader from EmulatorJS/EmulatorJS
+(`data/loader.js`) is now included as `emujs-loader.js`. The first script is
+served directly from GitHub Pages rather than fetched from the EmulatorJS CDN,
+so a blocked loader request no longer triggers the misleading "game
+incompatible" message. EmulatorJS's heavier JavaScript/WASM core and the
+freely offered homebrew cartridge still come from their original external
+hosts; browser support and connectivity are required. In the console player,
+an **N64 compatibility graphics** retry launches the alternative documented
+parallel-n64 core with legacy core preference on a fresh page. Lifecycle
+messages distinguish local loader errors, missing remote runtime, emulator
+ready, and a started game. Compatibility is not guaranteed, especially for
+Libdragon N64 game-jam cartridges.
+
+The loader uses the upstream EmulatorJS GNU GPL v3 license. A full copy
+is included in `EMUJS-GPLv3-LICENSE.txt`, and the upstream source is at
+https://github.com/EmulatorJS/EmulatorJS/blob/main/data/loader.js .
+The optional console cache now stores the new local loader instead of the
+previous external loader script. No new paid services or proprietary ROMs.
+
+**DuckDuckGo Custom Loader:** DuckDuckGo's official results page refuses
+embedding through ordinary frames. The previous embedded preview and
+"retry in another in-site iframe" button were removed, because they always
+show a browser error on clients where framing is prohibited. The native
+Custom Loader DuckDuckGo search now presents the real search URL as a direct
+link that opens the official search site. It does **not** purport to implement
+GUST's separate WebAssembly HTTP-over-Wisp transport or evade browser
+embedding rules; the site's existing domain policy check stays in place.

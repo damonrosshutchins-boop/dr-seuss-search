@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-ddg-retro-offlinefix-20261107";
+const PROXY_WORKER_VERSION = "greeneggs-v86-n64-ddg-repair-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1206,9 +1206,10 @@ function searchWebLink(query) {
 function youtubeSearchLink(query) {
 	return "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
 }
-// DuckDuckGo is a regular website, not a CORS-enabled Custom Loader HTML
-// source. Display a normal embedded preview and an always-available link
-// to genuine DDG results; do not relabel Wikipedia results as DuckDuckGo.
+// DuckDuckGo is a normal website, not a CORS-enabled Custom Loader HTML
+// source. DuckDuckGo's frame restrictions cannot be fixed by a sandbox
+// attribute; never create a broken DuckDuckGo iframe. Offer the real search
+// results link and leave all site policies intact.
 async function showDuckDuckGoSearch(query, options = {}) {
   if (!requireSeussAccount()) return;
   const q = String(query || "").trim().slice(0, 180);
@@ -1230,9 +1231,9 @@ async function showDuckDuckGoSearch(query, options = {}) {
   tab.searchQuery = q;
   const heading = seussSearchNode("h1", "", "DuckDuckGo Search");
   const note = seussSearchNode("p", "seuss-search-note",
-    "Custom Loader searches now go to DuckDuckGo instead of Seuss Search. " +
-    "DuckDuckGo may block embedded results. If this preview is blank or " +
-    "blocked, use the link to view DuckDuckGo directly.");
+    "DuckDuckGo prevents other sites from displaying its search results inside " +
+    "an iframe. Custom Loader can still send your search to DuckDuckGo; open " +
+    "the results link below to view the real page without a connection error.");
   const form = document.createElement("form");
   form.className = "seuss-search-form";
   const input = document.createElement("input");
@@ -1246,18 +1247,14 @@ async function showDuckDuckGoSearch(query, options = {}) {
   });
   const actions = seussSearchNode("div", "seuss-search-actions");
   actions.append(
-    seussSearchExternalLink("Open full results on DuckDuckGo",searchUrl),
-    seussSearchButton("Try DuckDuckGo in another site tab", () =>
-      void go(searchUrl, {forceLite:true, allowEmbeddedRestricted:true,
-        newTab:true, embeddedQuery:q}))
+    seussSearchExternalLink("Search DuckDuckGo for: " + q, searchUrl)
   );
-  const frame = document.createElement("iframe");
-  frame.className = "dss-duckduckgo-frame";
-  frame.title = "DuckDuckGo search preview (may be blocked)";
-  frame.referrerPolicy = "no-referrer"; frame.loading = "lazy";
-  frame.setAttribute("sandbox", "allow-scripts allow-forms");
-  frame.src = searchUrl;
-  main.append(heading,note,form,actions,frame);
+  const explanation = seussSearchNode("p", "seuss-search-note",
+    "Opening search results in DuckDuckGo's own page is the reliable option. " +
+    "This CORS-only loader cannot fetch full search results from sites that " +
+    "don't grant cross-origin access. Entering a regular website URL still " +
+    "uses the existing Custom Loader viewer.");
+  main.append(heading,note,form,actions,explanation);
 }
 function showSeussSearch(query, options = {}) {
 	if (!requireSeussAccount()) return;

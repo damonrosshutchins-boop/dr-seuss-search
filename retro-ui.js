@@ -127,7 +127,7 @@ $("retro-cache-console").addEventListener("click",async()=>{
  try {
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("This requires a browser supporting HTTPS service workers.");
-  const url=new URL("sw.js?v=greeneggs-ddg-retro-offlinefix-20261107",base);
+  const url=new URL("sw.js?v=greeneggs-v86-n64-ddg-repair-20261107",base);
   const reg=await navigator.serviceWorker.register(url.href,{scope:base.pathname,updateViaCache:"none"});
   await navigator.serviceWorker.ready;
   const worker=await new Promise((resolve,reject)=>{
@@ -167,7 +167,7 @@ cacheButton.addEventListener("click",async()=>{
  try{
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("HTTPS and service-worker support are required.");
-  const workerUrl=new URL("sw.js?v=greeneggs-ddg-retro-offlinefix-20261107",base);
+  const workerUrl=new URL("sw.js?v=greeneggs-v86-n64-ddg-repair-20261107",base);
   const registration=await navigator.serviceWorker.register(workerUrl.href,{
    scope:base.pathname,updateViaCache:"none"
   });
