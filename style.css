@@ -1673,3 +1673,18 @@ body:not(.site-authenticated) #site-login:not([open]) {
   background:#255a59;border:1px solid #97e8d6;border-radius:9px;cursor:pointer;}
 .vm-game-actions button:focus-visible {outline:3px solid #ffdc85;outline-offset:2px;}
 .vm-game-actions button:disabled {opacity:.55;cursor:default;}
+
+
+/* Remote game choices: the library button uses the browser's isolated game
+   compatibility view; the original-host link is a reliable fallback when a
+   third-party page refuses embedding. */
+.game-launch-choices {display:flex; flex-direction:column; gap:7px; min-width:0;}
+.game-launch-choices[hidden], .game-original-link[hidden] {display:none!important;}
+.library-grid .game-launch-choices > .library-card,
+.green-eggs-grid .game-launch-choices > .green-eggs-game {width:100%; flex:1;}
+.game-original-link {display:block; text-align:center; padding:8px 9px;
+  background:#e8f8f1; border:2px solid #278377; border-radius:10px;
+  font:800 .79rem/1.2 var(--body); color:#164e47; text-decoration:none;
+  overflow-wrap:anywhere;}
+.game-original-link:hover {background:#c5f1e4; text-decoration:underline;}
+.game-original-link:focus-visible {outline:3px solid var(--teal); outline-offset:2px;}
