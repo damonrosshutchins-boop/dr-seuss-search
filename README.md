@@ -1,5 +1,18 @@
 # Dr. Seuss Search
 
+> **Current Games Library (November 7, 2026): console titles only.**
+> The AI-made Retro Arcade (22 mini-games), Offline Arcade (five games),
+> and combined offline hub were deleted from this repository, and their
+> links were removed from Games. NES/N64/PS1 homebrew remains available.
+> 24 famous commercial Nintendo 64 titles are listed under
+> **Famous N64 Classics** with links to Nintendo's official collection;
+> these are **not free browser ROMs**. Playing through Nintendo's
+> service requires supported Nintendo hardware and a
+> Nintendo Switch Online + Expansion Pack membership.
+> The separate PC VM feature and its DOS games are unchanged.
+> Some older sections below document historical features now retired.
+>
+
 A whimsical, fully static web proxy built on [Scramjet](https://github.com/MercuryWorkshop/scramjet) by Mercury Workshop. It runs entirely in your browser and is hosted on GitHub Pages.
 
 **Live site:** https://damonrosshutchins-boop.github.io/dr-seuss-search/
@@ -425,3 +438,35 @@ framing. No commercial ROM files are copied or rehosted.
 These are verified code changes, not an assertion that all third-party
 games work in real browsers. Independent game hosts and WebAssembly support
 can still prevent gameplay. No third-party game assets were copied.
+
+
+## Removal: AI-made arcade and console-only Games Library
+
+The following standalone homemade mini-game pages were **deleted**:
+`retro-arcade.html` (22 original/AI-assisted arcade-style mini-games),
+`offline-arcade.html` (five original browser mini-games), and
+`offline-games.html` (their combined index). Their obsolete Retro Arcade
+and Green Eggs & Ham sections, non-console Games tiles, and former
+`retro-ui.js` controller were also removed from the main Games menu.
+The separately maintained PC **VM** and DOS games are still available
+in the VM section; the unrelated 352-file HTML pack remains in Git history
+and its original standalone file, but is no longer advertised as a retro
+console collection.
+
+**Playable/experimental console area:** Only games actually built for NES,
+Nintendo 64 and PlayStation 1 remain in the console browser. The existing
+community-hosted Super Mario 64 port is linked without copying its
+copyrighted assets. NES LJ65 remains fully self-contained. Emulated N64
+homebrew and PS1 demo-discs may not work in every browser.
+
+**Official N64 classics:** 24 widely recognizable Nintendo 64 titles
+(including Mario Kart 64, Super Mario 64, Zelda: Ocarina of Time,
+Banjo-Kazooie, Pokémon Stadium and Paper Mario) now appear in a separate
+official-access tab. Each opens Nintendo's N64 Classics page, **not** a
+playable ROM. Nintendo Switch Online + Expansion Pack on compatible
+Nintendo hardware is required for official gameplay. Source:
+https://www.nintendo.com/us/store/products/nintendo-64-nintendo-classics-switch/
+
+The first-party worker now only caches the remaining console pages and
+the standalone PC DOS player, and removes the three retired homemade
+pages from older browser cache versions when it activates.
