@@ -1,7 +1,7 @@
 "use strict";
 /* Dr. Seuss Search — a Scramjet-powered web proxy that runs on static hosting (GitHub Pages). */
 
-const BASE = new URL("./", location.href); // works at / or /repo-name/
+const BASE = new URL("./", document.querySelector('script[src*="app.js"]')?.src || location.href); // stable app directory, including GitHub Pages subpaths
 // The site UI stays locked until the signed-in account saves its profile.
 window.seussAccountReady = false;
 function requireSeussAccount() {
@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-console-only-20261107";
+const PROXY_WORKER_VERSION = "scramjet-route-repair-20261108";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -617,6 +617,8 @@ function boot() {
 		await navigator.serviceWorker.ready;
 		await verifyProxyWorker();
 		await configureTransport();
+		// A controller can be replaced during a deployment while a tab stays open.
+		// Reconfirm control immediately before creating each proxied frame.
 	})();
 	ready.catch(() => { ready = null; });
 	return ready;
@@ -1843,8 +1845,13 @@ async function go(input, options = {}) {
 	$("error").hidden = true;
 	try {
 		await boot();
+		// A cached ready promise only means startup passed previously. A newer
+		// service worker (or a cleared registration) may no longer control us.
+		await verifyProxyWorker();
 	} catch (err) {
-		showError("Oh dear, the proxy couldn't start.", String(err && err.stack || err));
+		ready = null;
+		showError("Scramjet routing is not ready.", (err && err.message || String(err)) +
+			" Reload this page and retry Scramjet; the website was not opened as a broken GitHub Pages file.");
 		return;
 	}
 	tab.type = "web";
