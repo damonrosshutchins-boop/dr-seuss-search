@@ -90,6 +90,7 @@ function launch(id){
  if(!titles[id])return;
  if(session&&session.stop)session.stop();
  session=null;current=id;stage.replaceChildren();
+ try { history.replaceState(null,"","#"+id); } catch {}
  for(const b of buttons)b.setAttribute("aria-pressed",String(b.dataset.game===id));
  byId("game-name").textContent=titles[id];hint.textContent=help[id][0];instructions.textContent=help[id][1];
  pad.classList.toggle("visible",["snake","merge","pong"].includes(id));
@@ -219,7 +220,8 @@ function slide(){
  function key(k){const moves={ArrowUp:-4,w:-4,W:-4,ArrowDown:4,s:4,S:4,ArrowLeft:-1,a:-1,A:-1,ArrowRight:1,d:1,D:1};const shift=moves[k];if(shift===undefined)return false;const zero=tiles.indexOf(0),target=zero+shift;if(neighbors(zero).includes(target))click(target);return true}
  repaint();return{key};
 }
-launch("snake");
+const starting=location.hash.replace(/^#/,"");
+launch(titles[starting] ? starting : "snake");
 })();
 </script>
 </body>
