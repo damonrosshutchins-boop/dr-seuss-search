@@ -197,7 +197,7 @@ Open **Games → Retro Arcade & Emulators**. Two subcategories:
   **Enable offline access** while online or download the single HTML file.
 - **Ready-to-Play Emulators**: js-dos/DOSBox with Digger, Tyrian 2000,
   DOOM shareware, Heretic shareware, and Quake shareware (all already
-  bundled in \`vm/games/\`), and the existing FreeDOS v86 image.
+  bundled in \`vm/games/\`), and the existing FreeDOS and KolibriOS v86 images.
   \`dos-arcade.html\` is a dedicated launcher that does not require a
   manual ROM/BIOS upload, login with a third-party vendor, or game setup.
   The existing VM emulator is also available from the site's VM button.
