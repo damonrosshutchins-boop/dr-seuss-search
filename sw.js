@@ -4,6 +4,68 @@ importScripts("scram/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
+// Cache ONLY the two first-party, self-contained offline game pages.
+// Never try to mirror third-party game hosts, authentication APIs, or
+// Scramjet-encoded websites.
+const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
+const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html"];
+const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
+  new URL(file, self.registration.scope).href
+);
+const OFFLINE_GAME_PATHS = new Set(OFFLINE_GAME_URLS.map(url => new URL(url).pathname));
+
+async function prepareOfflineGames() {
+  const cache = await caches.open(OFFLINE_GAME_CACHE);
+  const results = [];
+  for (const url of OFFLINE_GAME_URLS) {
+    try {
+      const response = await fetch(url, {cache:"reload", credentials:"same-origin"});
+      if (!response.ok || response.type !== "basic")
+        throw new Error("HTTP " + response.status);
+      await cache.put(url, response);
+      results.push({file:new URL(url).pathname.split("/").pop(),ok:true});
+    } catch (err) {
+      results.push({file:new URL(url).pathname.split("/").pop(),ok:false,
+        error:String(err?.message||err).slice(0,120)});
+    }
+  }
+  return results;
+}
+async function serveOfflineGamePage(request) {
+  const cache = await caches.open(OFFLINE_GAME_CACHE);
+  const url = new URL(request.url);
+  const canonicalUrl = new URL(url.pathname, url.origin).href;
+  const saved = await cache.match(canonicalUrl);
+  if (saved) return saved;
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === "basic")
+      await cache.put(canonicalUrl, response.clone());
+    return response;
+  } catch {
+    return new Response("This game page was not saved while online. Reconnect and select Enable offline access in Games.", {
+      status: 503, headers: {"Content-Type":"text/plain; charset=utf-8"}
+    });
+  }
+}
+self.addEventListener("message", event => {
+  if (event.data?.type !== "dss-install-offline-games") return;
+  const port = event.ports?.[0];
+  if (!port || !event.source?.url) return;
+  try {
+    const source = new URL(event.source.url);
+    const scope = new URL(self.registration.scope);
+    if (source.origin !== scope.origin || !source.pathname.startsWith(scope.pathname)) return;
+  } catch { return; }
+  event.waitUntil((async () => {
+    try {
+      const files = await prepareOfflineGames();
+      port.postMessage({ok:files.every(item=>item.ok),files});
+    } catch (error) {
+      port.postMessage({ok:false,error:String(error?.message||error).slice(0,140)});
+    }
+  })());
+});
 // One configuration read per service-worker lifetime, not per image, CSS,
 // script and other resource request. If it fails, allow a clean retry.
 let scramjetConfigReady = null;
@@ -126,7 +188,13 @@ self.addEventListener("message", (event) => {
   })();
   event.waitUntil(check);
 });
-self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    // Network failure must not block Scramjet's worker from installing.
+    try { await prepareOfflineGames(); } catch {}
+    await self.skipWaiting();
+  })());
+});
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 async function handleRequest(event) {
@@ -156,6 +224,11 @@ self.addEventListener("fetch", (event) => {
 	// games catalog or other first-party assets. Native browser networking
 	// can fetch/cache them faster than a JS service-worker pass-through.
 	const url = new URL(event.request.url);
-	if (url.origin !== self.location.origin || !url.pathname.startsWith(SCRAMJET_PATH)) return;
+  if (url.origin !== self.location.origin) return;
+  if (event.request.method === "GET" && OFFLINE_GAME_PATHS.has(url.pathname)) {
+    event.respondWith(serveOfflineGamePage(event.request));
+    return;
+  }
+	if (!url.pathname.startsWith(SCRAMJET_PATH)) return;
 	event.respondWith(handleRequest(event));
 });

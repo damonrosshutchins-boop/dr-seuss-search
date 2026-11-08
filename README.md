@@ -157,3 +157,31 @@ service worker. Neither this UI nor the Wisp protocol conceals traffic
 from the browser, local network, or relay operator; it is not anonymity
 or covert browsing technology. Normal account users retain the
 existing non-admin Scramjet and Wisp settings.
+
+
+## Play offline: Games Library
+
+Open **Games → Enable offline access** while connected. This installs/updates
+the existing same-origin service worker and caches only two local HTML pages:
+\`offline-arcade.html\` and \`offline-pack.html\`. These remain available at
+their direct URLs without Wi-Fi after the browser finishes saving them and
+while the browser retains its cached site data. The Custom Loader is unchanged.
+
+**Always-offline built-in games (five):** Snake, Merge Tiles, Paddle Rally,
+Memory Match, and 15 Puzzle. They have no external assets, and the standalone
+\`offline-arcade.html\` can also be downloaded as a single HTML file and opened
+locally without any service worker.
+
+The **352-game HTML catalog** does not automatically download 352 large files.
+Open \`offline-pack.html\`, select a game, and choose **Save offline** while
+online. Each explicitly saved HTML file is kept in IndexedDB on that device.
+Select **Saved only** to see which are available. Unavailable storage, quota
+limits, network services embedded in some HTML games, and sandbox restrictions
+mean individual game compatibility is not guaranteed. Clearing website data
+deletes those saved copies; a browser/profile change does not transfer them.
+
+Other remote-hosted games (including Green Eggs and Ham collection, multiplayer
+games, cloud games like GeForce NOW/now.gg) still require an internet connection.
+No third-party games, videos, or copyrighted external game assets are mirrored
+into this GitHub Pages repository. The offline page cache does not proxy traffic
+or alter Scramjet routing.

@@ -536,7 +536,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-404fix-1";
+const PROXY_WORKER_VERSION = "greeneggs-offline-games-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1775,6 +1775,65 @@ $("search-form").addEventListener("submit", (e) => {
 $("bar-form").addEventListener("submit", (e) => { e.preventDefault(); go($("bar-address").value); $("bar-address").blur(); });
 const gamesDialog = $("games-dialog");
 $("open-games").addEventListener("click", () => gamesDialog.showModal());
+// Offline games use the existing first-party worker solely to cache two
+// locally hosted HTML pages. The Custom Loader itself still needs no worker.
+const offlineButton = $("library-enable-offline");
+const offlineStatus = $("library-offline-status");
+offlineButton.addEventListener("click", async () => {
+  offlineButton.disabled = true;
+  offlineStatus.textContent = "Saving the two offline game pages to this browser…";
+  try {
+    if (!("serviceWorker" in navigator) || location.protocol !== "https:")
+      throw new Error("Offline page caching requires a modern HTTPS browser.");
+    const registration = await navigator.serviceWorker.register(PROXY_WORKER_URL, {
+      scope: BASE.pathname, updateViaCache:"none"
+    });
+    await navigator.serviceWorker.ready;
+    // On an update registration.active can still point at the old worker.
+    // Wait until the exact new version is activated before posting a message.
+    const expected = new URL(PROXY_WORKER_URL, location.origin).href;
+    const worker = await new Promise((resolve,reject) => {
+      const started = Date.now();
+      const interval = setInterval(() => {
+        const candidate = registration.active;
+        if (candidate?.state === "activated" && candidate.scriptURL === expected) {
+          clearInterval(interval);
+          resolve(candidate);
+        } else if (Date.now()-started>16000) {
+          clearInterval(interval);
+          reject(new Error("The updated offline worker did not activate. Reload and try again."));
+        }
+      }, 130);
+    });
+    const reply = await new Promise((resolve,reject) => {
+      const channel = new MessageChannel();
+      const timeout = setTimeout(() => {
+        channel.port1.close();reject(new Error("Offline setup timed out. Try again."));
+      }, 22000);
+      channel.port1.onmessage = event => {
+        clearTimeout(timeout);channel.port1.close();resolve(event.data||{});
+      };
+      worker.postMessage({type:"dss-install-offline-games"}, [channel.port2]);
+    });
+    if (!reply.ok) {
+      const failed=(reply.files||[]).filter(x=>!x.ok).map(x=>x.file).join(", ");
+      throw new Error(reply.error||("Couldn't cache "+(failed||"the game pages")+"."));
+    }
+    offlineStatus.textContent = "Offline pages saved! Open the arcade or the 352-game catalog directly, even without Wi-Fi. Save individual catalog games separately.";
+  } catch (error) {
+    offlineStatus.textContent = "Offline setup failed: "+(error?.message||String(error));
+  } finally {
+    offlineButton.disabled = false;
+  }
+});
+// Remote-hosted library games cannot be made offline by caching an iframe.
+// Label them clearly so they are not mistaken for local downloads.
+for (const button of document.querySelectorAll("#games-dialog [data-proxy-url],#library-nowgg,#library-geforce")) {
+  const detail = button.querySelector(".green-eggs-game-info small") ||
+    button.querySelector("span:last-child");
+  if (detail && !detail.textContent.includes("Internet required"))
+    detail.textContent += " · Internet required";
+}
 
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);

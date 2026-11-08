@@ -274,10 +274,20 @@
 				<button type="button" class="chip" id="games-close">Close</button>
 			</div>
 			<div id="games-main-view">
-			<p class="library-note">Games open in optimized Seuss Browser tabs without a relay. Green Eggs and Ham offers quick search, and the Offline Games Pack opens its own catalog. Hosts that disallow embedding may not load.</p>
+			<p class="library-note">Five built-in arcade games can run without Wi-Fi. You can also save individual games from the 352-game collection. Other featured titles open from external websites and still require internet.</p>
+      <div class="library-offline-tools" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">
+        <button class="chip" id="library-enable-offline" type="button">Enable offline access</button>
+        <a href="offline-arcade.html">Open arcade directly</a>
+        <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download standalone arcade</a>
+        <a href="offline-pack.html">Open saved games directly</a>
+        <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache both game pages. Save catalog games one at a time.</span>
+      </div>
 			<div class="library-grid">
+        <button type="button" class="library-card" data-local-url="offline-arcade.html">
+          <span class="library-icon" style="background:#078e88;color:#fff">5</span><strong>Offline Arcade</strong><span>Five built-in games · offline after setup</span>
+        </button>
 				<button type="button" id="open-green-eggs" class="library-card green-eggs-launcher" aria-controls="green-eggs-view" aria-expanded="false">
-					<span class="library-icon green-eggs-launcher-icon">🥚</span><strong>Green Eggs and Ham</strong><span>15 games · Play in Seuss Browser</span>
+					<span class="library-icon green-eggs-launcher-icon">🥚</span><strong>Green Eggs and Ham</strong><span>15 games · Internet required</span>
 				</button>
 				<button type="button" class="library-card" data-proxy-url="https://heyitsheart.github.io/sm3das/64/">
 					<span class="library-icon" style="background:#e94b3c">64</span><strong>SM3DAS 64</strong><span>Open in Seuss Browser</span>
@@ -322,7 +332,7 @@
 					<span class="library-icon" style="background:#4e8c45;color:#fff">NB</span><strong>Neverball</strong><span>Free PSP-homebrew title · browser version · no files</span>
 				</button>
 				<button type="button" class="library-card" data-local-url="offline-pack.html">
-					<span class="library-icon" style="background:#ffb627;color:#1d1a17">352</span><strong>Offline HTML Games Pack</strong><span>Browse 352 games · Inside Seuss</span>
+					<span class="library-icon" style="background:#ffb627;color:#1d1a17">352</span><strong>Offline HTML Games Pack</strong><span>352 games · save favorites for offline use</span>
 				</button>
 				<button type="button" class="library-card" id="library-nowgg">
 					<span class="library-icon" style="background:#1d1a17">n</span><strong>now.gg</strong><span>Try in Seuss Browser</span>
@@ -780,7 +790,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261106-admin-relay-session1"></script>
+	<script src="app.js?v=20261107-offline-games1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
