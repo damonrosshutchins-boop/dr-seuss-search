@@ -240,7 +240,11 @@
 			</div>
 
 			<div id="vm-stage" class="vm-stage" hidden>
-				<div id="vm-status" class="vm-status" role="status"><span class="spinner" aria-hidden="true"></span><span id="vm-status-text">Loading&hellip;</span></div>
+				<div id="vm-status" class="vm-status" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span id="vm-status-text">Loading&hellip;</span></div>
+                <div id="vm-game-actions" class="vm-game-actions" hidden>
+                    <button type="button" id="vm-game-compat">Retry in compatibility mode</button>
+                    <button type="button" id="vm-game-direct">Open in dedicated DOS player</button>
+                </div>
 				<div id="vm-fit" class="vm-fit">
 					<div id="vm-fit-inner" class="vm-fit-inner">
 						<div id="screen_container" class="vm-screen">
