@@ -127,7 +127,7 @@ $("retro-cache-console").addEventListener("click",async()=>{
  try {
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("This requires a browser supporting HTTPS service workers.");
-  const url=new URL("sw.js?v=greeneggs-console-20261107",base);
+  const url=new URL("sw.js?v=greeneggs-more-console-games-20261107",base);
   const reg=await navigator.serviceWorker.register(url.href,{scope:base.pathname,updateViaCache:"none"});
   await navigator.serviceWorker.ready;
   const worker=await new Promise((resolve,reject)=>{
@@ -151,7 +151,7 @@ $("retro-cache-console").addEventListener("click",async()=>{
    const why=(reply.failures||[]).slice(0,3).map(f=>f.file+" ("+f.message+")").join("; ");
    throw new Error(reply.error||"Some assets could not be saved: "+why);
   }
-  status.textContent="Console assets cached. NES 2048 and N64 homebrew may now work offline in this browser. PS1 test support is experimental. Hosted PSoXide still needs Wi-Fi.";
+  status.textContent="Console assets cached. NES 2048, Nova, Alter Ego, Spacegulls, and N64 Kumi-Daiko may now work offline in this browser. PS1 test support is experimental. Hosted PSoXide still needs Wi-Fi.";
  }catch(error){
   status.textContent="Console offline preparation incomplete: "+(error?.message||error);
  }finally{button.disabled=false}
@@ -167,7 +167,7 @@ cacheButton.addEventListener("click",async()=>{
  try{
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("HTTPS and service-worker support are required.");
-  const workerUrl=new URL("sw.js?v=greeneggs-console-20261107",base);
+  const workerUrl=new URL("sw.js?v=greeneggs-more-console-games-20261107",base);
   const registration=await navigator.serviceWorker.register(workerUrl.href,{
    scope:base.pathname,updateViaCache:"none"
   });
