@@ -8,7 +8,7 @@ const SCRAMJET_PATH = new URL("scramjet/", self.registration.scope).pathname;
 // Never try to mirror third-party game hosts, authentication APIs, or
 // Scramjet-encoded websites.
 const OFFLINE_GAME_CACHE = "dss-offline-games-pages-v1";
-const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html"];
+const OFFLINE_GAME_FILES = ["offline-arcade.html", "offline-pack.html", "retro-arcade.html", "dos-arcade.html"];
 const OFFLINE_GAME_URLS = OFFLINE_GAME_FILES.map(file =>
   new URL(file, self.registration.scope).href
 );
@@ -66,6 +66,66 @@ self.addEventListener("message", event => {
     }
   })());
 });
+
+// Optional preloaded DOSBox emulation pack. These assets are all committed to
+// this same GitHub Pages repository and are downloaded only on user request.
+// No third-party ROM repositories, anonymous relays, or other hosts are used.
+const DOS_CACHE = "dss-offline-dos-bundles-v1";
+const DOS_FILES = [
+ "vm/jsdos/js-dos.js","vm/jsdos/js-dos.css",
+ "vm/jsdos/emulators/emulators.js","vm/jsdos/emulators/file-explorer.css",
+ "vm/jsdos/emulators/file-explorer.js","vm/jsdos/emulators/fileexplorer_actions.woff",
+ "vm/jsdos/emulators/fileexplorer_sprites.png","vm/jsdos/emulators/wdosbox.js",
+ "vm/jsdos/emulators/wdosbox.wasm","vm/jsdos/emulators/webrtcnet.mjs",
+ "vm/jsdos/emulators/webrtcnet.wasm","vm/jsdos/emulators/wlibzip.js",
+ "vm/jsdos/emulators/wlibzip.wasm",
+ "vm/games/digger.jsdos","vm/games/doom.jsdos","vm/games/heretic.jsdos",
+ "vm/games/quake.jsdos","vm/games/tyrian.jsdos"
+];
+const DOS_URLS = DOS_FILES.map(file=>new URL(file,self.registration.scope).href);
+const DOS_PATHS = new Set(DOS_URLS.map(url=>new URL(url).pathname));
+async function prepareOfflineDos(port) {
+ const cache=await caches.open(DOS_CACHE);
+ const failed=[];
+ for(let i=0;i<DOS_URLS.length;i++){
+  const url=DOS_URLS[i],file=DOS_FILES[i];
+  try{
+   const cached=await cache.match(url);
+   if(!cached){
+    const response=await fetch(url,{credentials:"same-origin",cache:"reload"});
+    if(!response.ok||response.type!=="basic")throw Error("HTTP "+response.status);
+    await cache.put(url,response);
+   }
+  }catch(error){failed.push({file,error:String(error?.message||error).slice(0,100)})}
+  try{port.postMessage({type:"progress",completed:i+1,total:DOS_URLS.length,file})}catch{}
+ }
+ return failed;
+}
+async function serveCachedDos(request) {
+ const url=new URL(request.url),canonical=new URL(url.pathname,url.origin).href;
+ const cache=await caches.open(DOS_CACHE);
+ const response=await cache.match(canonical);
+ if(response)return response;
+ return fetch(request);
+}
+self.addEventListener("message",event=>{
+ if(event.data?.type!=="dss-install-offline-dos")return;
+ const port=event.ports?.[0];
+ if(!port||!event.source?.url)return;
+ try{
+  const source=new URL(event.source.url),scope=new URL(self.registration.scope);
+  if(source.origin!==scope.origin||!source.pathname.startsWith(scope.pathname))return;
+ }catch{return}
+ event.waitUntil((async()=>{
+  try{
+   const failed=await prepareOfflineDos(port);
+   port.postMessage({type:"done",ok:failed.length===0,failed});
+  }catch(error){
+   port.postMessage({type:"done",ok:false,error:String(error?.message||error)});
+  }
+ })());
+});
+
 // One configuration read per service-worker lifetime, not per image, CSS,
 // script and other resource request. If it fails, allow a clean retry.
 let scramjetConfigReady = null;
@@ -227,6 +287,10 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (event.request.method === "GET" && OFFLINE_GAME_PATHS.has(url.pathname)) {
     event.respondWith(serveOfflineGamePage(event.request));
+    return;
+  }
+  if (event.request.method === "GET" && DOS_PATHS.has(url.pathname)) {
+    event.respondWith(serveCachedDos(event.request));
     return;
   }
 	if (!url.pathname.startsWith(SCRAMJET_PATH)) return;
