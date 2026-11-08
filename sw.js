@@ -147,7 +147,7 @@ const CONSOLE_CDN = "https://cdn.emulatorjs.org/stable/data/";
 const CONSOLE_CORE_VARIANTS = ["fceumm","mupen64plus_next","pcsx_rearmed"];
 const CONSOLE_CORE_SUFFIXES = ["wasm","legacy-wasm","thread-wasm","thread-legacy-wasm"];
 const CONSOLE_DATA_ASSETS = [
-  "loader.js","emulator.min.js","emulator.min.css","cores/cores.json",
+  "emulator.min.js","emulator.min.css","cores/cores.json",
   ...CONSOLE_CORE_VARIANTS.flatMap(name=>
     CONSOLE_CORE_SUFFIXES.map(suffix=>"cores/"+name+"-"+suffix+".data"))
 ].map(file=>CONSOLE_CDN+file);
@@ -159,7 +159,10 @@ const CONSOLE_GAMES = [
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/alter-ego.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/spacegulls.nes"
 ];
-const CONSOLE_URLS = [...CONSOLE_DATA_ASSETS, ...CONSOLE_GAMES];
+// The small official GPLv3 loader is now hosted locally, to avoid an
+// unnecessary third-party script request during console startup.
+const CONSOLE_LOCAL_LOADER = new URL("emujs-loader.js",self.registration.scope).href;
+const CONSOLE_URLS = [CONSOLE_LOCAL_LOADER, ...CONSOLE_DATA_ASSETS, ...CONSOLE_GAMES];
 const CONSOLE_URL_SET = new Set(CONSOLE_URLS);
 async function cacheConsoleAssets(port) {
  const store=await caches.open(CONSOLE_CACHE),failures=[];
