@@ -186,7 +186,9 @@ kbd { font: 700 .8rem var(--body); border: 2px solid var(--ink-soft); border-bot
 .vm-screen { position: relative; background: #000; border: 3px solid var(--pink); border-radius: 10px; overflow: hidden; max-width: 100%; line-height: 1; cursor: text; }
 .vm-screen:focus-within, .vm-screen:hover { border-color: var(--sun); }
 .vm-text { white-space: pre; font: 14px monospace; line-height: 14px; color: #fff; }
-.vm-canvas { display: none; max-width: 100%; height: auto; image-rendering: pixelated; }
+/* v86 owns the canvas pixel buffer and visibility. Never force its width,
+   max-width or height through CSS: doing so double-scales SVGA frames. */
+.vm-canvas { image-rendering: pixelated; }
 .vm-hint { margin: 0; color: #c9bfb2; font-size: .82rem; text-align: center; }
 .vm-stage:fullscreen { justify-content: center; }
 @media (max-width: 600px) {
