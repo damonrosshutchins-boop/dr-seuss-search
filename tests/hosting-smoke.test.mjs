@@ -91,3 +91,32 @@ test("Scramjet's worker activation is not blocked on optional offline downloads"
   assert.match(install, /self\.skipWaiting\(\)/);
   assert.doesNotMatch(install, /prepareOfflineGames\(\)/);
 });
+
+test("admin relay access requires approved origins and refuses anonymous callers", async () => {
+  const endpoint = baseUrl + "/api/admin/relay-access";
+  const disallowed = await fetch(endpoint, {
+    method:"POST", headers:{"Content-Type":"application/json","Origin":"https://unapproved.example"},
+    body:JSON.stringify({code:"invalid", accessToken:"invalid"})
+  });
+  assert.equal(disallowed.status,403);
+  const preflight = await fetch(endpoint, {
+    method:"OPTIONS",headers:{"Origin":"https://damonrosshutchins-boop.github.io","Access-Control-Request-Method":"POST"}
+  });
+  assert.equal(preflight.status,204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"),"https://damonrosshutchins-boop.github.io");
+  const anonymous = await fetch(endpoint, {
+    method:"POST",headers:{"Content-Type":"application/json","Origin":"https://damonrosshutchins-boop.github.io"},
+    body:JSON.stringify({code:"invalid",accessToken:"invalid"})
+  });
+  assert.ok([403,503].includes(anonymous.status));
+  const response = await anonymous.json();
+  assert.equal(response.ok,false);
+});
+test("admin relay code remains outside public GitHub files", async () => {
+  const source = await readFile(join(projectRoot,"server.js"),"utf8");
+  assert.match(source, /process\.env\.RENDER_ADMIN_RELAY_CODE/);
+  assert.doesNotMatch(source,/DAMONTHEGOAT/);
+  const page = await readFile(join(projectRoot,"index.html"),"utf8");
+  assert.match(page,/id="s-admin-relay-code"/);
+  assert.doesNotMatch(page,/DAMONTHEGOAT/);
+});
