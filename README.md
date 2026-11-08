@@ -215,6 +215,9 @@ that would otherwise need to be acquired or configured.
 
 ## NES, Nintendo 64 and PlayStation 1 emulator games
 
+NES LJ65 also appears in the Offline Arcade subcategory, bringing its directly
+launchable offline games from 27 to **28**.
+
 A **Console Games** subcategory is available under **Games → Retro Arcade &
 Emulators**, and the main Games grid also links to a standalone
 \`console-emulators.html\` page.
