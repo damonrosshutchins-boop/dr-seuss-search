@@ -849,7 +849,11 @@
 					<input id="s-admin-relay-url" type="url" placeholder="wss://your-trusted-relay.example/wisp/" spellcheck="false" autocomplete="off" />
 				</label>
 				<small>This relay preference is never saved to the site's settings. Every activation requires server-verified admin permission; it is cleared when the tab closes or site access changes. The endpoint remains visible to your browser, network, and relay operator. It does not make Custom Loader use Wisp, does not bypass website rules, and does not replace Scramjet's service worker.</small>
-				<p id="s-admin-relay-status" role="status" aria-live="polite"></p>
+				<label>Admin-only relay access code
+          <input id="s-admin-relay-code" type="password" autocomplete="off" maxlength="256" placeholder="Enter admin code to enable a temporary relay" />
+        </label>
+        <small>The code is checked privately by Render alongside your verified admin account. It is never saved in your browser settings or GitHub. Your normal Wisp stays selected unless you explicitly enable this admin option.</small>
+        <p id="s-admin-relay-status" role="status" aria-live="polite"></p>
 			</section>
 			<label>Page background image URL
 				<input id="s-background" type="url" placeholder="https://example.com/image.jpg" spellcheck="false" />
@@ -921,7 +925,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261108-render-worker-refresh"></script>
+	<script src="app.js?v=20261108-admin-code-check"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
