@@ -1942,6 +1942,61 @@ for (const button of document.querySelectorAll("#games-dialog [data-proxy-url]")
 $("games-close").addEventListener("click", () => gamesDialog.close());
 $("open-seuss-talk").addEventListener("click", openSeussTalkTab);
 
+// WASM.RIP's public games.json snapshot is rendered as curated, inert
+// HTML data. Existing game launch controls enforce account and site policy
+// checks before any third-party site is opened.
+const wasmView = $("wasm-rip-view");
+const wasmMain = $("games-main-view");
+const wasmLauncher = $("open-wasm-rip");
+const wasmSearch = $("wasm-rip-search");
+const wasmCards = Array.from($("wasm-rip-grid").querySelectorAll("[data-proxy-url]"));
+const wasmFilters = Array.from(wasmView.querySelectorAll("[data-wasm-filter]"));
+let wasmFilter = "all";
+function filterWasmRipGames() {
+  const words = wasmSearch.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  let shown = 0;
+  for(const card of wasmCards) {
+    const haystack = card.dataset.wasmSearch || card.textContent.toLowerCase();
+    const found = words.every(word => haystack.includes(word));
+    const chosen = wasmFilter === "all" || card.dataset.wasmFeatured === "1";
+    const visible = found && chosen;
+    card.hidden = !visible;
+    // addOriginalGameLinks wraps each card with a policy-checked fallback.
+    const parent = card.parentElement;
+    if(parent?.classList.contains("game-launch-choices")) parent.hidden = !visible;
+    if(visible) shown++;
+  }
+  $("wasm-rip-count").textContent = shown + " of " + wasmCards.length + " browser ports";
+  $("wasm-rip-empty").hidden = shown !== 0;
+  for(const btn of wasmFilters)
+    btn.setAttribute("aria-pressed",String(btn.dataset.wasmFilter === wasmFilter));
+}
+function showWasmRipGames() {
+  if(!requireSeussAccount()) return;
+  wasmMain.hidden = true;
+  wasmView.hidden = false;
+  wasmLauncher.setAttribute("aria-expanded","true");
+  wasmSearch.value = "";
+  wasmFilter = "all";
+  filterWasmRipGames();
+  wasmSearch.focus();
+}
+function leaveWasmRipGames(restoreFocus=true) {
+  wasmView.hidden = true;
+  wasmMain.hidden = false;
+  wasmLauncher.setAttribute("aria-expanded","false");
+  if(restoreFocus && gamesDialog.open) wasmLauncher.focus();
+}
+wasmLauncher.addEventListener("click",showWasmRipGames);
+$("wasm-rip-back").addEventListener("click",()=>leaveWasmRipGames());
+wasmSearch.addEventListener("input",filterWasmRipGames);
+for(const btn of wasmFilters) btn.addEventListener("click",()=>{
+  wasmFilter = btn.dataset.wasmFilter==="featured"?"featured":"all";
+  filterWasmRipGames();
+});
+gamesDialog.addEventListener("close",()=>leaveWasmRipGames(false));
+filterWasmRipGames();
+
 // Every externally hosted game gets a visible original-host fallback.
 // This is only a link to the game's own site; no third-party scripts, ROMs
 // or game assets are copied into Seuss Search. Remote embedded play retains
