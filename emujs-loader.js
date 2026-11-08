@@ -1,6 +1,6 @@
 /* EmulatorJS loader (upstream, unmodified)
  * Source: https://github.com/EmulatorJS/EmulatorJS/blob/main/data/loader.js
- * License: GNU GPL v3.0, https://github.com/EmulatorJS/EmulatorJS/blob/main/LICENSE
+ * License: GNU GPL v3.0; see EMUJS-GPLv3-LICENSE.txt in this repository
  * This local copy removes the first remote-loader request; the emulator runtime
  * and WASM cores still load from EmulatorJS's official CDN.
  */
