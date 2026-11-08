@@ -946,7 +946,10 @@ function activateSiteTab(id) {
 	$("lite-back-to-results").hidden = !tab.liteEngine || !tab.liteSearchQuery;
 	if (tab.liteEngine) {
 		$("lite-source-link").href = tab.url;
-		$("lite-helper-description").textContent =
+		$("lite-source-link").textContent = tab.gameEmbed ?
+			"Play on original game website" : "Open original site";
+		$("lite-helper-description").textContent = tab.gameEmbed ?
+			"Game compatibility mode is enabled. If the game is blank or blocked, open its original website for the full WebGL, WebAssembly and save-data features." :
 			"Seuss Browser loads directly without Wisp. If the page is blank or blocked, its host may forbid embedding; this mode cannot override network restrictions.";
 	}
 	if (tab.type === "web" || tab.type === "direct") $("bar-address").value =
@@ -1401,6 +1404,22 @@ const FIRST_PARTY_GAME_FILES = new Set([
 	"offline-games.html","offline-pack.html","dos-arcade.html",
 	"console-emulators.html"
 ]);
+// Game pages often use WebAssembly fetch, WebGL, and IndexedDB on their own
+// origin. An opaque sandbox origin breaks those APIs even for otherwise
+// embeddable games (including the SM3DAS 64 port). Only URLs explicitly listed
+// in the site's curated Games Library can request the compatibility sandbox.
+// Arbitrary websites, search results and the Custom Loader stay isolated.
+function isCuratedRemoteGameUrl(url) {
+	try {
+		const target = new URL(url);
+		if (target.protocol !== "https:" || target.origin === location.origin) return false;
+		return Array.from(document.querySelectorAll("#games-dialog [data-proxy-url]"))
+			.some(card => {
+				try { return new URL(card.dataset.proxyUrl).href === target.href; }
+				catch { return false; }
+			});
+	} catch { return false; }
+}
 /* ---------- Seuss Browser (optimized native, permitted embedding) ----------
    No relay, network rewriting, proxy URL, third-party library or additional
    service worker. Native browser caching and media loading are preserved.
@@ -1421,7 +1440,11 @@ function seussLiteFrame(tab) {
 				FIRST_PARTY_GAME_FILES.has(u.pathname.slice(BASE.pathname.length));
 		} catch { return false; }
 	})();
-	frame.setAttribute("sandbox", trustedCatalog
+	// For explicitly launched, curated cross-origin games only, preserve the
+	// game's *own* origin so same-site .wasm, fonts, assets and saved-game data
+	// can load. No such permission is granted for ordinary browsing.
+	const supportedGame = !!tab.gameEmbed && isCuratedRemoteGameUrl(tab.url);
+	frame.setAttribute("sandbox", trustedCatalog || supportedGame
 		? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals allow-downloads"
 		: "allow-scripts allow-forms allow-pointer-lock allow-modals allow-downloads");
 	frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
@@ -1454,6 +1477,8 @@ function openSeussLite(targetUrl, options = {}) {
 		tab.liteHistoryIndex = tab.liteHistory.length - 1;
 	}
 	tab.liteEngine = true;
+	tab.gameEmbed = options.gameEmbed === true &&
+		isCuratedRemoteGameUrl(target.href);
 	tab.searchPage = false;
 	if (options.embeddedQuery) tab.liteSearchQuery = String(options.embeddedQuery).slice(0, 180);
 	tab.type = "direct";
@@ -1921,6 +1946,8 @@ function filterGreenEggs() {
 		const haystack = (card.textContent + " " + (card.dataset.search || "")).toLowerCase();
 		const matches = words.every(word => haystack.includes(word));
 		card.hidden = !matches;
+		if (card.parentElement?.classList.contains("game-launch-choices"))
+			card.parentElement.hidden = !matches;
 		if (matches) visible++;
 	}
 	$("green-eggs-count").textContent = visible + " of " + greenEggsCards.length +
@@ -1950,6 +1977,50 @@ greenEggsSearch.addEventListener("input", filterGreenEggs);
 gamesDialog.addEventListener("close", () => showRegularGames(false));
 filterGreenEggs();
 
+
+// Every externally hosted game gets a visible original-host fallback.
+// This is only a link to the game's own site; no third-party scripts, ROMs
+// or game assets are copied into Seuss Search. Remote embedded play retains
+// the site's existing destination-policy checks.
+function addOriginalGameLinks() {
+	for (const card of document.querySelectorAll("#games-dialog [data-proxy-url]")) {
+		if (!card.closest(".library-grid, .green-eggs-grid")) continue;
+		let url;
+		try {
+			url = new URL(card.dataset.proxyUrl);
+			if (url.protocol !== "https:") continue;
+		} catch { continue; }
+		const group = document.createElement("div");
+		group.className = "game-launch-choices";
+		const fallback = document.createElement("a");
+		fallback.className = "game-original-link";
+		fallback.textContent = "Play on original website";
+		fallback.href = url.href;
+		fallback.target = "_blank";
+		fallback.rel = "noopener noreferrer";
+		fallback.title = "Opens the game on its original website if in-site play fails";
+		// Keep access controls in the actual app launch path. Original-site
+		// links are disabled when a current site-policy check denies the URL.
+		fallback.hidden = true;
+		if (typeof window.dssSitePolicyCheck === "function") {
+			void window.dssSitePolicyCheck(url.href).then(allowed => {
+				fallback.hidden = !allowed;
+			}).catch(() => { fallback.hidden = true; });
+			fallback.addEventListener("click", async e => {
+				// A user-triggered link cannot safely open a denied site.
+				// Recheck before navigating as admin policies can change.
+				e.preventDefault();
+				if (!requireSeussAccount()) return;
+				if (!(await window.dssSitePolicyCheck(url.href))) return;
+				window.location.assign(url.href);
+			});
+		}
+		card.replaceWith(group);
+		group.append(card, fallback);
+	}
+}
+addOriginalGameLinks();
+
 function launchLibraryGame(event, url) {
 	event.preventDefault();
 	event.stopPropagation();
@@ -1967,8 +2038,10 @@ function launchLibraryGame(event, url) {
 			return;
 		}
 	} catch {}
-	// External games keep the existing policy checks and restricted iframe.
-	go(url, { forceLite:true, newTab:true, title:gameTitle });
+	// External games retain the site policy check. The curated game context
+	// enables the game's own origin only if this exact URL is in the library.
+	// A visible original-host link is provided for sites that disallow framing.
+	go(url, { forceLite:true, gameEmbed:true, newTab:true, title:gameTitle });
 }
 document.querySelectorAll("[data-proxy-url]").forEach(button => {
 	button.addEventListener("click", event => launchLibraryGame(event, button.dataset.proxyUrl));
