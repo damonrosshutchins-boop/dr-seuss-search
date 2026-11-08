@@ -373,3 +373,32 @@ Canvas rendering is now the default instead of WebGL. Both interfaces have a com
 All preloaded game bundles remain unchanged. The offline HTML service-worker cache is now version 3, with v2 and v1 fallbacks, so the revised dedicated page is installed when online. No new ROM files or paid services are needed.
 
 Implementation is verified by simulated DOM, event, and cache checks; actual WebAssembly playback on a user's device still requires a live browser test.
+
+
+## Super Mario and other externally hosted game launch fixes (November 2026)
+
+The Game Library's Super Mario 64 (SM3DAS 64) tile still points to the
+maintainer's actual browser build at
+`https://heyitsheart.github.io/sm3das/64/`. Its HTML loads an Emscripten
+WebAssembly module from the same host. The generic Seuss Browser previously
+sandboxed **every** remote site with an opaque origin. That turns the game's
+normal same-origin `.wasm` / saved-data requests into cross-origin requests,
+which can break its startup. The site now enables `allow-same-origin`
+**only for explicitly selected curated external game URLs** opened from the
+Games Library. Ordinary browsing, search results, the Custom Loader, and
+other arbitrary websites retain the restrictive sandbox. An external
+game still runs on its own cross-origin, not on Seuss Search's origin.
+
+Every remote game tile in both the main Games Library and Green Eggs and Ham
+now offers a visible **Play on original website** fallback when a host
+rejects embedding or the embedded game requires browser features blocked by
+its publisher. The fallback checks the same account and destination policy
+**on click** before navigating in the current browser tab; it does not
+silently check every linked domain at startup. Existing admin block rules
+continue to apply. The Mario Kart PC button was corrected from a track/editing
+URL to the current official Mario Kart PC home page.
+
+This code-level change addresses the known opaque-origin WebAssembly failure
+class, but it cannot guarantee that every independent third-party game
+server works, supplies game assets, supports the user's device, or permits
+framing. No commercial ROM files are copied or rehosted.
