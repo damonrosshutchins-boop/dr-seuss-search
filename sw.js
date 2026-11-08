@@ -166,7 +166,6 @@ const CONSOLE_DATA_ASSETS = [
 const CONSOLE_GAMES = [
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/2048.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/kumi-daiko.n64",
-  "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/psxtest.exe",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/nova-the-squirrel.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/alter-ego.nes",
   "https://raw.githubusercontent.com/Mylittlestories/recalbox-os-web/35252504279bdc946156b1a002ce0de9f8b9d01b/www/roms/spacegulls.nes"
