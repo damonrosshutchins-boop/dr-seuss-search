@@ -1688,3 +1688,22 @@ body:not(.site-authenticated) #site-login:not([open]) {
   overflow-wrap:anywhere;}
 .game-original-link:hover {background:#c5f1e4; text-decoration:underline;}
 .game-original-link:focus-visible {outline:3px solid var(--teal); outline-offset:2px;}
+
+/* WASM.RIP category — third-party ports stay on their publishers' websites. */
+.wasm-rip-view[hidden], .wasm-rip-grid .game-launch-choices[hidden]{display:none!important}
+.wasm-rip-heading{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+.wasm-rip-heading>div{flex:1;min-width:220px}
+.wasm-rip-heading h3{font-size:1.35rem;margin:2px 0}
+.wasm-rip-heading p{margin:4px 0}
+.wasm-rip-heading>a{font-weight:800;align-self:center}
+.wasm-rip-search-label{display:grid;gap:6px;font-weight:850;margin:14px 0}
+.wasm-rip-search-label input{width:100%;max-width:620px;padding:11px 12px;border-radius:10px;font:inherit;
+  border:2px solid #83b4ab;background:var(--panel,#fff);color:var(--ink,#213d48)}
+.wasm-rip-filters{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 10px}
+.wasm-rip-filters [aria-pressed="true"]{background:#b6f7df;color:#17352f;border-color:#477c68}
+#wasm-rip-count{font-weight:850;margin:8px 0 12px}
+.wasm-rip-grid{padding-bottom:12px}
+.wasm-rip-grid .wasm-rip-game{min-height:120px}
+.wasm-rip-grid .game-launch-choices{min-width:0}
+.wasm-rip-icon{background:#315e64!important;color:#fff!important;font-size:.78rem;letter-spacing:-.02em}
+@media(max-width:620px){.wasm-rip-heading{display:grid}.wasm-rip-grid .game-original-link{font-size:.8rem}}
