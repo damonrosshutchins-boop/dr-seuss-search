@@ -21,7 +21,8 @@ const OFFLINE=[
  ["higher","🃏","Higher or Lower","retro"],["hanoi","🪵","Tower Stacker","retro"],
  ["snake","🐍","Snake","original"],["merge","🔢","Merge Tiles","original"],
  ["pong","🏓","Paddle Rally","original"],["memory","🃏","Memory Match","original"],
- ["slide","🧩","15 Puzzle","original"]
+ ["slide","🧩","15 Puzzle","original"],
+ ["lj65","🎮","NES LJ65","nes"]
 ];
 const EMULATORS=[
  ["digger","🟠","Digger","DOSBox · bundled game"],
@@ -49,7 +50,7 @@ function listOffline(){
  offlineGrid.replaceChildren();let shown=0;
  for(const [id,icon,title,type] of OFFLINE){
   if(!title.toLowerCase().includes(q))continue;
-  shown++;const file=type==="retro"?"retro-arcade.html":"offline-arcade.html";
+  shown++;const file=type==="retro"?"retro-arcade.html":type==="nes"?"nes-homebrew.html":"offline-arcade.html";
   offlineGrid.append(card(icon,title,"No Wi-Fi · no ROM",
     ()=>openPage(file,id,title)));
  }
