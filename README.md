@@ -249,3 +249,50 @@ It does not proxy arbitrary websites or copy commercial cartridge/disc images.
 Offline WASM boot after caching is experimental and may fail if a core requests
 an uncached dependency, the upstream server lacks CORS, or the browser clears
 site storage. The PSoXide externally hosted demo remains online-only.
+
+
+## Additional no-setup NES, N64 and PS1 games (November 2026)
+
+The Console Games subcategory and `console-emulators.html` now expose 45
+launchable game/demo **entries**: 18 NES, 17 N64 and 10 PS1.
+This entry count includes several **minigames within shared cartridges/discs**,
+not 45 different downloadable ROM files. All entries avoid user-provided ROM
+files and manual BIOS setup. Some use the developer's own browser player.
+
+### NES
+
+Three additional free NES cartridges are preselected for EmulatorJS:
+**Nova the Squirrel**, **Alter Ego**, and **Spacegulls**, sourced from the
+previously used free-homebrew collection (pinned GitHub revision). Thirteen
+other NES games use their authors' original browser-playable itch.io pages,
+including **Retropia**, **Stallar**, **MIROH**, **Doppel Effect**, **Anomalisa**,
+**SnailNES**, **Slide-o-Snake**, **DWAMBO**, **Jack and the Candy Corn**,
+**8-Bit Diner**, **Muncher Runner**, **Droll Ball** and
+**Penguin: Sokoban Adventure**. Those pages require Wi-Fi and may not allow
+iframe embedding; the launcher includes a direct-author-site fallback.
+
+### Nintendo 64
+
+**N64brew Game Jam 2024** is an official community N64 ROM containing 20
+minigames. Fifteen of its minigames appear as searchable catalog entries to
+help players find them. They all open the **same** 2024 cartridge, then the
+player must select their choice in its menu. The official 1.2.1 release is
+linked, *not* copied into this repo. The cartridge was built with Libdragon,
+and the browser's Mupen64Plus Next core may not support it. These N64 entries
+are marked **experimental**, not guaranteed playable, and are deliberately
+excluded from the offline asset-preload routine.
+
+### PlayStation 1
+
+Eight more entries describe games inside the creator-hosted **PSoXide Demo
+Disc**: NitroXide, VoXide, both Celeste Classic titles, PSoXide Breakout,
+PSoXide Pong, PSoXide Space Invaders and GH-PSX. Selecting an entry opens
+the same official browser demo disc; choose the named game from the disc's
+carousel. These are not eight separately auto-booted PS1 files. No proprietary
+Sony BIOS is supplied. Internet access is required for these games.
+
+**Caching:** "Prepare offline console files" adds only the three newly
+preselected NES homebrew cartridges to the existing fixed allowlist. The
+NES LJ65 standalone HTML remains the reliably fully offline option. All
+other browser-console gameplay depends on upstream availability, browser
+support, CORS rules or compatibility with the emulation core.
