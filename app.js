@@ -1998,23 +1998,23 @@ function addOriginalGameLinks() {
 		fallback.href = url.href;
 		fallback.target = "_blank";
 		fallback.rel = "noopener noreferrer";
-		fallback.title = "Opens the game on its original website if in-site play fails";
-		// Keep access controls in the actual app launch path. Original-site
-		// links are disabled when a current site-policy check denies the URL.
-		fallback.hidden = true;
-		if (typeof window.dssSitePolicyCheck === "function") {
-			void window.dssSitePolicyCheck(url.href).then(allowed => {
-				fallback.hidden = !allowed;
-			}).catch(() => { fallback.hidden = true; });
-			fallback.addEventListener("click", async e => {
-				// A user-triggered link cannot safely open a denied site.
-				// Recheck before navigating as admin policies can change.
-				e.preventDefault();
-				if (!requireSeussAccount()) return;
+		fallback.title = "Opens the game on its original website after the site's usual safety check";
+		fallback.target = "_self";
+		// Do not preflight every game at page load: access-policy checks can
+		// have moderation side effects and should occur only for a user-
+		// selected destination. Never navigate until the check succeeds.
+		fallback.addEventListener("click", async e => {
+			e.preventDefault();
+			if (!requireSeussAccount()) return;
+			if (typeof window.dssSitePolicyCheck !== "function") return;
+			try {
 				if (!(await window.dssSitePolicyCheck(url.href))) return;
 				window.location.assign(url.href);
-			});
-		}
+			} catch {
+				showError("Unable to check the game website.",
+					"Please retry when the site's safety checks are available.");
+			}
+		});
 		card.replaceWith(group);
 		group.append(card, fallback);
 	}
