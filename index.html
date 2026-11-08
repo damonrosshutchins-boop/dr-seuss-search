@@ -270,245 +270,55 @@
 	</section>
 
 
-	<!-- GAMES LIBRARY -->
+	<!-- RETRO CONSOLE GAME LIBRARY — no original AI mini-games -->
 	<dialog id="games-dialog" class="settings game-library">
 		<div class="library-content">
-			<div class="library-heading">
-				<div><p class="kicker">pick something to play</p><h2>Games Library</h2></div>
+			<header class="library-heading">
+				<div><p class="kicker">NES · Nintendo 64 · PlayStation 1</p>
+					<h2>Retro Console Games</h2></div>
 				<button type="button" class="chip" id="games-close">Close</button>
-			</div>
+			</header>
 			<div id="games-main-view">
-			<p class="library-note">28 self-contained arcade/homebrew games can run without Wi-Fi once their pages are saved. Other games load from their own websites; use the <strong>Play on original website</strong> link below a game if an embedded browser cannot start it. External hosts may need an online connection or a separately owned game file.</p>
-      <div class="library-offline-tools" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">
-        <button class="chip" id="library-enable-offline" type="button">Enable offline access</button>
-        <a href="offline-games.html">Open 28-game offline hub</a>
-        <a href="offline-arcade.html">Open arcade directly</a>
-        <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download standalone arcade</a>
-        <a href="offline-pack.html">Open saved games directly</a>
-        <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache the game pages. Bookmark the offline hub to use it when the main site is unavailable.</span>
-      </div>
-			<div class="library-grid">
-        <button type="button" class="library-card" data-local-url="offline-games.html">
-          <span class="library-icon" style="background:#236454;color:#e4fff1">28</span><strong>Offline Retro Games</strong><span>Direct hub · cached without Wi-Fi</span>
-        </button>
-        <button type="button" class="library-card" data-local-url="console-emulators.html">
-          <span class="library-icon" style="background:#385d81;color:#fff">64</span>
-          <strong>NES / N64 / PS1</strong><span>45 homebrew games and demo selections</span>
-        </button>
-        <button type="button" class="library-card retro-launcher" id="open-retro" aria-controls="retro-view" aria-expanded="false">
-          <span class="library-icon" style="background:#23465c;color:#a3f0d7">🕹️</span><strong>Retro Arcade &amp; Emulators</strong><span>28 offline games · 5 ready-to-play DOS classics</span>
-        </button>
-        <button type="button" class="library-card" data-local-url="offline-arcade.html">
-          <span class="library-icon" style="background:#078e88;color:#fff">5</span><strong>Offline Arcade</strong><span>Five built-in games · offline after setup</span>
-        </button>
-				<button type="button" id="open-green-eggs" class="library-card green-eggs-launcher" aria-controls="green-eggs-view" aria-expanded="false">
-					<span class="library-icon green-eggs-launcher-icon">🥚</span><strong>Green Eggs and Ham</strong><span>15 games · Internet required</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://heyitsheart.github.io/sm3das/64/">
-					<span class="library-icon" style="background:#e94b3c">64</span><strong>Super Mario 64</strong><span>Game compatibility mode · Original-site link below</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://cyberpunk2077.lol/game?ioShared=1&amp;ioSharedMB=128&amp;ioInflight=4&amp;ioPersist=1&amp;ioPersistMB=6144&amp;binkRecycle=1&amp;psoWarm=0&amp;skipIntro=1&amp;ioLookahead=16&amp;behindLoad=0&amp;floodKeep=1">
-					<span class="library-icon" style="background:#f0d52d;color:#1d1a17">2077</span><strong>Cyberpunk 2077</strong><span>Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://wasm.rip/files/bpac/index.html">
-					<span class="library-icon" style="background:#2878c8">B</span><strong>BPAC</strong><span>Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://justplayweb.com/game/hollow-knight/">
-					<span class="library-icon" style="background:#30283e;color:#f5eefc">H</span><strong>Hollow Knight</strong><span>Play via JustPlayWeb · Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://wasm.rip/files/HowToFish/HowToFish.html">
-					<span class="library-icon" style="background:#d9a441;color:#20180a">F</span><strong>How to Fish</strong><span>Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://surfd.net/">
-					<span class="library-icon" style="background:#287f91;color:#f1fbff">S</span><strong>Surfd</strong><span>Classic surf · Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://mkpc.malahieude.net/">
-					<span class="library-icon" style="background:#e64b3c;color:#fff">MK</span><strong>Mario Kart PC</strong><span>Start on the actual game homepage · Original-site link below</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://skate.aaddpp.lol/">
-					<span class="library-icon" style="background:#252525;color:#f7f7f7">S3</span><strong>Skate 3 Fan Port</strong><span>Open in Seuss Browser · requires your own game data</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://chao.party/">
-					<span class="library-icon" style="background:#4f8b4a;color:#fff">C</span><strong>Chao Party</strong><span>Multiplayer Chao Garden · Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://sans-simulator.github.io/c2-sans-fight/">
-					<span class="library-icon" style="background:#141d32;color:#80dcff">S</span><strong>Sans Fight Simulator</strong><span>Open in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://root-hunter.github.io/ppsspp-web/" aria-label="God of War PSP browser player within Seuss Search proxy. Bring your own legally obtained game file.">
-					<span class="library-icon" style="background:#982f2d;color:#fff">GoW</span><strong>God of War (PSP)</strong><span>Open in Seuss Browser · your own game file required</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://root-hunter.github.io/ppsspp-web/">
-					<span class="library-icon" style="background:#3b57a6;color:#fff">PSP</span><strong>PSP Web Emulator</strong><span>Browser PSP player · bring your own game file</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://play.supertux.org/" data-force-seuss-proxy="true">
-					<span class="library-icon" style="background:#4b99d0;color:#fff">ST</span><strong>SuperTux</strong><span>Official browser version chooser · no game files needed</span>
-				</button>
-				<button type="button" class="library-card" data-proxy-url="https://play.neverball.org/" data-force-seuss-proxy="true">
-					<span class="library-icon" style="background:#4e8c45;color:#fff">NB</span><strong>Neverball</strong><span>Free PSP-homebrew title · browser version · no files</span>
-				</button>
-				<button type="button" class="library-card" data-local-url="offline-pack.html">
-					<span class="library-icon" style="background:#ffb627;color:#1d1a17">352</span><strong>Offline HTML Games Pack</strong><span>352 games · save favorites for offline use</span>
-				</button>
-				<button type="button" class="library-card" id="library-nowgg">
-					<span class="library-icon" style="background:#1d1a17">n</span><strong>now.gg</strong><span>Try in Seuss Browser</span>
-				</button>
-				<button type="button" class="library-card" id="library-geforce">
-					<span class="library-icon" style="background:#76b900">G</span><strong>GeForce NOW</strong><span>Try in Seuss Browser</span>
-				</button>
-			</div>
-			<p class="library-footnote">Hollow Knight is an unofficial browser port hosted by its creator; it is not affiliated with Team Cherry. The game loads from the external host, not this repository.</p>
-			<p class="library-footnote">Skate 3 Fan Port is an unofficial project and is not affiliated with EA. It does not include Skate 3 game content; use only game data from a copy you own.</p>
-			<p class="library-footnote"><strong>God of War, made simple:</strong> Select God of War (PSP) above. On the next page, press <strong>Add game</strong>, choose your own Chains of Olympus or Ghost of Sparta PSP game file (.iso, .cso or .chd), then select the game to play. On later visits, you can open it from the player library if the browser has kept your saved data. The game is not included. This button opens the emulator in a Seuss Browser frame; advanced browser features may be unavailable there.</p>
-			<p class="library-footnote"><strong>No-setup PSP homebrew favorites:</strong> SuperTux and Neverball both have PSP homebrew ports, but the Games Library opens their separately maintained browser builds—not the PSP executables. No ROM, game-file import or emulator setup is needed. Both open inside Seuss Browser's direct frame. Some hosts may forbid direct embedding.</p>
-			<p class="library-footnote">PSP Web is an unofficial PPSSPP browser emulator, not the Windows-only God of War recompilation project. No PSP games are included. Open a game file from a copy you own; the emulator may work better <a href="https://root-hunter.github.io/ppsspp-web/" target="_blank" rel="noopener noreferrer">directly in your browser</a> if proxying blocks WebAssembly or file loading. For the separate WebAssembly recompilation research project, see <a href="https://github.com/snuri00/psp-web-recomp" target="_blank" rel="noopener noreferrer">PSP Web Recomp</a>, which must be built privately from your own files.</p>
-			<p class="library-footnote">now.gg requires an approved embed setup for cloud gameplay on third-party sites. If it does not load here, the provider may need to allow this site's domain.</p>
-			</div>
-      <section id="retro-view" class="retro-view" aria-label="Retro Arcade and Emulators" hidden>
-  <div class="retro-heading">
-    <button type="button" class="chip" id="retro-back">← Back to Games</button>
-    <div><p class="kicker">no ROMs, no setup</p><h3>Retro Arcade &amp; Emulators</h3></div>
-    <p>28 offline arcade/homebrew games, five preloaded DOS classics, and preconfigured FreeDOS and KolibriOS PC emulators. Pick a game and start playing.</p>
-  </div>
-  <div class="retro-categories" role="group" aria-label="Retro arcade subcategories">
-    <button type="button" class="retro-category" data-retro-category="offline" aria-pressed="true"><strong>Offline Arcade</strong><span>28 ready-to-play games</span></button>
-    <button type="button" class="retro-category" data-retro-category="emulators" aria-pressed="false"><strong>Ready-to-Play Emulators</strong><span>7 emulator choices · no files to upload</span></button>
-    <button type="button" class="retro-category" data-retro-category="consoles" aria-pressed="false"><strong>Console Games</strong><span>45 no-upload entries · NES / N64 / PS1</span></button>
-  </div>
-  <section id="retro-offline-section" aria-label="Offline arcade games">
-    <p class="retro-note"><strong>No Wi-Fi required after saving the page.</strong> Play instantly, select Enable offline access in Games while connected, or download the single-file game page. Neither arcade requires a ROM, BIOS, or online service.</p>
-    <div class="retro-shortcuts">
-      <a href="retro-arcade.html" download="Seuss-Retro-Arcade.html">Download 22-game arcade</a>
-      <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download five-game arcade</a>
-      <a href="offline-games.html">Open the full offline game hub</a>
-      <a href="offline-pack.html">Saved HTML games catalog (up to 352)</a>
-    </div>
-    <label class="retro-search-label">Search offline games
-      <input id="retro-search" type="search" placeholder="Search 28 games…" autocomplete="off"/>
-    </label>
-    <p id="retro-count" class="retro-counter" role="status"></p>
-    <div class="retro-grid" id="retro-offline-grid"></div>
-    <p id="retro-empty" class="retro-note" hidden>No offline games match that search.</p>
-  </section>
-  <section id="retro-emulator-section" aria-label="No-ROM emulator games" hidden>
-    <p class="retro-note">The games are already bundled locally. DOSBox starts them automatically; there is no ROM upload or setup process. The preloaded <strong>FreeDOS</strong> image runs in your existing v86 PC emulator and includes a few built-in games.</p>
-    <div class="retro-shortcuts"><button type="button" class="chip" id="retro-cache-dos">Prepare DOS games for offline play (~23 MB)</button><a href="dos-arcade.html">Open DOS Arcade directly</a></div>
-    <p id="retro-cache-status" class="retro-counter" role="status" aria-live="polite">First online visit: prepare the DOS assets here to use the separate DOS Arcade page offline.</p>
-    <div class="retro-grid" id="retro-emulator-grid"></div>
-    <p class="retro-note"><strong>Offline note:</strong> You can save the DOSBox assets and bundled games while connected, but the regular VM interface and some browser emulator features may still need an online session. The dedicated DOS Arcade page provides a simpler offline launch option.</p>
-  </section>
-  <section id="retro-console-section" aria-label="NES Nintendo 64 PlayStation 1 emulator games" hidden>
-    <p class="retro-note"><strong>No uploads or setup:</strong> Browse 45 entries across NES, Nintendo 64 and PlayStation 1. This includes creator-hosted NES games, the N64brew minigame cartridge, and selectable PS1 demos. Some entries share a cartridge/disc menu, and N64 browser compatibility is experimental.</p>
-    <div class="retro-shortcuts">
-      <a href="console-emulators.html">Open all three consoles</a>
-      <a href="nes-homebrew.html" download="NES-LJ65-Offline.html">Save fully offline NES emulator + game</a>
-    </div>
-    <label class="retro-search-label">Search console games
-      <input id="retro-console-search" type="search" placeholder="Search 45 console games and demos…" autocomplete="off">
-    </label>
-    <p id="retro-console-count" class="retro-counter" role="status"></p>
-    <div class="retro-grid" id="retro-console-grid"></div>
-    <div class="retro-shortcuts">
-      <button type="button" class="chip" id="retro-cache-console">Prepare offline console files</button>
-    </div>
-    <p id="retro-cache-console-status" class="retro-counter" role="status" aria-live="polite">Optional: saves supported NES/N64/PS1 browser cores and free sample files. PS1 hosted demos still need internet; offline console emulation is experimental.</p>
-    <p class="retro-note"><strong>No setup needed:</strong> NES LJ65 launches directly. The official PS1 demo disc also starts without any BIOS or game upload, but its external host requires internet. N64 homebrew needs its emulator core downloaded first.</p>
-  </section>
-</section>
-
-			<section id="green-eggs-view" class="green-eggs-view" aria-label="Green Eggs and Ham game library" hidden>
-				<div class="green-eggs-heading">
-					<button type="button" class="chip" id="green-eggs-back">← Back to Games</button>
-					<div class="green-eggs-title">
-						<span class="green-eggs-emoji" aria-hidden="true">🥚</span>
-						<div><p class="kicker">your in-site game shelf</p><h3>Green Eggs and Ham</h3></div>
-					</div>
-					<p>Search the collection and open a game in a lightweight Seuss Browser tab.</p>
+				<p class="library-note">Only console games and their homebrew programs are listed here. The homemade arcade-style mini-games have been removed. Well-known commercial N64 games are listed separately with official access information—not unlicensed ROM downloads.</p>
+				<div class="library-offline-tools" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">
+					<button class="chip" id="library-enable-offline" type="button">Save console pages for offline use</button>
+					<a href="nes-homebrew.html">Play the self-contained NES game</a>
+					<span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Saves the NES, console chooser and existing VM DOS player pages. Downloaded console cores and online games may still need Wi-Fi.</span>
 				</div>
-				<label class="green-eggs-search" for="green-eggs-search">
-					<span>Search games</span>
-					<input type="search" id="green-eggs-search" placeholder="Search by name or type…" autocomplete="off" spellcheck="false"/>
-				</label>
-				<p class="green-eggs-results" id="green-eggs-count" role="status" aria-live="polite">15 games</p>
-				<div class="green-eggs-grid" id="green-eggs-grid">
-					<button type="button" class="green-eggs-game" data-proxy-url="https://raz0red.github.io/webprboom/" data-search="doom prboom webprboom" aria-label="Open DOOM (WebPrBoom) in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#a3492c">DOOM</span>
-						<span class="green-eggs-game-info"><strong>DOOM (WebPrBoom)</strong><small>Classic action · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+				<div class="library-grid">
+					<button type="button" class="library-card" data-local-url="console-emulators.html#classics">
+						<span class="library-icon" style="background:#e8b548;color:#1d1a17">64</span>
+						<strong>Famous N64 Classics</strong>
+						<span>Mario Kart 64, Zelda, Pokémon, Banjo and more · official Nintendo availability</span>
 					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://m1stermo.github.io/gta2/" data-search="gta2 gta 2 grand theft auto" aria-label="Open Grand Theft Auto 2 in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#5e5142">GTA2</span>
-						<span class="green-eggs-game-info"><strong>Grand Theft Auto 2</strong><small>Retro open-world · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+					<button type="button" class="library-card" data-local-url="console-emulators.html#n64">
+						<span class="library-icon" style="background:#345a7d;color:white">N64</span>
+						<strong>N64 Homebrew Games</strong>
+						<span>Preselected real Nintendo 64 homebrew cartridges · experimental browser emulation</span>
 					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://eaglercraft-fan.github.io/E-Craft/1.12.2.html" data-search="eaglercraft minecraft 1.12.2" aria-label="Open E-Craft 1.12.2 in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#6a9f45">1.12</span>
-						<span class="green-eggs-game-info"><strong>E-Craft 1.12.2</strong><small>Block-building · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+					<button type="button" class="library-card" data-local-url="console-emulators.html#nes">
+						<span class="library-icon" style="background:#21554b;color:white">NES</span>
+						<strong>NES Homebrew Games</strong>
+						<span>Real NES programs, including preselected and author-hosted titles</span>
 					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://burnedpopcorn.github.io/SM-Kart-ZX-Web-Port/index.html" data-search="super mario kart zx web port" aria-label="Open SM Kart ZX in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#ea9c32">KART</span>
-						<span class="green-eggs-game-info"><strong>SM Kart ZX</strong><small>Kart racing · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+					<button type="button" class="library-card" data-local-url="console-emulators.html#ps1">
+						<span class="library-icon" style="background:#514278;color:white">PS1</span>
+						<strong>PlayStation 1 Homebrew</strong>
+						<span>Original PS1 demo-disc selections and experimental emulator program</span>
 					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://vinmannie.github.io/Sonic-1-WASM/" data-search="sonic the hedgehog one" aria-label="Open Sonic 1 (WASM) in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#258bce">SONIC</span>
-						<span class="green-eggs-game-info"><strong>Sonic 1 (WASM)</strong><small>Platformer · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+					<button type="button" class="library-card" data-local-url="nes-homebrew.html">
+						<span class="library-icon" style="background:#147a70;color:white">NES</span>
+						<strong>LJ65 · NES</strong>
+						<span>Actual NES homebrew · fully self-contained and offline</span>
 					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://vheissu.github.io/hit-and-run-web/" data-search="simpsons hit and run" aria-label="Open The Simpsons: Hit &amp; Run in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#e4be33">H&amp;R</span>
-						<span class="green-eggs-game-info"><strong>The Simpsons: Hit &amp; Run</strong><small>Driving adventure · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://hubert-rybak.github.io/Reset-Generation-Wasm-Port/" data-search="reset generation wasm" aria-label="Open Reset Generation in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#8c60ac">RESET</span>
-						<span class="green-eggs-game-info"><strong>Reset Generation</strong><small>Strategy &amp; action · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://clarkeadg.github.io/opensonic-js/" data-search="open sonic js" aria-label="Open Open Sonic in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#487fbc">OPEN</span>
-						<span class="green-eggs-game-info"><strong>Open Sonic</strong><small>Platformer · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://loganwalkerdev.github.io/lugaru-web/" data-search="lugaru web" aria-label="Open Lugaru in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#9f7659">LGR</span>
-						<span class="green-eggs-game-info"><strong>Lugaru</strong><small>3D adventure · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://goofyahhbro69420.github.io/COD-ZOMBIES/" data-search="call of duty cod zombies" aria-label="Open COD Zombies in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#59736b">COD</span>
-						<span class="green-eggs-game-info"><strong>COD Zombies</strong><small>Arcade survival · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://digitalcybersoft.github.io/eduke32-wasm/" data-search="eduke32 duke nukem wasm" aria-label="Open EDuke32 in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#a85549">DUKE</span>
-						<span class="green-eggs-game-info"><strong>EDuke32</strong><small>Retro action · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://froydinger.github.io/claude-of-duty/" data-search="claude of duty" aria-label="Open Claude of Duty in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#ae654b">COD</span>
-						<span class="green-eggs-game-info"><strong>Claude of Duty</strong><small>Arcade action · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://eaglercraft-fan.github.io/E-Craft/" data-search="eaglercraft minecraft main" aria-label="Open E-Craft (Main) in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#498c57">CRAFT</span>
-						<span class="green-eggs-game-info"><strong>E-Craft (Main)</strong><small>Block-building · Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://z10p.github.io/slope/" data-search="slope runner rolling" aria-label="Open Slope in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#3eaa88">SLOPE</span>
-						<span class="green-eggs-game-info"><strong>Slope</strong><small>Fast arcade · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
-					</button>
-					<button type="button" class="green-eggs-game" data-proxy-url="https://pixelsuft.github.io/hl/xash.html#150" data-search="half life xash3d xash" aria-label="Open Half-Life (Xash3D) in Seuss Browser">
-						<span class="green-eggs-game-icon" style="background:#d67a33">HL</span>
-						<span class="green-eggs-game-info"><strong>Half-Life (Xash3D)</strong><small>Classic 3D action · Open in Seuss Browser</small></span>
-						<span class="green-eggs-game-chevron" aria-hidden="true">›</span>
+					<button type="button" class="library-card" data-proxy-url="https://heyitsheart.github.io/sm3das/64/">
+						<span class="library-icon" style="background:#e4523f;color:white">SM64</span>
+						<strong>Super Mario 64</strong>
+						<span>Unofficial browser port · hosted externally · original-site option provided</span>
 					</button>
 				</div>
-				<p class="green-eggs-empty" id="green-eggs-empty" hidden>No games match that search. Try another name.</p>
-				<p class="green-eggs-notice">Games open in Seuss Browser with compatibility settings for WebAssembly and saved data. If a game is blank or blocked, choose its <strong>Play on original website</strong> link. External game servers and browser restrictions remain outside this site's control.</p>
-			</section>
+				<p class="library-footnote">Nintendo 64 Classics on Nintendo Switch / Switch 2 require Nintendo Switch Online + Expansion Pack and supported hardware. This website does not supply commercial cartridge files or Nintendo's subscription.</p>
+			</div>
 		</div>
 	</dialog>
 
@@ -857,8 +667,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261107-more-gamefixes1"></script>
-  <script src="retro-ui.js?v=20261107-more-gamefixes1"></script>
+	<script src="app.js?v=20261107-retro-console-only1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
