@@ -1,9 +1,11 @@
 # Dr. Seuss Search
 
-> **Current Games Library (November 7, 2026): console titles only.**
+> **Current Games Library (November 7, 2026): console titles + WASM.RIP ports.**
 > The AI-made Retro Arcade (22 mini-games), Offline Arcade (five games),
-> and combined offline hub were deleted from this repository, and their
-> links were removed from Games. NES/N64/PS1 homebrew remains available.
+> and combined offline hub remain deleted. NES/N64/PS1 homebrew is
+> still available alongside a new standalone-in-menu **WASM.RIP Games**
+> category with all 43 browser-port entries from the community's
+> public games.json snapshot.
 > 24 famous commercial Nintendo 64 titles are listed under
 > **Famous N64 Classics** with links to Nintendo's official collection;
 > these are **not free browser ROMs**. Playing through Nintendo's
@@ -470,3 +472,36 @@ https://www.nintendo.com/us/store/products/nintendo-64-nintendo-classics-switch/
 The first-party worker now only caches the remaining console pages and
 the standalone PC DOS player, and removes the three retired homemade
 pages from older browser cache versions when it activates.
+
+
+## WASM.RIP Games category (November 7, 2026)
+
+The main **Games** dialog now contains a dedicated **WASM.RIP Games**
+category, distinct from the existing NES/N64/PS1 console categories.
+It includes **all 43 unique game URLs** from the wasm.rip community's public
+`games.json` source, including **17 featured** entries (not just the
+homepage's default Featured filter). This is a dated snapshot of:
+https://github.com/wasmdotrip/wasm.rip/blob/main/games.json
+
+- The category has a search by title/porter and All/Featured filter.
+- Clicking a card uses the existing Seuss Browser site-tab launcher,
+  explicitly applying the account and destination-policy checks before
+  loading a third-party game. No blanket third-party proxy or policy
+  exception was added.
+- Every game card also offers **Play on original website** as a fallback,
+  guarded by the same account/site policy check before navigation.
+- 41 entries use URL paths under `https://wasm.rip/`; the source list's
+  two externally hosted entries, Kerbal Space Program and Horsey Game,
+  keep their original provider URLs.
+- The site **only links to the remote ports**. No game files, executable
+  payloads, third-party scripts, or proprietary artwork were copied into
+  this repository. Rights to third-party commercial game ports were not
+  independently verified.
+- The original AI-made offline mini-games remain deleted. The PC VM and
+  genuine NES/N64/PS1 programs are unchanged.
+- A game may fail when its provider rejects framing, needs additional
+  browser features, downloads large assets, changes its link, or requires
+  online services; the presence of a catalog tile is not a live gameplay
+  guarantee. The source catalog may also be updated after this snapshot.
+
+No paid service or account migration is needed.

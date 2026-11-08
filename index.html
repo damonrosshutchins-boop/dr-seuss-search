@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261107-super-mario-gamefix1" />
+	<link rel="stylesheet" href="style.css?v=20261107-wasmrip-43-1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -274,18 +274,23 @@
 	<dialog id="games-dialog" class="settings game-library">
 		<div class="library-content">
 			<header class="library-heading">
-				<div><p class="kicker">NES · Nintendo 64 · PlayStation 1</p>
-					<h2>Retro Console Games</h2></div>
+				<div><p class="kicker">Retro consoles · wasm.rip browser ports</p>
+					<h2>Games Library</h2></div>
 				<button type="button" class="chip" id="games-close">Close</button>
 			</header>
 			<div id="games-main-view">
-				<p class="library-note">Only console games and their homebrew programs are listed here. The homemade arcade-style mini-games have been removed. Well-known commercial N64 games are listed separately with official access information—not unlicensed ROM downloads.</p>
+				<p class="library-note">Choose genuine NES/N64/PS1 programs or the separate wasm.rip browser-ports category. Homemade arcade mini-games remain removed. External games run from their providers’ sites and may not work inside an embedded frame.</p>
 				<div class="library-offline-tools" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">
 					<button class="chip" id="library-enable-offline" type="button">Save console pages for offline use</button>
 					<a href="nes-homebrew.html">Play the self-contained NES game</a>
 					<span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Saves the NES, console chooser and existing VM DOS player pages. Downloaded console cores and online games may still need Wi-Fi.</span>
 				</div>
 				<div class="library-grid">
+          <button type="button" class="library-card wasm-rip-launcher" id="open-wasm-rip" aria-controls="wasm-rip-view" aria-expanded="false">
+            <span class="library-icon wasm-rip-icon">WASM</span>
+            <strong>WASM.RIP Games</strong>
+            <span>All 43 browser ports · separate searchable category</span>
+          </button>
 					<button type="button" class="library-card" data-local-url="console-emulators.html#classics">
 						<span class="library-icon" style="background:#e8b548;color:#1d1a17">64</span>
 						<strong>Famous N64 Classics</strong>
@@ -319,6 +324,244 @@
 				</div>
 				<p class="library-footnote">Nintendo 64 Classics on Nintendo Switch / Switch 2 require Nintendo Switch Online + Expansion Pack and supported hardware. This website does not supply commercial cartridge files or Nintendo's subscription.</p>
 			</div>
+      <section id="wasm-rip-view" class="wasm-rip-view" aria-label="WASM.RIP games category" hidden>
+        <header class="wasm-rip-heading">
+          <button type="button" class="chip" id="wasm-rip-back">← Back to Games</button>
+          <div>
+            <p class="kicker">WASM.RIP · browser ports</p>
+            <h3>All 43 WASM.RIP Games</h3>
+            <p>From the community's public games list. These games run on wasm.rip or their listed external providers—not from files copied into Seuss Search.</p>
+          </div>
+          <a href="https://wasm.rip/" target="_blank" rel="noopener noreferrer">Source catalog</a>
+        </header>
+        <label class="wasm-rip-search-label" for="wasm-rip-search">Search by game or porter
+          <input type="search" id="wasm-rip-search" placeholder="Search PEAK, Cuphead, Stardew Valley…" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="wasm-rip-filters" role="group" aria-label="Filter browser ports">
+          <button type="button" class="chip" data-wasm-filter="all" aria-pressed="true">All 43</button>
+          <button type="button" class="chip" data-wasm-filter="featured" aria-pressed="false">Featured 17</button>
+        </div>
+        <p id="wasm-rip-count" role="status" aria-live="polite">43 game ports</p>
+        <div class="library-grid wasm-rip-grid" id="wasm-rip-grid">
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/BATIM/index.html" data-wasm-featured="1" data-wasm-search="bendy and the ink machine crackers &amp; slqnt">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Bendy and the Ink Machine</strong>
+  <span>Featured · Port by crackers &amp; slqnt · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/miside/miside.html" data-wasm-featured="1" data-wasm-search="miside crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>MiSide</strong>
+  <span>Featured · Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/birthdaybash/index.html" data-wasm-featured="0" data-wasm-search="baldi&#39;s basics birthday bash crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Baldi&#39;s Basics Birthday Bash</strong>
+  <span>Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/boilnoodles/index.html" data-wasm-featured="0" data-wasm-search="boil noodles at night sexyplankton">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Boil Noodles at Night</strong>
+  <span>Port by sexyplankton · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/cuphead/index.html" data-wasm-featured="1" data-wasm-search="cuphead crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Cuphead</strong>
+  <span>Featured · Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/cheese-rolling/index.html" data-wasm-featured="0" data-wasm-search="cheese rolling sexyplankton">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Cheese Rolling</strong>
+  <span>Port by sexyplankton · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/bpac/index.html" data-wasm-featured="0" data-wasm-search="brotato paws n&#39; claws dude">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Brotato Paws n&#39; Claws</strong>
+  <span>Port by dude · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/oneshot-wme/index.html" data-wasm-featured="1" data-wasm-search="one shot: world machine edition shayder">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>One Shot: World Machine Edition</strong>
+  <span>Featured · Port by shayder · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/Helltaker/helltaker.html" data-wasm-featured="0" data-wasm-search="helltaker shxyder">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Helltaker</strong>
+  <span>Port by shxyder · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/stardewvalley/index.html" data-wasm-featured="1" data-wasm-search="stardew valley cirsius">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Stardew Valley</strong>
+  <span>Featured · Port by cirsius · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/diceAmillion/diceamillion.html" data-wasm-featured="0" data-wasm-search="dice a million notrexed">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Dice A Million</strong>
+  <span>Port by NotRexed · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/MFDW2/index.html" data-wasm-featured="0" data-wasm-search="the man from the window 2 dude">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>The Man From The Window 2</strong>
+  <span>Port by dude · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/FEZ/fez.html" data-wasm-featured="0" data-wasm-search="fez gurtmuncher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Fez</strong>
+  <span>Port by gurtmuncher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/beatblock/index.html" data-wasm-featured="0" data-wasm-search="beatblock sunsuke">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Beatblock</strong>
+  <span>Port by sunsuke · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/Azahar/index.html" data-wasm-featured="1" data-wasm-search="azahar sexyplankton">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Azahar</strong>
+  <span>Featured · Port by sexyplankton · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/happy-room/index.html" data-wasm-featured="0" data-wasm-search="happy room gurtmuncher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Happy Room</strong>
+  <span>Port by gurtmuncher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/inscryption/index.html" data-wasm-featured="1" data-wasm-search="inscryption reeyuki">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Inscryption</strong>
+  <span>Featured · Port by reeyuki · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/lob-corp/index.html" data-wasm-featured="1" data-wasm-search="lobotomy corporation reeyuki">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Lobotomy Corporation</strong>
+  <span>Featured · Port by reeyuki · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/aoc/index.html" data-wasm-featured="0" data-wasm-search="ages of conflict sexyplankton">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Ages of Conflict</strong>
+  <span>Port by sexyplankton · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/wtl/index.html" data-wasm-featured="0" data-wasm-search="while true: learn() dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>While True: Learn()</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/plauge/index.html" data-wasm-featured="0" data-wasm-search="plauge inc reeyuki">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Plauge Inc</strong>
+  <span>Port by reeyuki · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/granny/granny3.html" data-wasm-featured="1" data-wasm-search="granny 3 crax">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Granny 3</strong>
+  <span>Featured · Port by crax · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/peak/PEAK.html" data-wasm-featured="1" data-wasm-search="peak dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>PEAK</strong>
+  <span>Featured · Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/amongus/index.html" data-wasm-featured="1" data-wasm-search="among us (click for more info)">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Among Us</strong>
+  <span>Featured · Port by (click for more info) · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/gta3/index.html" data-wasm-featured="1" data-wasm-search="gta 3 shxyder">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>GTA 3</strong>
+  <span>Featured · Port by shxyder · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/scp/index.html" data-wasm-featured="0" data-wasm-search="scp: containment breach q8j">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>SCP: Containment Breach</strong>
+  <span>Port by q8j · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/ClusterTruck/clustertruck.html" data-wasm-featured="1" data-wasm-search="clustertruck notrexed">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>ClusterTruck</strong>
+  <span>Featured · Port by NotRexed · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/HowToFish/HowToFish.html" data-wasm-featured="1" data-wasm-search="how to fish notrexed">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>How To Fish</strong>
+  <span>Featured · Port by NotRexed · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/gstrike/index.html" data-wasm-featured="0" data-wasm-search="global strike (cs 1.6) crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Global Strike (CS 1.6)</strong>
+  <span>Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/lethal/index.html" data-wasm-featured="1" data-wasm-search="lethal company crax">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Lethal Company</strong>
+  <span>Featured · Port by crax · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/cc/index.html" data-wasm-featured="0" data-wasm-search="crashout crew x8r">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Crashout Crew</strong>
+  <span>Port by x8r · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/rimworld/index.html" data-wasm-featured="0" data-wasm-search="rimworld sexyplankton">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Rimworld</strong>
+  <span>Port by sexyplankton · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/TMFDS/index.html" data-wasm-featured="0" data-wasm-search="the message from deep space dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>The Message From Deep space</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/dudestop/index.html" data-wasm-featured="0" data-wasm-search="dude, stop dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Dude, Stop</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://ksp.ishotupa.school/" data-wasm-featured="1" data-wasm-search="kerbal space program crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Kerbal Space Program</strong>
+  <span>Featured · Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/hcr/index.html" data-wasm-featured="0" data-wasm-search="hill climb racing notrexed">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Hill Climb Racing</strong>
+  <span>Port by NotRexed · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/toasterball/index.html" data-wasm-featured="0" data-wasm-search="toasterball dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Toasterball</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/superflight/index.html" data-wasm-featured="0" data-wasm-search="superflight zay">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Superflight</strong>
+  <span>Port by zay · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/ktane/index.html" data-wasm-featured="0" data-wasm-search="keep talking and nobody explodes zay">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Keep Talking And Nobody Explodes</strong>
+  <span>Port by zay · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://woahhcrackers.github.io/HorseyGameWeb" data-wasm-featured="0" data-wasm-search="horsey game crackers">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Horsey Game</strong>
+  <span>Port by crackers · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/ting-wd/index.html" data-wasm-featured="0" data-wasm-search="there is no game: wrong dimension dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>There Is No Game: Wrong Dimension</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/papersplease/index.html" data-wasm-featured="0" data-wasm-search="papers, please dasher">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Papers, Please</strong>
+  <span>Port by dasher · original site</span>
+</button>
+<button type="button" class="library-card wasm-rip-game" data-proxy-url="https://wasm.rip/files/meccha-chameleon/index.html" data-wasm-featured="1" data-wasm-search="meccha chameleon crax">
+  <span class="library-icon wasm-rip-icon">WASM</span>
+  <strong>Meccha Chameleon</strong>
+  <span>Featured · Port by crax · original site</span>
+</button>
+        </div>
+        <p id="wasm-rip-empty" hidden>No games match your search.</p>
+        <p class="library-note">Click a game to try it inside Seuss Browser, or choose “Play on original website” below its card if the browser cannot embed it. Some ports need Wi-Fi, large downloads, or extra setup. External ports and publisher permissions haven't been independently verified. The game files are not copied to this site.</p>
+      </section>
 		</div>
 	</dialog>
 
@@ -667,7 +910,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261107-retro-console-only1"></script>
+	<script src="app.js?v=20261107-wasmrip-43-1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
