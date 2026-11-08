@@ -1789,8 +1789,22 @@ offlineButton.addEventListener("click", async () => {
       scope: BASE.pathname, updateViaCache:"none"
     });
     await navigator.serviceWorker.ready;
-    const worker = registration.active;
-    if (!worker) throw new Error("Offline worker is not active yet. Reload and try again.");
+    // On an update registration.active can still point at the old worker.
+    // Wait until the exact new version is activated before posting a message.
+    const expected = new URL(PROXY_WORKER_URL, location.origin).href;
+    const worker = await new Promise((resolve,reject) => {
+      const started = Date.now();
+      const interval = setInterval(() => {
+        const candidate = registration.active;
+        if (candidate?.state === "activated" && candidate.scriptURL === expected) {
+          clearInterval(interval);
+          resolve(candidate);
+        } else if (Date.now()-started>16000) {
+          clearInterval(interval);
+          reject(new Error("The updated offline worker did not activate. Reload and try again."));
+        }
+      }, 130);
+    });
     const reply = await new Promise((resolve,reject) => {
       const channel = new MessageChannel();
       const timeout = setTimeout(() => {
