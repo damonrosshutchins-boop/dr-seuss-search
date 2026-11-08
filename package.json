@@ -2,7 +2,14 @@
   "name": "dr-seuss-search-render",
   "private": true,
   "version": "1.0.0",
-  "description": "Render-hosted Scramjet website",
-  "scripts": {"start":"node server.js"},
-  "engines":{"node":">=20"}
+  "description": "Render-hosted Scramjet website and optional restricted Wisp relay",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@mercuryworkshop/wisp-js": "0.5.3"
+  }
 }
