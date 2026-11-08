@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, before, after } from "node:test";
 import { spawn } from "node:child_process";
-import { createServer } from "node:net";
+import { createServer, connect } from "node:net";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 let processHandle;
 let baseUrl;
+let serverPort;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 before(async () => {
@@ -17,6 +18,7 @@ before(async () => {
   reservation.listen(0, "127.0.0.1");
   await once(reservation, "listening");
   const port = reservation.address().port;
+  serverPort = port;
   reservation.close();
   await once(reservation, "close");
   baseUrl = `http://127.0.0.1:${port}`;
@@ -90,4 +92,57 @@ test("Scramjet's worker activation is not blocked on optional offline downloads"
   const install = src.slice(start, end);
   assert.match(install, /self\.skipWaiting\(\)/);
   assert.doesNotMatch(install, /prepareOfflineGames\(\)/);
+});
+
+// A real WebSocket handshake verifies the optional Render Wisp endpoint and
+// ensures it is not exposed to arbitrary browser origins.
+function upgradeRequest(path, origin) {
+  return new Promise((resolve, reject) => {
+    const socket = connect(serverPort, '127.0.0.1');
+    const timeout = setTimeout(() => { socket.destroy(); reject(new Error('WebSocket upgrade timed out')); }, 6500);
+    socket.once('error', error => { clearTimeout(timeout); reject(error); });
+    socket.once('connect', () => {
+      socket.write('GET ' + path + ' HTTP/1.1\\r\\n' +
+        'Host: 127.0.0.1:' + serverPort + '\\r\\n' +
+        'Origin: ' + origin + '\\r\\n' +
+        'Upgrade: websocket\\r\\nConnection: Upgrade\\r\\n' +
+        'Sec-WebSocket-Version: 13\\r\\n' +
+        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\\r\\n\\r\\n');
+    });
+    socket.once('data', data => {
+      clearTimeout(timeout);
+      const firstLine = data.toString('latin1').split('\\r\\n',1)[0];
+      socket.destroy();
+      resolve(firstLine);
+    });
+  });
+}
+
+test('Render offers Wisp WebSocket upgrade to the GitHub Pages origin', async () => {
+  assert.match(
+    await upgradeRequest('/wisp/', 'https://damonrosshutchins-boop.github.io'),
+    /^HTTP\\/1\\.1 101 /
+  );
+});
+
+test('Render rejects WebSocket upgrades from unrelated browser origins', async () => {
+  assert.match(
+    await upgradeRequest('/wisp/', 'https://unrelated.example'),
+    /^HTTP\\/1\\.1 403 /
+  );
+});
+
+test('Render rejects WebSocket upgrades outside the Wisp endpoint', async () => {
+  assert.match(
+    await upgradeRequest('/other/', 'https://damonrosshutchins-boop.github.io'),
+    /^HTTP\\/1\\.1 404 /
+  );
+});
+
+test('GitHub Pages keeps the original Wisp default and adds Render as optional', async () => {
+  const app = await readFile(join(projectRoot, 'app.js'), 'utf8');
+  const html = await readFile(join(projectRoot, 'index.html'), 'utf8');
+  assert.match(app, /wisp: "wss:\/\/wisp\\.mercurywork\\.shop\/"/);
+  assert.match(html, /Render Wisp \\(optional/);
+  assert.match(html, /wss:\/\/seuss-scramjet-private\\.onrender\\.com\/wisp\//);
 });
