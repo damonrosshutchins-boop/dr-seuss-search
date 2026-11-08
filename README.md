@@ -362,3 +362,14 @@ Custom Loader DuckDuckGo search now presents the real search URL as a direct
 link that opens the official search site. It does **not** purport to implement
 GUST's separate WebAssembly HTTP-over-Wisp transport or evade browser
 embedding rules; the site's existing domain policy check stays in place.
+
+
+## DOS Arcade startup and graphics repair
+
+The VM DOS Game Arcade and the dedicated dos-arcade.html player now wait for js-dos's documented ci-ready event before announcing that a game is running. The former code reported success immediately after calling Dos(), even if the WASM backend had not started.
+
+Canvas rendering is now the default instead of WebGL. Both interfaces have a compatibility retry that disables the emulator worker for browsers that cannot start it, while the VM also offers a dedicated-player button. Startup timeouts and errors are visible. The player viewport has a minimum size; changing games waits for the previous emulator to stop.
+
+All preloaded game bundles remain unchanged. The offline HTML service-worker cache is now version 3, with v2 and v1 fallbacks, so the revised dedicated page is installed when online. No new ROM files or paid services are needed.
+
+Implementation is verified by simulated DOM, event, and cache checks; actual WebAssembly playback on a user's device still requires a live browser test.
