@@ -93,9 +93,14 @@ async function queryDb(mode,fn){
  const db=await openDb();
  return new Promise((resolve,reject)=>{
   const tx=db.transaction("games",mode),r=fn(tx.objectStore("games"));
-  r.onsuccess=()=>resolve(r.result);
+  let result;
+  r.onsuccess=()=>{result=r.result};
   r.onerror=()=>reject(r.error||new Error("Storage error"));
+  // Resolve only after commit: a successful put request alone does not
+  // guarantee the browser actually saved the game under storage pressure.
+  tx.oncomplete=()=>resolve(result);
   tx.onabort=()=>reject(tx.error||new Error("Storage transaction failed"));
+  tx.onerror=()=>reject(tx.error||new Error("Storage transaction failed"));
  });
 }
 const getSaved=file=>queryDb("readonly",store=>store.get(file));
