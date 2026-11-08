@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#193343">
+<title>Offline Retro Games · Dr. Seuss Search</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 85% 0,#234e4b,transparent 45%),#102432;color:#effff6;font:500 16px/1.5 system-ui,-apple-system,sans-serif}
+header{background:#203c46;border-bottom:2px solid #567f88;padding:23px clamp(15px,4vw,40px)}
+.wrap{max-width:980px;margin:auto}
+.kicker{color:#7bf8c8;text-transform:uppercase;letter-spacing:.14em;font-size:.75rem;font-weight:900}
+h1{margin:4px 0;font-size:clamp(1.7rem,5vw,2.8rem);line-height:1.15}
+p{color:#cbdce0;margin:6px 0 0}
+main{max-width:980px;margin:auto;padding:20px clamp(15px,4vw,40px) 40px}
+.note{background:#1d3d48;border:1px solid #59808a;border-radius:12px;padding:12px 15px;margin-bottom:18px}
+.note p{margin:4px 0}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.quick a{background:#b3f7d6;color:#143039;border-radius:10px;padding:9px 12px;text-decoration:none;font-weight:850}
+label{display:grid;gap:5px;font-weight:800;margin:20px 0 10px}
+input{width:100%;max-width:440px;border:2px solid #7ba4aa;border-radius:9px;padding:11px;background:#0d2835;color:white;font:inherit}
+.game-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px}
+.game{border:1px solid #487480;border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center;background:#1c3a49;color:white;text-decoration:none;min-height:80px}
+.game:hover,.game:focus-visible{background:#29615b;outline:2px solid #a5f2d4}
+.game .emoji{font-size:1.8rem}
+.game span:last-child{display:grid;gap:3px}
+.game small{font-size:.78rem;color:#b3d9d7}
+#count{font-weight:800;color:#a5f2d4;margin-bottom:9px}
+footer{margin:25px auto;font-size:.87rem;color:#c5d9e2;text-align:center}
+</style>
+</head><body>
+<header><div class="wrap">
+<div class="kicker">Offline Arcade · 28 no-setup games</div>
+<h1>Retro Games Without Wi-Fi</h1>
+<p>Open a game directly. The game pages use no streaming services or external runtime files.</p>
+</div></header>
+<main>
+<div class="note">
+<p><strong>To play offline in this browser:</strong> While connected, open Games → Enable offline access once. Then bookmark this page so you can reopen it with Wi-Fi off, even if the main Seuss Search app is unavailable.</p>
+<p><strong>For the most reliable fully offline option:</strong> Download the arcade HTML files below while online. Open them from your device whenever you want—no service worker or account is needed for those downloaded files.</p>
+</div>
+<div class="quick">
+<a href="retro-arcade.html" download="Retro-Arcade-22-Games.html">Download 22-game arcade</a>
+<a href="offline-arcade.html" download="Offline-Arcade-5-Games.html">Download five-game arcade</a>
+<a href="nes-homebrew.html" download="NES-LJ65-Homebrew.html">Download NES LJ65</a>
+</div>
+<label for="search">Find an offline game
+<input id="search" type="search" placeholder="Search 28 offline games…" autocomplete="off"></label>
+<p id="count" role="status">28 games available</p>
+<div id="games" class="game-grid"><a class="game" data-search="brick breaker" href="retro-arcade.html#brick"><span class="emoji">🧱</span><span><strong>Brick Breaker</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="falling blocks" href="retro-arcade.html#blocks"><span class="emoji">🟦</span><span><strong>Falling Blocks</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="pixel invaders" href="retro-arcade.html#invaders"><span class="emoji">👾</span><span><strong>Pixel Invaders</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="meteor pilot" href="retro-arcade.html#meteors"><span class="emoji">☄️</span><span><strong>Meteor Pilot</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="pixel flier" href="retro-arcade.html#flap"><span class="emoji">🐦</span><span><strong>Pixel Flier</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="frog crossing" href="retro-arcade.html#frog"><span class="emoji">🐸</span><span><strong>Frog Crossing</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="road dash" href="retro-arcade.html#racer"><span class="emoji">🏎️</span><span><strong>Road Dash</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="fruit catcher" href="retro-arcade.html#catcher"><span class="emoji">🍓</span><span><strong>Fruit Catcher</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="moon landing" href="retro-arcade.html#lander"><span class="emoji">🚀</span><span><strong>Moon Landing</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="labyrinth" href="retro-arcade.html#maze"><span class="emoji">🗺️</span><span><strong>Labyrinth</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="neon dodger" href="retro-arcade.html#dodge"><span class="emoji">💎</span><span><strong>Neon Dodger</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="sky shield" href="retro-arcade.html#missile"><span class="emoji">🛡️</span><span><strong>Sky Shield</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="whack-a-critter" href="retro-arcade.html#whack"><span class="emoji">🐭</span><span><strong>Whack-a-Critter</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="pattern memory" href="retro-arcade.html#simon"><span class="emoji">🔮</span><span><strong>Pattern Memory</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="mine finder" href="retro-arcade.html#mines"><span class="emoji">💣</span><span><strong>Mine Finder</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="four in a row" href="retro-arcade.html#connect"><span class="emoji">🔴</span><span><strong>Four in a Row</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="noughts &amp; crosses" href="retro-arcade.html#ttt"><span class="emoji">❎</span><span><strong>Noughts &amp; Crosses</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="lights out" href="retro-arcade.html#lights"><span class="emoji">💡</span><span><strong>Lights Out</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="word scramble" href="retro-arcade.html#word"><span class="emoji">🔤</span><span><strong>Word Scramble</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="reflex test" href="retro-arcade.html#reaction"><span class="emoji">⚡</span><span><strong>Reflex Test</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="higher or lower" href="retro-arcade.html#higher"><span class="emoji">🃏</span><span><strong>Higher or Lower</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="tower stacker" href="retro-arcade.html#hanoi"><span class="emoji">🪵</span><span><strong>Tower Stacker</strong><small>Retro cabinet · no external assets</small></span></a>
+<a class="game" data-search="snake" href="offline-arcade.html#snake"><span class="emoji">🐍</span><span><strong>Snake</strong><small>Classic arcade · no external assets</small></span></a>
+<a class="game" data-search="merge tiles" href="offline-arcade.html#merge"><span class="emoji">🔢</span><span><strong>Merge Tiles</strong><small>Classic arcade · no external assets</small></span></a>
+<a class="game" data-search="paddle rally" href="offline-arcade.html#pong"><span class="emoji">🏓</span><span><strong>Paddle Rally</strong><small>Classic arcade · no external assets</small></span></a>
+<a class="game" data-search="memory match" href="offline-arcade.html#memory"><span class="emoji">🃏</span><span><strong>Memory Match</strong><small>Classic arcade · no external assets</small></span></a>
+<a class="game" data-search="15 puzzle" href="offline-arcade.html#slide"><span class="emoji">🧩</span><span><strong>15 Puzzle</strong><small>Classic arcade · no external assets</small></span></a>
+<a class="game" data-search="nes lj65" href="nes-homebrew.html"><span class="emoji">🎮</span><span><strong>NES LJ65</strong><small>NES homebrew · no external assets</small></span></a></div>
+<footer>Games marked offline have no runtime network requests. Cached browser pages can be cleared by your browser. Saved standalone HTML files do not depend on browser caches.</footer>
+</main>
+<script>
+(function(){
+ const search=document.getElementById("search");
+ const games=[...document.querySelectorAll(".game")];
+ const count=document.getElementById("count");
+ search.addEventListener("input",function(){
+  const q=search.value.trim().toLowerCase();
+  let matches=0;
+  for(const g of games){
+   const ok=g.getAttribute("data-search").includes(q);
+   g.hidden=!ok;if(ok)matches++;
+  }
+  count.textContent=matches+" of "+games.length+" games available";
+ });
+})();
+</script>
+</body></html>
