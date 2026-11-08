@@ -21,6 +21,9 @@ button{font:inherit;cursor:pointer}
 .player-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
 #message{color:#78eec4;font-weight:800;min-height:25px;margin:8px 0}
 #stop{background:#ffdb86;border:0;border-radius:10px;padding:9px 16px;font-weight:900;color:#192431}
+#compat{background:#8cddcc;border:0;border-radius:10px;padding:9px 16px;font-weight:850;color:#182d36}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#compat:disabled{opacity:.5;cursor:default}
 .note{color:#bdd4e5;font-size:.91rem;margin:14px 0}a{color:#8ee6d1}
 button:focus-visible,a:focus-visible{outline:3px solid #ffd67b;outline-offset:3px}
 </style>
@@ -29,7 +32,9 @@ button:focus-visible,a:focus-visible{outline:3px solid #ffd67b;outline-offset:3p
 <header><div class="wrap"><h1>Ready-to-play DOS Arcade</h1><p>Five preloaded games · DOSBox emulator · no ROM upload, BIOS setup, account, or extra game download required.</p></div></header>
 <main>
 <div class="grid" id="choices"></div>
-<div class="player-head"><h2 id="title">Select a game</h2><button type="button" id="stop">Stop game</button></div>
+<div class="player-head"><h2 id="title">Select a game</h2>
+ <div class="controls"><button type="button" id="compat">Retry compatibility mode</button>
+ <button type="button" id="stop">Stop game</button></div></div>
 <p id="message" role="status">Choose one of the bundled games above.</p>
 <div id="player" aria-label="DOS emulator game screen"></div>
 <p class="note">Uses the locally bundled js-dos/DOSBox engine and the existing free-distribution/shareware game bundles. No external game service is contacted by this page. To use it offline, choose <strong>Prepare emulator offline</strong> in the Retro Arcade & Emulators category while connected. The files occupy approximately 23 MB and remain subject to browser storage limits.</p>
@@ -46,30 +51,47 @@ const games=[
 {id:"heretic",title:"Heretic (Shareware)",description:"A fantasy-themed DOS action game",file:"heretic.jsdos",tip:"Arrows to move, Ctrl to fire."},
 {id:"quake",title:"Quake (Shareware)",description:"The shareware episode of the 1996 3D game",file:"quake.jsdos",tip:"Press Esc for the menu; gamepad support varies."}
 ];
-const choices=document.getElementById("choices"),screen=document.getElementById("player"),message=document.getElementById("message");
-let runner=null,current=null,generation=0;
-function stop(){
- generation++;
- if(runner){try{runner.stop()}catch{}runner=null}
+const choices=document.getElementById("choices"),screen=document.getElementById("player"),
+ message=document.getElementById("message"),compatBtn=document.getElementById("compat");
+let runner=null,current=null,generation=0,safeMode=false,startTimer=null,gameReady=false;
+compatBtn.disabled=true;
+function clearTimer(){if(startTimer){clearTimeout(startTimer);startTimer=null}}
+async function stop(){
+ const token=++generation;
+ clearTimer();
+ const old=runner;
+ runner=null;current=null;gameReady=false;
  screen.replaceChildren();
- current=null;
  document.getElementById("title").textContent="Select a game";
  for(const btn of choices.querySelectorAll("button"))btn.setAttribute("aria-pressed","false");
+ compatBtn.disabled=true;
  message.textContent="Emulator stopped.";
+ if(old){try{await old.stop()}catch{}}
+ return token;
 }
-document.getElementById("stop").addEventListener("click",stop);
+document.getElementById("stop").addEventListener("click",()=>{void stop()});
+compatBtn.addEventListener("click",()=>{
+ if(!current)return;
+ safeMode=!safeMode;
+ void play(current);
+});
 async function play(item){
- stop();const seq=generation;current=item;
+ const seq=await stop();
+ if(seq!==generation)return;
+ current=item;
+ const compat=safeMode;
  document.getElementById("title").textContent=item.title;
- const button=choices.querySelector('[data-id="'+item.id+'"]');
- if(button)button.setAttribute("aria-pressed","true");
- message.textContent="Loading "+item.title+"… "+item.tip;
+ const selected=choices.querySelector('[data-id="'+item.id+'"]');
+ if(selected)selected.setAttribute("aria-pressed","true");
+ compatBtn.disabled=false;
+ compatBtn.textContent=compat?"Retry with standard worker":"Retry compatibility mode";
+ message.textContent="Loading "+item.title+(compat?" with compatibility settings":"")+"… "+item.tip;
  if(typeof window.Dos!=="function"){
-  message.textContent="The bundled DOSBox engine could not load. Check that its assets have been saved if you are offline.";
+  message.textContent="The built-in DOSBox engine did not load. Refresh the site, then retry.";
   return;
  }
  const element=document.createElement("div");
- element.style.cssText="width:100%;height:100%;";
+ element.style.cssText="width:100%;height:100%;min-height:360px";
  screen.append(element);
  try{
   const instance=window.Dos(element,{
@@ -77,15 +99,36 @@ async function play(item){
    pathPrefix:new URL("vm/jsdos/emulators/",document.baseURI).href,
    theme:"dark",backend:"dosbox",backendLocked:true,
    noCloud:true,autoStart:true,countDownStart:0,kiosk:true,
-   autoSave:false,workerThread:true,mouseCapture:true,
-   imageRendering:"pixelated",renderAspect:"4/3",volume:0.8
+   autoSave:false,workerThread:!compat,offscreenCanvas:false,
+   renderBackend:"canvas",mouseCapture:true,
+   imageRendering:"pixelated",renderAspect:"4/3",volume:0.8,
+   onEvent:(event,ci)=>{
+    if(seq!==generation)return;
+    if(event==="emu-ready")message.textContent="DOSBox emulator loaded. Starting "+item.title+"…";
+    if(event==="bnd-play")message.textContent="Opening "+item.title+" game bundle…";
+    if(event==="ci-ready"){
+     gameReady=true;clearTimer();
+     message.textContent=item.title+" is running. Click the game window to control it. "+item.tip;
+     try{ci?.events?.()?.onMessage?.((kind,...details)=>{
+      if(seq===generation&&kind==="error")
+       message.textContent="DOSBox error: "+details.join(" ").slice(0,240)
+     })}catch{}
+    }
+   }
   });
   if(seq!==generation){try{await instance.stop()}catch{}return}
   runner=instance;
-  message.textContent=item.title+" started. Click the game window to control it. "+item.tip;
+  if(!gameReady){
+   startTimer=setTimeout(()=>{
+    startTimer=null;
+    if(seq===generation&&!gameReady){
+     message.textContent="DOSBox has not started "+item.title+". Use the compatibility retry or try another game."
+    }
+   },25000);
+  }
  }catch(error){
   if(seq!==generation)return;
-  message.textContent="The emulator could not start: "+(error?.message||error);
+  message.textContent="DOSBox failed: "+(error?.message||error);
  }
 }
 for(const game of games){
@@ -95,7 +138,7 @@ for(const game of games){
  b.append(strong,small);b.addEventListener("click",()=>{void play(game)});
  choices.append(b);
 }
-window.addEventListener("pagehide",stop);
+window.addEventListener("pagehide",()=>{void stop()});
 const hash=location.hash.replace(/^#/,"");
 if(games.some(g=>g.id===hash))void play(games.find(g=>g.id===hash));
 })();
