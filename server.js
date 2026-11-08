@@ -103,6 +103,13 @@ const server=http.createServer((req,res)=>{
      decoded.split('/').some(part=>part==='..'||part.startsWith('.'))){
     headers(res,403);res.end();return;
   }
+  // Virtual Scramjet paths must be handled by the browser service worker,
+  // not by Render's static file handler.
+  if(decoded.startsWith('/scramjet/')){
+    headers(res,503,{'Content-Type':'text/plain; charset=utf-8'});
+    res.end('Scramjet service worker did not intercept this URL. Return to the Render homepage, reload, and retry Scramjet.');
+    return;
+  }
   const relative=decoded==='/'?'index.html':decoded.replace(/^\/+/, '');
   if(blocked.has(relative)||relative.startsWith('.')){headers(res,403);res.end();return;}
   const filename=path.resolve(ROOT,relative);
@@ -111,7 +118,11 @@ const server=http.createServer((req,res)=>{
     if(err||!stat.isFile()){headers(res,404);res.end('Not found');return;}
     const ext=path.extname(filename).toLowerCase();
     if(!types[ext]){headers(res,403);res.end();return;}
-    headers(res,200,{'Content-Type':types[ext]});
+    // Render serves the script; the service worker runs in the browser.
+    const workerHeaders = filename===path.join(ROOT,'sw.js')
+      ? {'Service-Worker-Allowed':'/','Cache-Control':'no-cache, no-store, must-revalidate'}
+      : {};
+    headers(res,200,{'Content-Type':types[ext],...workerHeaders});
     if(req.method==='HEAD'){res.end();return;}
     fs.createReadStream(filename).pipe(res);
   });
