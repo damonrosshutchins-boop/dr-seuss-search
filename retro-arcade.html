@@ -238,16 +238,16 @@ function meteors(){
  return{stop,control};
 }
 function flap(){
- const [el,c]=canvas();let bird={y:178,vy:0},pipes=[],score=0,done=false,frames=0;
- function control(d){if(!done&&["up","action"].includes(d))bird.vy=-5.2}
+ const [el,c]=canvas();let bird={y:178,vy:0},pipes=[],score=0,done=false,frames=0,started=false;
+ function control(d){if(!done&&["up","action"].includes(d)){started=true;bird.vy=-5.2}}
  el.addEventListener("pointerdown",()=>control("action"));
  const stop=loop(dt=>{
- if(!done){frames+=dt;bird.vy+=.31*dt;bird.y+=bird.vy*dt;if(frames>105){pipes.push({x:500,gap:70+rand(180),done:false});frames=0}
+ if(!done&&started){frames+=dt;bird.vy+=.31*dt;bird.y+=bird.vy*dt;if(frames>72){pipes.push({x:500,gap:70+rand(180),done:false});frames=0}
  for(const p of pipes){p.x-=2.8*dt;if(!p.done&&p.x+55<110){p.done=true;score++}
  if(p.x<132&&p.x+55>93&&(bird.y< p.gap||bird.y>p.gap+120))done=true;}
  pipes=pipes.filter(p=>p.x>-60);if(bird.y<10||bird.y>350)done=true}
  rect(c,0,0,480,360,"#194154");for(const p of pipes){rect(c,p.x,0,55,p.gap,"#58d6a4");rect(c,p.x,p.gap+120,55,360-p.gap-120,"#58d6a4")}
- dot(c,110,bird.y,13,"#ffd35d");dot(c,114,bird.y-3,2,"#263b51");say("Gates passed "+score+(done?" · Game over":""))
+ dot(c,110,bird.y,13,"#ffd35d");dot(c,114,bird.y-3,2,"#263b51");say(!started?"Tap, click or press Space to start":("Gates passed "+score+(done?" · Game over":"")))
  });return{stop,control};
 }
 function frog(){
@@ -393,7 +393,10 @@ function connect(){
  function move(col){if(gameOver||!drop(col,1))return;paint();if(check(1)){gameOver=true;say("Four in a row · You win!");return}if(data.every(r=>r.every(Boolean))){gameOver=true;say("Draw game");return}
  const legal=Array.from({length:7},(_,i)=>i).filter(i=>!data[0][i]);
  let best=null;
- for(const who of [2,1])for(const i of legal){const row=data.findLastIndex(r=>!r[i]);if(row<0)continue;data[row][i]=who;const yes=check(who);data[row][i]=0;if(yes){best=i;break}if(best!==null)break}
+ for(const who of [2,1]){
+  for(const i of legal){const row=data.findLastIndex(r=>!r[i]);if(row<0)continue;data[row][i]=who;const yes=check(who);data[row][i]=0;if(yes){best=i;break}}
+  if(best!==null)break;
+ }
  drop(best??legal[rand(legal.length)],2);paint();if(check(2)){gameOver=true;say("Computer got four. New game to retry")}else say("Your turn · Drop a red token")}
  paint();say("Your turn · Drop a red token");return{}
 }
