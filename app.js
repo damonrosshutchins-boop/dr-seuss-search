@@ -537,7 +537,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "startup-stability-20261108-b";
+const PROXY_WORKER_VERSION = "render-worker-refresh-20261108";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
