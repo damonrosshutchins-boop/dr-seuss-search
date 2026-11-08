@@ -1933,9 +1933,8 @@ offlineButton.addEventListener("click", async () => {
 });
 // Remote-hosted library games cannot be made offline by caching an iframe.
 // Label them clearly so they are not mistaken for local downloads.
-for (const button of document.querySelectorAll("#games-dialog [data-proxy-url],#library-nowgg,#library-geforce")) {
-  const detail = button.querySelector(".green-eggs-game-info small") ||
-    button.querySelector("span:last-child");
+for (const button of document.querySelectorAll("#games-dialog [data-proxy-url]")) {
+  const detail = button.querySelector("span:last-child");
   if (detail && !detail.textContent.includes("Internet required"))
     detail.textContent += " · Internet required";
 }
