@@ -1652,3 +1652,7 @@ body:not(.site-authenticated) #site-login:not([open]) {
 .retro-game strong{font:900 .91rem/1.2 var(--display);overflow-wrap:anywhere}
 .retro-game small{font-size:.76rem;line-height:1.3;font-weight:750;color:var(--ink-soft)}
 @media(max-width:590px){.retro-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.retro-game{grid-template-columns:28px 1fr;padding:9px 7px}.retro-game strong{font-size:.83rem}.retro-game .retro-emoji{font-size:1.26rem}}
+
+#retro-console-section[hidden]{display:none!important}
+.retro-categories{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:590px){.retro-categories{grid-template-columns:1fr}}

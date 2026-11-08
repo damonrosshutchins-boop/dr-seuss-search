@@ -21,7 +21,8 @@ const OFFLINE=[
  ["higher","🃏","Higher or Lower","retro"],["hanoi","🪵","Tower Stacker","retro"],
  ["snake","🐍","Snake","original"],["merge","🔢","Merge Tiles","original"],
  ["pong","🏓","Paddle Rally","original"],["memory","🃏","Memory Match","original"],
- ["slide","🧩","15 Puzzle","original"]
+ ["slide","🧩","15 Puzzle","original"],
+ ["lj65","🎮","NES LJ65","nes"]
 ];
 const EMULATORS=[
  ["digger","🟠","Digger","DOSBox · bundled game"],
@@ -49,7 +50,7 @@ function listOffline(){
  offlineGrid.replaceChildren();let shown=0;
  for(const [id,icon,title,type] of OFFLINE){
   if(!title.toLowerCase().includes(q))continue;
-  shown++;const file=type==="retro"?"retro-arcade.html":"offline-arcade.html";
+  shown++;const file=type==="retro"?"retro-arcade.html":type==="nes"?"nes-homebrew.html":"offline-arcade.html";
   offlineGrid.append(card(icon,title,"No Wi-Fi · no ROM",
     ()=>openPage(file,id,title)));
  }
@@ -57,9 +58,10 @@ function listOffline(){
  $("retro-empty").hidden=shown!==0;
 }
 function setCategory(kind){
- const emu=kind==="emulators";
- $("retro-offline-section").hidden=emu;
+ const emu=kind==="emulators",consoleMode=kind==="consoles";
+ $("retro-offline-section").hidden=kind!=="offline";
  $("retro-emulator-section").hidden=!emu;
+ $("retro-console-section").hidden=!consoleMode;
  document.querySelectorAll("[data-retro-category]").forEach(b=>
   b.setAttribute("aria-pressed",String(b.dataset.retroCategory===kind)));
 }
@@ -97,6 +99,60 @@ for(const [name,icon,description] of [
  void vm.bootV86({name:system.name,opts:system.opts,mem:Math.max(64,system.mem)});
  }));
 }
+
+/* Built-in homebrew launchers: no user-supplied ROM / BIOS requested. */
+const consoleGrid=$("retro-console-grid");
+const CONSOLES=[
+ ["🎮","NES · LJ65","Single-file NES game · fully offline","nes-homebrew.html"],
+ ["🔢","NES · 2048","MIT-licensed NES homebrew · cacheable","console-emulators.html?game=2048"],
+ ["🥁","Nintendo 64 · Kumi-Daiko","CC0-licensed game-jam homebrew","console-emulators.html?game=kumi"],
+ ["🎮","PS1 · Homebrew demo disc","Official PSoXide games · internet required","console-emulators.html?game=psoxide"],
+ ["🧪","PS1 · Open-source test program","Hardware/emulator diagnostic · experimental","console-emulators.html?game=psxtest"]
+];
+for(const [icon,name,detail,file] of CONSOLES){
+ consoleGrid.append(card(icon,name,detail,()=>{
+  if(typeof window.openDirectSiteTab!=="function")return;
+  dialog.close();
+  window.openDirectSiteTab(new URL(file,base).href,name);
+ }));
+}
+$("retro-cache-console").addEventListener("click",async()=>{
+ const button=$("retro-cache-console"),status=$("retro-cache-console-status");
+ button.disabled=true;
+ status.textContent="Checking browser support and starting console cache…";
+ try {
+  if(!("serviceWorker" in navigator)||location.protocol!=="https:")
+   throw new Error("This requires a browser supporting HTTPS service workers.");
+  const url=new URL("sw.js?v=greeneggs-console-20261107",base);
+  const reg=await navigator.serviceWorker.register(url.href,{scope:base.pathname,updateViaCache:"none"});
+  await navigator.serviceWorker.ready;
+  const worker=await new Promise((resolve,reject)=>{
+   const begin=Date.now(),poll=setInterval(()=>{
+    const active=reg.active;
+    if(active?.state==="activated"&&active.scriptURL===url.href){clearInterval(poll);resolve(active)}
+    else if(Date.now()-begin>20000){clearInterval(poll);reject(new Error("Offline worker not activated. Refresh the page."))}
+   },120);
+  });
+  const reply=await new Promise((resolve,reject)=>{
+   const chan=new MessageChannel();
+   const timeout=setTimeout(()=>{chan.port1.close();reject(new Error("Console download timed out."))},180000);
+   chan.port1.onmessage=e=>{
+    const m=e.data||{};
+    if(m.type==="progress"){status.textContent="Downloaded "+m.done+"/"+m.total+" console files · "+m.failures+" unavailable";return}
+    if(m.type==="done"){clearTimeout(timeout);chan.port1.close();resolve(m)}
+   };
+   worker.postMessage({type:"dss-install-console-homebrew"},[chan.port2]);
+  });
+  if(!reply.ok){
+   const why=(reply.failures||[]).slice(0,3).map(f=>f.file+" ("+f.message+")").join("; ");
+   throw new Error(reply.error||"Some assets could not be saved: "+why);
+  }
+  status.textContent="Console assets cached. NES 2048 and N64 homebrew may now work offline in this browser. PS1 test support is experimental. Hosted PSoXide still needs Wi-Fi.";
+ }catch(error){
+  status.textContent="Console offline preparation incomplete: "+(error?.message||error);
+ }finally{button.disabled=false}
+});
+
 dialog.addEventListener("close",()=>hideRetro(false));
 listOffline();
 
@@ -107,7 +163,7 @@ cacheButton.addEventListener("click",async()=>{
  try{
   if(!("serviceWorker" in navigator)||location.protocol!=="https:")
    throw new Error("HTTPS and service-worker support are required.");
-  const workerUrl=new URL("sw.js?v=greeneggs-retro-arcade-20261107",base);
+  const workerUrl=new URL("sw.js?v=greeneggs-console-20261107",base);
   const registration=await navigator.serviceWorker.register(workerUrl.href,{
    scope:base.pathname,updateViaCache:"none"
   });
