@@ -1,0 +1,8 @@
+{
+  "name": "dr-seuss-search-render",
+  "private": true,
+  "version": "1.0.0",
+  "description": "PIN-protected hosting for Scramjet on Render",
+  "scripts": {"start":"node server.js"},
+  "engines":{"node":">=20"}
+}
