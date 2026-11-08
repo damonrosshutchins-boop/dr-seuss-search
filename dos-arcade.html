@@ -78,7 +78,7 @@ async function play(item){
    theme:"dark",backend:"dosbox",backendLocked:true,
    noCloud:true,autoStart:true,countDownStart:0,kiosk:true,
    autoSave:false,workerThread:true,mouseCapture:true,
-   imageRendering:"pixelated",renderAspect:"auto",volume:0.8
+   imageRendering:"pixelated",renderAspect:"4/3",volume:0.8
   });
   if(seq!==generation){try{await instance.stop()}catch{}return}
   runner=instance;
