@@ -1659,18 +1659,5 @@ body:not(.site-authenticated) #site-login:not([open]) {
 .retro-categories{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:590px){.retro-categories{grid-template-columns:1fr}}
 
-/* Honest embedded DuckDuckGo search preview. Browser framing rules still apply. */
-.dss-duckduckgo-frame {
-  display:block;
-  width:100%;
-  min-height:420px;
-  height:min(68vh,700px);
-  border:2px solid var(--ink-soft, #8b9bab);
-  border-radius:12px;
-  background:#fff;
-  margin:12px 0 22px;
-}
-@media(max-width:600px){.dss-duckduckgo-frame{min-height:300px;height:58vh}}
-
-/* Custom Loader uses a direct DuckDuckGo link; remove the legacy empty
-   preview area styling, which belongs to a now-removed blocked iframe. */
+/* DuckDuckGo Custom Loader results intentionally use an external results
+   link instead of attempting a blocked embedded search iframe. */
