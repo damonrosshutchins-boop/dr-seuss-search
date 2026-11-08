@@ -8,6 +8,7 @@
 	const vmAt = (p) => new URL(p, VM_BASE).href;
 
 	const GAMES = [
+        { name: "Digger", badge: "D", color: "#c28b34", desc: "A tiny ready-to-play DOS maze and treasure game, already bundled locally.", size: "27 KB", url: "games/digger.jsdos", tip: "Use the arrow keys to move." },
 		{ name: "DOOM", badge: "D", color: "#a8161e", desc: "Episode 1, Knee-Deep in the Dead. The 1993 shooter that started it all.", size: "2.4 MB", url: "games/doom.jsdos", tip: "Arrows move, Ctrl fires, Space opens doors." },
 		{ name: "Quake", badge: "Q", color: "#6b4f2a", desc: "id Software's 1996 3D shooter, shareware episode. Heavier, so it may run choppy.", size: "9 MB", url: "games/quake.jsdos", tip: "Press Esc for the menu. Arrows move, Ctrl fires." },
 		{ name: "Heretic", badge: "H", color: "#3d6b2a", desc: "Dark-fantasy shooter on the DOOM engine, shareware episode.", size: "2.9 MB", url: "games/heretic.jsdos", tip: "Arrows move, Ctrl fires, Space opens doors." },

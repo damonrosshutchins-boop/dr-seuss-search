@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101c29">
+<title>Retro Arcade · No ROMs · Dr. Seuss Search</title>
+<style>
+:root{color-scheme:dark;--bg:#101926;--panel:#192638;--line:#35536c;--ink:#eef7ff;--muted:#bfd1df;--accent:#58dfbc;--sun:#ffd36a}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 85% 0%,#213e54,transparent 42%),var(--bg);color:var(--ink);font:500 16px/1.5 system-ui,sans-serif}
+button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--sun);outline-offset:3px}a{color:#91eed5}
+header{padding:20px clamp(14px,4vw,30px);border-bottom:2px solid var(--line);background:#172a3f}
+.inner{max-width:1100px;margin:auto;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+.kicker{text-transform:uppercase;font-weight:900;letter-spacing:.15em;font-size:.7rem;color:var(--accent)}
+h1{font-size:clamp(1.6rem,4vw,2.7rem);line-height:1.1;margin:4px 0}
+header p{margin:5px 0 0;color:var(--muted);max-width:640px}
+small{color:var(--muted)}.link{border:1px solid var(--line);padding:10px 12px;border-radius:12px;text-decoration:none;background:#26384b;font-weight:800}
+main{max-width:1100px;margin:0 auto;padding:20px clamp(14px,4vw,30px) 35px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 13px}.filter{border:1px solid var(--line);background:#1c3043;color:var(--ink);border-radius:20px;padding:7px 13px;font-weight:800}
+.filter[aria-pressed=true]{background:var(--accent);color:#122533}
+.search{width:100%;max-width:350px;padding:9px 13px;border:1px solid var(--line);border-radius:11px;background:#132337;color:white;margin:0 0 16px}
+.catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:9px;margin-bottom:20px}
+.game{color:var(--ink);background:var(--panel);border:1px solid #36556d;border-radius:13px;text-align:left;min-height:105px;padding:12px;display:grid;align-content:center;gap:5px}
+.game:hover{border-color:var(--accent);background:#243a50}.game[aria-pressed=true]{background:#30584f;border:2px solid var(--accent)}
+.game .emoji{font-size:1.6rem}.game strong{font-size:.97rem;line-height:1.15}.game small{font-size:.72rem}
+.cabinet{border:2px solid var(--line);border-radius:19px;background:#182638;padding:clamp(12px,2vw,22px)}
+.cabinet-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cabinet h2{margin:0;font-size:1.45rem}.cabinet p{margin:3px 0 9px;color:var(--muted);font-size:.9rem}
+.restart{background:var(--sun);color:#1d2631;border:0;border-radius:10px;padding:10px 15px;font-weight:900}
+#status{font-weight:800;color:var(--accent);min-height:23px;margin:10px 0}
+#stage{display:grid;place-items:center;min-height:300px;touch-action:manipulation}
+#stage canvas{width:100%;height:auto;max-width:540px;background:#09232c;border:2px solid #467185;border-radius:14px;touch-action:none}
+#stage .board{width:min(100%,470px);display:grid;gap:6px;margin:8px auto}
+.square{color:var(--ink);background:#22455c;border:1px solid #54768e;border-radius:9px;min-height:44px;aspect-ratio:1;display:grid;place-items:center;font-size:clamp(.85rem,3vw,1.5rem);font-weight:900;touch-action:manipulation}
+.square:disabled{cursor:default}.square.revealed{background:#36546a}.square.on{background:#3d8f81;color:#fff}.square.off{background:#192e42}
+.square.warn{background:#b65b46}.square.gold{background:var(--sun);color:#132535}.square.red{background:#df6c78}
+.wide-board{width:min(100%,520px);padding:10px 4px;display:grid;gap:12px}
+.wide-board button{padding:14px 10px;border:2px solid #568a9d;border-radius:12px;background:#204459;color:white;font-size:1.15rem;font-weight:900}
+.wide-board button.highlight{background:#4fc8a1;color:#12342b}
+.wide-board input{width:100%;background:#101d2b;border:1px solid #5b879d;border-radius:8px;padding:11px;color:white}
+.wide-board label{font-weight:800}.wide-board .bar{display:flex;gap:8px;flex-wrap:wrap}.wide-board .bar button{flex:1}
+.pad{display:none;justify-content:center;gap:7px;flex-wrap:wrap;margin:14px auto 2px}.pad.visible{display:flex}
+.pad button{width:59px;min-height:50px;border:2px solid #64849a;border-radius:11px;background:#2e4e65;color:var(--ink);font-size:1.25rem;font-weight:900;touch-action:manipulation}
+#controls{font-size:.87rem;color:var(--muted);margin:11px auto 0;max-width:600px;text-align:center}
+footer{text-align:center;font-size:.87rem;margin:24px 0;color:var(--muted)}
+@media(max-width:600px){.catalog{grid-template-columns:repeat(3,minmax(0,1fr))}.game{padding:8px;min-height:92px}.game strong{font-size:.81rem}.square{min-height:30px}#stage{min-height:245px}}
+</style>
+</head>
+<body>
+<header><div class="inner"><div><div class="kicker">No downloads · no ROMs · no setup</div><h1>Retro Arcade Cabinet</h1><p><strong>22 original arcade-style mini-games.</strong> The games have no external code, fonts, music or images, so they run without Wi-Fi after this page has been saved.</p></div><a class="link" href="retro-arcade.html" download="Seuss-Retro-Arcade.html">Save standalone HTML</a></div></header>
+<main>
+<div class="filters" role="group" aria-label="Filter games">
+<button class="filter" type="button" data-filter="all" aria-pressed="true">All games</button>
+<button class="filter" type="button" data-filter="action" aria-pressed="false">Arcade action</button>
+<button class="filter" type="button" data-filter="puzzle" aria-pressed="false">Puzzles & board games</button>
+<button class="filter" type="button" data-filter="skill" aria-pressed="false">Quick skill games</button>
+</div>
+<input id="search" class="search" type="search" aria-label="Search arcade games" placeholder="Search arcade titles…" autocomplete="off"/>
+<div class="catalog" id="catalog" aria-label="Choose a game"></div>
+<section class="cabinet" aria-label="Playable game"><div class="cabinet-top"><div><h2 id="game-name">Arcade</h2><p id="description"></p></div><button type="button" id="restart" class="restart">New game</button></div>
+<div id="status" role="status" aria-live="polite"></div>
+<div id="stage"></div>
+<div class="pad" id="pad" aria-label="On-screen controls">
+<button type="button" data-control="left" aria-label="Move left">←</button>
+<button type="button" data-control="up" aria-label="Move up">↑</button>
+<button type="button" data-control="down" aria-label="Move down">↓</button>
+<button type="button" data-control="right" aria-label="Move right">→</button>
+<button type="button" data-control="action" aria-label="Action">●</button>
+</div><p id="controls"></p></section>
+<footer>Original games inspired by classic arcade mechanics—not copies of commercial ROMs. <a href="offline-arcade.html">Five more offline games</a> · <a href="offline-pack.html">Save games from the 352-game HTML catalog</a>.</footer>
+</main>
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+const stage=$("stage"),catalog=$("catalog"),status=$("status"),pad=$("pad");
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=n=>Math.floor(Math.random()*n);
+const make=(tag,cls)=>{const el=document.createElement(tag);if(cls)el.className=cls;return el};
+function say(s){status.textContent=s}
+const colors=["#52e3b4","#ffe075","#f47e91","#84bdf2","#b39cf7","#ffad5e"];
+function canvas(w=480,h=360){const el=make("canvas");el.width=w;el.height=h;stage.append(el);return [el,el.getContext("2d")]}
+function rect(ctx,x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}
+function dot(ctx,x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()}
+function words(ctx,text,x,y,size=17,c="#fff"){ctx.fillStyle=c;ctx.font="bold "+size+"px system-ui";ctx.fillText(text,x,y)}
+function loop(update){let handle=0,last=0,alive=true;function tick(t){if(!alive)return;const dt=clamp((t-last||16)/16.67,.4,2);last=t;update(dt,t);handle=requestAnimationFrame(tick)}handle=requestAnimationFrame(tick);return()=>{alive=false;cancelAnimationFrame(handle)}}
+const keyDir=k=>({ArrowLeft:"left",a:"left",A:"left",ArrowRight:"right",d:"right",D:"right",ArrowUp:"up",w:"up",W:"up",ArrowDown:"down",s:"down",S:"down"," ":"action",Enter:"action"})[k];
+function cells(columns){const board=make("div","board");board.style.gridTemplateColumns="repeat("+columns+",minmax(0,1fr))";stage.append(board);return board}
+function tile(parent,content,click,cls=""){const b=make("button","square "+cls);b.type="button";b.textContent=content;b.addEventListener("click",click);parent.append(b);return b}
+function wide(){const el=make("div","wide-board");stage.append(el);return el}
+function text(parent,tag,value){const el=make(tag);el.textContent=value;parent.append(el);return el}
+function button(parent,txt,fn){const b=make("button");b.type="button";b.textContent=txt;b.addEventListener("click",fn);parent.append(b);return b}
+const defs=[
+["brick","🧱","Brick Breaker","action","Bounce the ball through colorful brick rows.","Move left/right, mouse or touch."],
+["blocks","🟦","Falling Blocks","puzzle","Rotate falling tetromino blocks and clear lines.","Arrows/WASD to move; ↑ rotates; Space drops."],
+["invaders","👾","Pixel Invaders","action","Defend against waves of pixel invaders.","←/→ move; Space fires, or use buttons."],
+["meteors","☄️","Meteor Pilot","action","Pilot a spaceship through drifting asteroids.","←/→ rotate, ↑ thrust, Space fire."],
+["flap","🐦","Pixel Flier","skill","Flap through gaps without touching obstacles.","Space, click, or tap to flap."],
+["frog","🐸","Frog Crossing","action","Cross moving traffic lanes to reach the top.","Arrows/WASD or touch direction controls."],
+["racer","🏎️","Road Dash","action","Dodge cars across four traffic lanes.","Move left/right across lanes."],
+["catcher","🍓","Fruit Catcher","skill","Catch fruit and avoid the dark falling stones.","Move with arrows or pointer."],
+["lander","🚀","Moon Landing","skill","Land gently on the glowing platform.","←/→ steer, ↑ thrust; watch your speed."],
+["maze","🗺️","Labyrinth","puzzle","Find the exit of a newly generated maze.","Use arrow keys or on-screen directions."],
+["dodge","💎","Neon Dodger","action","Survive falling obstacles as long as possible.","Move in four directions or drag on touchscreens."],
+["missile","🛡️","Sky Shield","action","Protect the bases with expanding energy shields.","Click or tap near descending comets."],
+["whack","🐭","Whack-a-Critter","skill","Tap the critter before it disappears.","Click or tap the highlighted hole."],
+["simon","🔮","Pattern Memory","puzzle","Repeat longer and longer color sequences.","Watch the lights, then tap the pattern."],
+["mines","💣","Mine Finder","puzzle","Reveal safe squares without hitting any mines.","Click to reveal; right-click to mark flags."],
+["connect","🔴","Four in a Row","puzzle","Connect four tokens before the computer does.","Tap a column to drop your token."],
+["ttt","❎","Noughts & Crosses","puzzle","Try to beat the computer at three in a row.","Tap a square to place your symbol."],
+["lights","💡","Lights Out","puzzle","Turn off every light on a 5×5 grid.","Each tap flips its neighbors."],
+["word","🔤","Word Scramble","puzzle","Unscramble familiar words offline.","Type your guess, then press Check."],
+["reaction","⚡","Reflex Test","skill","Wait for green, then react as quickly as possible.","Click when the panel turns green."],
+["higher","🃏","Higher or Lower","skill","Predict the next card's value.","Choose Higher or Lower."],
+["hanoi","🪵","Tower Stacker","puzzle","Move all discs onto the third peg.","Tap a source peg, then a destination."],
+];
+let session=null,current="brick",category="all";
+function showControls(){pad.classList.toggle("visible",!!session?.control)}
+function start(id){
+ const def=defs.find(d=>d[0]===id);if(!def)return;
+ session?.stop?.();session=null;current=id;stage.replaceChildren();
+ $("game-name").textContent=def[2];$("description").textContent=def[4];$("controls").textContent=def[5];
+ [...catalog.querySelectorAll("[data-game]")].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.game===id)));
+ say("Ready to play");session=games[id]();showControls();
+ try{history.replaceState(null,"","#"+id)}catch{}
+}
+function renderList(){
+ const q=$("search").value.trim().toLowerCase();catalog.replaceChildren();
+ const choices=defs.filter(d=>(category==="all"||d[3]===category)&&(d[2].toLowerCase().includes(q)||d[4].toLowerCase().includes(q)));
+ for(const d of choices){
+  const b=make("button","game");b.type="button";b.dataset.game=d[0];
+  const icon=text(b,"span",d[1]);icon.className="emoji";text(b,"strong",d[2]);text(b,"small",d[3]==="action"?"Arcade action":d[3]==="puzzle"?"Puzzle / board":"Skill / reflex");
+  b.setAttribute("aria-pressed",String(d[0]===current));b.addEventListener("click",()=>start(d[0]));catalog.append(b);
+ }
+ if(!choices.length)text(catalog,"p","No matching games.");
+}
+$("search").addEventListener("input",renderList);
+document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{
+ category=b.dataset.filter;
+ document.querySelectorAll("[data-filter]").forEach(e=>e.setAttribute("aria-pressed",String(e===b)));
+ renderList();
+}));
+$("restart").addEventListener("click",()=>start(current));
+document.querySelectorAll("[data-control]").forEach(b=>b.addEventListener("click",()=>session?.control?.(b.dataset.control)));
+document.addEventListener("keydown",e=>{
+ if(e.metaKey||e.ctrlKey||e.altKey||["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
+ const d=keyDir(e.key);
+ if(d&&session?.control){session.control(d);e.preventDefault()}
+ else if(session?.key?.(e.key)){e.preventDefault()}
+});
+function brick(){
+ const [el,c]=canvas();let paddle=210,ball={x:240,y:290,vx:3.3,vy:-4},bricks=[],score=0,lives=3,done=false;
+ for(let r=0;r<5;r++)for(let col=0;col<9;col++)bricks.push({x:16+col*50,y:30+r*23,live:true,row:r});
+ function control(d){if(d==="left")paddle=clamp(paddle-24,0,390);if(d==="right")paddle=clamp(paddle+24,0,390)}
+ el.addEventListener("pointermove",e=>{const box=el.getBoundingClientRect();paddle=clamp((e.clientX-box.left)/box.width*480-45,0,390)});
+ const stop=loop(dt=>{
+  if(!done){ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
+   if(ball.x<8||ball.x>472){ball.x=clamp(ball.x,8,472);ball.vx*=-1}
+   if(ball.y<8){ball.y=8;ball.vy=Math.abs(ball.vy)}
+   if(ball.vy>0&&ball.y>=319&&ball.y<333&&ball.x>=paddle-7&&ball.x<=paddle+97){ball.vy=-Math.abs(ball.vy);ball.vx=clamp((ball.x-paddle-45)/12,-5.2,5.2)}
+   for(const b of bricks)if(b.live&&ball.x>b.x&&ball.x<b.x+46&&ball.y>b.y&&ball.y<b.y+18){
+    b.live=false;ball.vy*=-1;score+=10;break;
+   }
+   if(ball.y>370){lives--;ball={x:paddle+45,y:294,vx:3.1,vy:-4};if(lives<=0)done=true}
+   if(bricks.every(b=>!b.live))done=true;
+  }
+  rect(c,0,0,480,360,"#0c2035");bricks.forEach(b=>{if(b.live)rect(c,b.x,b.y,46,18,colors[b.row])});
+  rect(c,paddle,327,90,12,"#6df2cc");dot(c,ball.x,ball.y,7,"#fff");say("Score "+score+" · Lives "+lives+(done?(lives?" · All bricks cleared!":" · Game over"):""));
+ });
+ return{stop,control};
+}
+function blocks(){
+ const [el,c]=canvas(320,480),W=10,H=18,board=Array.from({length:H},()=>Array(W).fill(0));
+ const shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]]];
+ let piece=null,x=3,y=0,score=0,rows=0,dead=false;
+ const newPiece=()=>{piece=shapes[rand(shapes.length)].map(r=>r.slice());x=3;y=0;if(!valid(piece,x,y))dead=true};
+ function valid(shape,px,py){for(let j=0;j<shape.length;j++)for(let i=0;i<shape[j].length;i++)if(shape[j][i]){const xx=px+i,yy=py+j;if(xx<0||xx>=W||yy>=H||(yy>=0&&board[yy][xx]))return false}return true}
+ function fixed(){for(let j=0;j<piece.length;j++)for(let i=0;i<piece[j].length;i++)if(piece[j][i]&&y+j>=0)board[y+j][x+i]=1;
+  for(let j=H-1;j>=0;j--)if(board[j].every(Boolean)){board.splice(j,1);board.unshift(Array(W).fill(0));rows++;score+=100;j++}newPiece()
+ }
+ function move(dx,dy){if(dead)return false;if(valid(piece,x+dx,y+dy)){x+=dx;y+=dy;return true}if(dy)fixed();return false}
+ function rotate(){const r=piece[0].map((_,i)=>piece.map(row=>row[i]).reverse());if(valid(r,x,y))piece=r}
+ function control(d){if(dead)return;if(d==="left")move(-1,0);if(d==="right")move(1,0);if(d==="up")rotate();if(d==="down")move(0,1);if(d==="action")while(!dead&&valid(piece,x,y+1))y++;if(d==="action"&&!dead)fixed();paint()}
+ function paint(){rect(c,0,0,320,480,"#112438");const drawCell=(xx,yy,clr)=>{rect(c,xx*28+19,yy*25+17,25,22,clr)};
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){drawCell(i,j,board[j][i]?"#63d9b7":"#20384b")}
+ if(piece)for(let j=0;j<piece.length;j++)for(let i=0;i<piece[j].length;i++)if(piece[j][i]&&y+j>=0)drawCell(x+i,y+j,"#ffce71");
+ say("Lines "+rows+" · Score "+score+(dead?" · Game over":""))
+ }
+ newPiece();paint();const timer=setInterval(()=>{move(0,1);paint()},550);
+ return{stop:()=>clearInterval(timer),control};
+}
+function invaders(){
+ const [el,c]=canvas();let player=240,shots=[],enemies=[],bombs=[],score=0,lives=3,step=0,dir=1,done=false,cool=0;
+ function wave(){enemies=[];for(let j=0;j<4;j++)for(let i=0;i<9;i++)enemies.push({x:40+i*44,y:35+j*31,live:true})}wave();
+ function control(d){if(d==="left")player=clamp(player-22,22,458);if(d==="right")player=clamp(player+22,22,458);if(d==="action"&&cool<=0){shots.push({x:player,y:300});cool=12}}
+ const stop=loop(dt=>{
+ if(!done){step+=dt;cool-=dt;
+  for(const a of enemies)if(a.live){a.x+=dir*.43*dt;if(a.x<12||a.x>465)dir*=-1}
+  for(const s of shots)s.y-=8*dt;
+  for(const s of shots)for(const a of enemies)if(a.live&&Math.abs(s.x-a.x)<13&&Math.abs(s.y-a.y)<13){a.live=false;s.y=-40;score+=10}
+  shots=shots.filter(s=>s.y>-5);
+  if(Math.random()<.018){const alive=enemies.filter(a=>a.live);if(alive.length){const b=alive[rand(alive.length)];bombs.push({x:b.x,y:b.y})}}
+  for(const b of bombs){b.y+=3*dt;if(Math.abs(b.x-player)<18&&Math.abs(b.y-314)<13){b.y=400;lives--}}
+  bombs=bombs.filter(b=>b.y<365);
+  if(enemies.every(a=>!a.live)){wave();dir=1}
+  if(enemies.some(a=>a.live&&a.y>=300)||lives<=0)done=true;
+ }
+ rect(c,0,0,480,360,"#0c2039");for(const a of enemies)if(a.live){rect(c,a.x-10,a.y-9,20,18,colors[Math.floor(a.y/31)%6]);dot(c,a.x-4,a.y-1,2,"#163146");dot(c,a.x+4,a.y-1,2,"#163146")}
+ rect(c,player-18,320,36,14,"#66e9c5");shots.forEach(s=>rect(c,s.x-2,s.y,4,12,"#ffed9d"));bombs.forEach(b=>dot(c,b.x,b.y,4,"#ff8784"));
+ say("Score "+score+" · Shields "+lives+(done?" · Game over":""));
+ });
+ return{stop,control};
+}
+function meteors(){
+ const [el,c]=canvas();let ship={x:240,y:180,a:-Math.PI/2,vx:0,vy:0},rocks=[],shots=[],score=0,lives=3,inv=80,cool=0,done=false;
+ function spawn(n=5){for(let i=0;i<n;i++){const x=rand(480),y=rand(360);if(Math.hypot(x-240,y-180)<85)continue;rocks.push({x,y,vx:(Math.random()-.5)*2.5,vy:(Math.random()-.5)*2.5,r:19+rand(14)})}}
+ spawn(7);
+ let turn=0,thrust=false,fire=false;
+ function control(d){if(d==="left")ship.a-=.2;if(d==="right")ship.a+=.2;if(d==="up"){ship.vx+=Math.cos(ship.a)*.55;ship.vy+=Math.sin(ship.a)*.55}if(d==="action"&&cool<=0){shots.push({x:ship.x,y:ship.y,vx:Math.cos(ship.a)*7+ship.vx,vy:Math.sin(ship.a)*7+ship.vy,life:60});cool=8}}
+ function wrap(v,max){return(v+max)%max}
+ const stop=loop(dt=>{
+  if(!done){cool-=dt;inv-=dt;ship.x=wrap(ship.x+ship.vx*dt,480);ship.y=wrap(ship.y+ship.vy*dt,360);ship.vx*=.993;ship.vy*=.993;
+   for(const s of shots){s.x=wrap(s.x+s.vx*dt,480);s.y=wrap(s.y+s.vy*dt,360);s.life-=dt}
+   shots=shots.filter(s=>s.life>0);
+   for(const r of rocks){r.x=wrap(r.x+r.vx*dt,480);r.y=wrap(r.y+r.vy*dt,360);
+    const shot=shots.find(s=>Math.hypot(s.x-r.x,s.y-r.y)<r.r);
+    if(shot){shot.life=0;r.r=0;score+=20;}
+    else if(inv<=0&&Math.hypot(ship.x-r.x,ship.y-r.y)<r.r+8){lives--;inv=100;ship.x=240;ship.y=180;ship.vx=ship.vy=0;}
+   }
+   rocks=rocks.filter(r=>r.r>0);if(rocks.length<3)spawn(6);if(lives<=0)done=true;
+  }
+  rect(c,0,0,480,360,"#0e1e33");
+  for(const r of rocks){c.strokeStyle="#b5c9da";c.lineWidth=3;c.beginPath();c.arc(r.x,r.y,r.r,0,Math.PI*2);c.stroke()}
+  shots.forEach(s=>dot(c,s.x,s.y,3,"#ffee92"));
+  if(inv%10<6){c.save();c.translate(ship.x,ship.y);c.rotate(ship.a+Math.PI/2);c.strokeStyle="#66efc5";c.lineWidth=3;c.beginPath();c.moveTo(0,-15);c.lineTo(11,10);c.lineTo(0,5);c.lineTo(-11,10);c.closePath();c.stroke();c.restore()}
+  say("Score "+score+" · Ships "+lives+(done?" · Game over":""));
+ });
+ return{stop,control};
+}
+function flap(){
+ const [el,c]=canvas();let bird={y:178,vy:0},pipes=[],score=0,done=false,frames=0,started=false;
+ function control(d){if(!done&&["up","action"].includes(d)){started=true;bird.vy=-5.2}}
+ el.addEventListener("pointerdown",()=>control("action"));
+ const stop=loop(dt=>{
+ if(!done&&started){frames+=dt;bird.vy+=.31*dt;bird.y+=bird.vy*dt;if(frames>72){pipes.push({x:500,gap:70+rand(180),done:false});frames=0}
+ for(const p of pipes){p.x-=2.8*dt;if(!p.done&&p.x+55<110){p.done=true;score++}
+ if(p.x<132&&p.x+55>93&&(bird.y< p.gap||bird.y>p.gap+120))done=true;}
+ pipes=pipes.filter(p=>p.x>-60);if(bird.y<10||bird.y>350)done=true}
+ rect(c,0,0,480,360,"#194154");for(const p of pipes){rect(c,p.x,0,55,p.gap,"#58d6a4");rect(c,p.x,p.gap+120,55,360-p.gap-120,"#58d6a4")}
+ dot(c,110,bird.y,13,"#ffd35d");dot(c,114,bird.y-3,2,"#263b51");say(!started?"Tap, click or press Space to start":("Gates passed "+score+(done?" · Game over":"")))
+ });return{stop,control};
+}
+function frog(){
+ const [el,c]=canvas(480,400),lanes=10;let x=5,y=9,score=0,lives=3,done=false,traffic=[];
+ for(let row=2;row<=7;row++)for(let k=0;k<3;k++)traffic.push({x:k*170+rand(60),row,speed:(row%2?1.7:-2.1)*(1+row*.1)});
+ function control(d){if(done)return;const delta={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[d];if(!delta)return;x=clamp(x+delta[0],0,11);y=clamp(y+delta[1],0,9);if(y===0){score++;x=5;y=9}}
+ const stop=loop(dt=>{
+ if(!done){for(const car of traffic){car.x+=car.speed*dt;if(car.x>510)car.x=-70;if(car.x<-80)car.x=510;if(y===car.row&&Math.abs(x*40+20-car.x)<35){lives--;x=5;y=9;break}}
+ if(lives<=0)done=true}
+ rect(c,0,0,480,400,"#234e48");
+ for(let row=2;row<=7;row++){rect(c,0,row*40,480,39,"#304251");if(row%2===0)for(let k=0;k<12;k++)rect(c,k*40+10,row*40+19,20,3,"#d3a867")}
+ for(const car of traffic)rect(c,car.x-26,car.row*40+7,52,25,car.row%2?"#ffae7d":"#91b8fc");
+ dot(c,x*40+20,y*40+20,16,"#aff071");say("Crossings "+score+" · Lives "+lives+(done?" · Game over":""))
+ });return{stop,control}
+}
+function racer(){
+ const [el,c]=canvas();let lane=1,objects=[],score=0,lives=3,time=0,done=false;
+ function control(d){if(d==="left")lane=clamp(lane-1,0,3);if(d==="right")lane=clamp(lane+1,0,3)}
+ const stop=loop(dt=>{
+ if(!done){time+=dt;if(time>44){objects.push({lane:rand(4),y:-30,touched:false});time=0}
+ for(const car of objects){car.y+=4.2*dt;if(!car.touched&&car.lane===lane&&car.y>272&&car.y<326){car.touched=true;lives--}if(!car.touched&&car.y>350){score++;car.touched=true}}
+ objects=objects.filter(c=>c.y<390);if(lives<=0)done=true}
+ rect(c,0,0,480,360,"#1d3347");for(let col=0;col<4;col++){rect(c,col*108+24,0,94,360,col%2?"#29445a":"#263e51");for(let y=0;y<350;y+=42)rect(c,col*108+24,y,2,20,"#dfda9d")}
+ rect(c,42+lane*108,292,56,43,"#62edc4");for(const o of objects)rect(c,42+o.lane*108,o.y,56,41,"#ff9479");
+ say("Cars dodged "+score+" · Lives "+lives+(done?" · Game over":""))
+ });return{stop,control}
+}
+function catcher(){
+ const [el,c]=canvas();let x=220,fall=[],score=0,lives=3,time=0,done=false;
+ function control(d){if(d==="left")x=clamp(x-28,25,455);if(d==="right")x=clamp(x+28,25,455)}
+ el.addEventListener("pointermove",e=>{const b=el.getBoundingClientRect();x=clamp((e.clientX-b.left)/b.width*480,25,455)});
+ const stop=loop(dt=>{
+ if(!done){time+=dt;if(time>19){fall.push({x:rand(450)+15,y:-12,bad:Math.random()<.23});time=0}
+ for(const f of fall){f.y+=3.1*dt;if(f.y>313&&f.y<333&&Math.abs(f.x-x)<38){if(f.bad)lives--;else score+=10;f.y=500}else if(f.y>370)f.y=500}
+ fall=fall.filter(f=>f.y<400);if(lives<=0)done=true}
+ rect(c,0,0,480,360,"#123140");fall.forEach(f=>dot(c,f.x,f.y,11,f.bad?"#a0a5b1":"#ffdf73"));rect(c,x-40,328,80,15,"#61e0b1");say("Score "+score+" · Lives "+lives+(done?" · Game over":""))
+ });return{stop,control}
+}
+function lander(){
+ const [el,c]=canvas();let ship={x:95,y:45,vx:1,vy:0},fuel=100,done=false,won=false;
+ function control(d){if(done)return;if(d==="up"&&fuel>0){ship.vy-=.58;fuel=Math.max(0,fuel-1)}if(d==="left"&&fuel>0){ship.vx-=.28;fuel=Math.max(0,fuel-1)}if(d==="right"&&fuel>0){ship.vx+=.28;fuel=Math.max(0,fuel-1)}}
+ const stop=loop(dt=>{
+ if(!done){ship.vy+=.043*dt;ship.x+=ship.vx*dt;ship.y+=ship.vy*dt;if(ship.x<10||ship.x>470||ship.y>326){done=true;won=ship.x>188&&ship.x<297&&Math.abs(ship.vx)<1.5&&ship.vy<1.8&&ship.y>312;}}
+ rect(c,0,0,480,360,"#0e1c31");for(let i=0;i<36;i++)dot(c,(i*137)%480,(i*53)%280,1.3,"#b1d1df");
+ rect(c,0,343,480,17,"#718091");rect(c,188,337,110,6,"#73ffba");
+ c.save();c.translate(ship.x,ship.y);rect(c,-10,-8,20,21,"#ffda76");rect(c,-15,11,5,5,"#b1d9e6");rect(c,10,11,5,5,"#b1d9e6");c.restore();
+ say("Fuel "+Math.round(fuel)+" · Vertical speed "+ship.vy.toFixed(1)+(done?(won?" · Perfect landing!":" · Hard landing"):""))
+ });return{stop,control}
+}
+function maze(){
+ const N=17,M=13,[el,c]=canvas(510,390),wall=Array.from({length:M},()=>Array(N).fill(15));const stack=[[0,0]],vis=new Set(["0,0"]);
+ while(stack.length){const [x,y]=stack[stack.length-1],opts=[[0,-1,1,4],[1,0,2,8],[0,1,4,1],[-1,0,8,2]].filter(([dx,dy])=>x+dx>=0&&x+dx<N&&y+dy>=0&&y+dy<M&&!vis.has((x+dx)+","+(y+dy)));
+  if(!opts.length){stack.pop();continue}const [dx,dy,a,b]=opts[rand(opts.length)];
+  wall[y][x]&=~a;wall[y+dy][x+dx]&=~b;vis.add((x+dx)+","+(y+dy));stack.push([x+dx,y+dy])
+ }
+ let x=0,y=0,steps=0,done=false;
+ function draw(){rect(c,0,0,510,390,"#102c3b");for(let row=0;row<M;row++)for(let col=0;col<N;col++){
+  const xx=col*30,yy=row*30,w=wall[row][col];c.strokeStyle="#7aadc3";c.lineWidth=2;c.beginPath();
+  if(w&1){c.moveTo(xx,yy);c.lineTo(xx+30,yy)}
+  if(w&2){c.moveTo(xx+30,yy);c.lineTo(xx+30,yy+30)}
+  if(w&4){c.moveTo(xx,yy+30);c.lineTo(xx+30,yy+30)}
+  if(w&8){c.moveTo(xx,yy);c.lineTo(xx,yy+30)}c.stroke()
+ }
+ dot(c,x*30+15,y*30+15,9,"#ffdc72");dot(c,495,375,9,"#5bf2bd");say("Steps "+steps+(done?" · Escaped!":" · Reach the green exit"))
+ }
+ function control(d){if(done)return;const dirs={up:[0,-1,1],right:[1,0,2],down:[0,1,4],left:[-1,0,8]};if(!dirs[d])return;const [dx,dy,mask]=dirs[d];if(!(wall[y][x]&mask)){x+=dx;y+=dy;steps++;if(x===N-1&&y===M-1)done=true;draw()}}
+ draw();return{control}
+}
+function dodge(){
+ const [el,c]=canvas();let x=240,y=290,obstacles=[],frame=0,score=0,lives=3,done=false;
+ function control(d){const dd={left:[-24,0],right:[24,0],up:[0,-24],down:[0,24]}[d];if(dd){x=clamp(x+dd[0],12,468);y=clamp(y+dd[1],15,343)}}
+ el.addEventListener("pointermove",e=>{if(e.buttons){const b=el.getBoundingClientRect();x=clamp((e.clientX-b.left)/b.width*480,12,468);y=clamp((e.clientY-b.top)/b.height*360,12,343)}});
+ const stop=loop(dt=>{
+ if(!done){frame+=dt;if(frame>13){obstacles.push({x:rand(470)+5,y:-15,r:8+rand(13),hit:false});frame=0}
+ for(const o of obstacles){o.y+=(2.5+score/120)*dt;if(!o.hit&&Math.hypot(o.x-x,o.y-y)<o.r+11){o.hit=true;lives--}else if(!o.hit&&o.y>365){o.hit=true;score++}}
+ obstacles=obstacles.filter(o=>o.y<385);if(lives<=0)done=true}
+ rect(c,0,0,480,360,"#121d34");for(const o of obstacles)dot(c,o.x,o.y,o.r,"#f1779a");dot(c,x,y,11,"#58ffcd");say("Dodged "+score+" · Shields "+lives+(done?" · Game over":""))
+ });return{stop,control}
+}
+function missile(){
+ const [el,c]=canvas();let shots=[],shields=[],score=0,bases=3,time=0,done=false;
+ function control(d){if(d==="action")fire(240,170)}
+ function fire(x,y){if(!done)shields.push({x,y,r:1,life:45})}
+ el.addEventListener("pointerdown",e=>{const b=el.getBoundingClientRect();fire((e.clientX-b.left)/b.width*480,(e.clientY-b.top)/b.height*360)});
+ const stop=loop(dt=>{
+ if(!done){time+=dt;if(time>32){shots.push({x:rand(460)+10,y:-10,vy:1.9+score/160});time=0}
+ for(const sh of shields){sh.life-=dt;sh.r=clamp(sh.r+1.8*dt,1,58)}
+ for(const s of shots){s.y+=s.vy*dt;const hit=shields.some(sh=>Math.hypot(sh.x-s.x,sh.y-s.y)<sh.r);
+ if(hit){s.y=500;score+=10}else if(s.y>333){s.y=500;bases--}}
+ shots=shots.filter(s=>s.y<370);shields=shields.filter(s=>s.life>0);if(bases<=0)done=true}
+ rect(c,0,0,480,360,"#102336");rect(c,0,335,480,25,"#426e79");
+ for(let i=0;i<3;i++)rect(c,i*140+70,320,50,15,i<bases?"#65ecc8":"#bd6c78");
+ shots.forEach(s=>dot(c,s.x,s.y,6,"#ffbc78"));shields.forEach(sh=>{c.strokeStyle="#84eed3";c.lineWidth=3;c.beginPath();c.arc(sh.x,sh.y,sh.r,0,Math.PI*2);c.stroke()});
+ say("Score "+score+" · Bases "+bases+(done?" · Game over":""))
+ });return{stop,control}
+}
+function whack(){
+ const board=cells(3),buttons=[],holes=9;let active=rand(9),points=0,remaining=30,stopped=false;
+ function update(){buttons.forEach((b,i)=>{b.textContent=i===active?"🐭":"🕳️";b.className="square"+(i===active?" gold":" off")});say("Score "+points+" · "+remaining+" seconds")}
+ for(let i=0;i<holes;i++)buttons.push(tile(board,"🕳️",()=>{if(!stopped&&i===active){points++;active=rand(9);update()}}));
+ const timer=setInterval(()=>{active=rand(9);if(--remaining<=0){stopped=true;clearInterval(timer);say("Final score "+points+" · New game to retry")}else update()},1000);
+ update();return{stop:()=>clearInterval(timer)}
+}
+function simon(){
+ const view=wide(),buttons=[],sequence=[],input=0,round=0,locked=true,timers=[];
+ const panel=make("div","board");panel.style.gridTemplateColumns="repeat(2,minmax(0,1fr))";view.append(panel);
+ for(let i=0;i<4;i++){const b=tile(panel,"●",()=>press(i));b.style.background=["#296c67","#9b5d45","#534f88","#876d39"][i];buttons.push(b)}
+ const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+ function flash(n){buttons[n].style.filter="brightness(2.8)";later(()=>buttons[n].style.filter="",330)}
+ function next(){round++;input=0;locked=true;sequence.push(rand(4));say("Round "+round+" · Watch…");sequence.forEach((n,i)=>later(()=>flash(n),600+i*610));later(()=>{locked=false;say("Round "+round+" · Your turn")},600+sequence.length*610)}
+ function press(n){if(locked)return;flash(n);if(n!==sequence[input]){locked=true;say("Incorrect pattern. You reached round "+round);return}
+ input++;if(input===sequence.length){locked=true;later(next,700)}}
+ button(view,"Start pattern",()=>{if(round===0)next()});
+ return{stop:()=>timers.forEach(clearTimeout)}
+}
+function mines(){
+ const N=9,COUNT=12,board=cells(9),bombs=new Set(),open=new Set(),flags=new Set(),els=[],done=false;
+ while(bombs.size<COUNT)bombs.add(rand(N*N));
+ function adjacent(i){const y=Math.floor(i/N),x=i%N,result=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){const a=x+dx,b=y+dy;if(a>=0&&a<N&&b>=0&&b<N)result.push(b*N+a)}return result}
+ function reveal(i){
+  if(done||flags.has(i)||open.has(i))return;
+  if(bombs.has(i)&&open.size===0){bombs.delete(i);let target=rand(81);while(bombs.has(target)||target===i)target=rand(81);bombs.add(target)}
+  if(bombs.has(i)){done=true;for(const k of bombs)open.add(k);say("Mine found · New game to retry");draw();return}
+  const queue=[i];while(queue.length){const v=queue.pop();if(open.has(v)||flags.has(v))continue;open.add(v);if(adjacent(v).filter(a=>bombs.has(a)).length===0)for(const a of adjacent(v))if(!open.has(a))queue.push(a)}
+  if(open.size===81-COUNT){done=true;say("All safe tiles found!")}
+  draw()
+ }
+ function draw(){els.forEach((el,i)=>{const n=adjacent(i).filter(k=>bombs.has(k)).length;el.textContent=open.has(i)?(bombs.has(i)?"💣":n||""):flags.has(i)?"🚩":"□";el.className="square"+(open.has(i)?" revealed":"");el.setAttribute("aria-label","Tile "+(i+1)+(open.has(i)?", revealed":""))});
+ if(!done)say("Safe tiles "+open.size+"/"+(81-COUNT)+" · Flags "+flags.size+"/"+COUNT)}
+ function flag(i){if(done||open.has(i))return;if(flags.has(i))flags.delete(i);else flags.add(i);draw()}
+ for(let i=0;i<81;i++){const b=tile(board,"□",()=>reveal(i));b.addEventListener("contextmenu",e=>{e.preventDefault();flag(i)});els.push(b)}
+ const f=button(stage,"Flag mode (touch): off",()=>{f.dataset.flag=f.dataset.flag==="on"?"off":"on";f.textContent="Flag mode (touch): "+f.dataset.flag});f.style.padding="9px 16px";
+ els.forEach((b,i)=>b.addEventListener("click",e=>{if(f.dataset.flag==="on"){e.stopImmediatePropagation();flag(i)}},true));
+ draw();return{}
+}
+function connect(){
+ const board=cells(7),data=Array.from({length:6},()=>Array(7).fill(0)),els=[],gameOver=false;
+ const colors2=["","#ff9a8e","#ffe08a"];
+ for(let row=0;row<6;row++)for(let col=0;col<7;col++)els.push(tile(board,"●",()=>move(col)));
+ function check(player){const dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let r=0;r<6;r++)for(let c=0;c<7;c++)if(data[r][c]===player)for(const [dx,dy] of dirs)if([1,2,3].every(k=>data[r+k*dy]?.[c+k*dx]===player))return true;return false}
+ function drop(col,who){for(let r=5;r>=0;r--)if(!data[r][col]){data[r][col]=who;return true}return false}
+ function paint(){els.forEach((el,i)=>{const who=data[Math.floor(i/7)][i%7];el.textContent="●";el.style.color=colors2[who]||"#23435a";el.className="square"})}
+ function move(col){if(gameOver||!drop(col,1))return;paint();if(check(1)){gameOver=true;say("Four in a row · You win!");return}if(data.every(r=>r.every(Boolean))){gameOver=true;say("Draw game");return}
+ const legal=Array.from({length:7},(_,i)=>i).filter(i=>!data[0][i]);
+ let best=null;
+ for(const who of [2,1]){
+  for(const i of legal){const row=data.findLastIndex(r=>!r[i]);if(row<0)continue;data[row][i]=who;const yes=check(who);data[row][i]=0;if(yes){best=i;break}}
+  if(best!==null)break;
+ }
+ drop(best??legal[rand(legal.length)],2);paint();if(check(2)){gameOver=true;say("Computer got four. New game to retry")}else say("Your turn · Drop a red token")}
+ paint();say("Your turn · Drop a red token");return{}
+}
+function ttt(){
+ const board=cells(3),arr=Array(9).fill(""),buttons=[],lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ let ended=false;
+ function win(s){return lines.some(row=>row.every(i=>s[i]===s[row[0]]&&s[i]))?lines.find(row=>row.every(i=>s[i]===s[row[0]]&&s[i])):null}
+ function paint(){buttons.forEach((b,i)=>{b.textContent=arr[i]||"·";b.className="square"+(arr[i]==="X"?" gold":arr[i]==="O"?" on":"")})}
+ function move(i){if(arr[i]||ended)return;arr[i]="X";paint();if(win(arr)){ended=true;say("You win!");return}
+ let legal=arr.map((x,j)=>!x?j:-1).filter(j=>j>=0);if(!legal.length){ended=true;say("Draw");return}
+ let pick=null;for(const sign of ["O","X"]){for(const n of legal){arr[n]=sign;const yes=win(arr);arr[n]="";if(yes){pick=n;break}}if(pick!==null)break}
+ if(pick===null)pick=arr[4]===""?4:legal[rand(legal.length)];
+ arr[pick]="O";paint();if(win(arr)){ended=true;say("Computer wins · New game to retry")}else if(arr.every(Boolean)){ended=true;say("Draw")}
+ else say("Your turn · You are X")
+ }
+ for(let i=0;i<9;i++)buttons.push(tile(board,"·",()=>move(i)));say("Your turn · You are X");return{}
+}
+function lights(){
+ const board=cells(5),on=Array(25).fill(false),els=[];
+ function flip(i){const y=Math.floor(i/5),x=i%5;for(const [dx,dy] of [[0,0],[-1,0],[1,0],[0,-1],[0,1]]){const xx=x+dx,yy=y+dy;if(xx>=0&&xx<5&&yy>=0&&yy<5)on[yy*5+xx]=!on[yy*5+xx]}}
+ for(let i=0;i<25;i++)els.push(tile(board,"",()=>{flip(i);draw()}));
+ for(let k=0;k<12;k++)flip(rand(25));
+ function draw(){els.forEach((b,i)=>{b.className="square "+(on[i]?"gold":"off");b.textContent=on[i]?"☀":"·"});say(on.some(Boolean)?"Lit tiles "+on.filter(Boolean).length+" · Switch all off":"All lights off · You solved it!")}
+ draw();return{}
+}
+function word(){
+ const pool=["ARCADE","PLANET","ROCKET","GALAXY","PIXEL","SCORES","PUZZLE","COMET","DRAGON","BUTTON","PLAYER","SCREEN","RETRO","GAMES","BRIGHT","SNAKE","CIRCUIT","LEVEL","POCKET","SHIELD"];
+ const view=wide();let score=0,correct=0,answer="";
+ const clue=text(view,"h2","");clue.style.fontSize="2rem";const inp=make("input");inp.type="text";inp.placeholder="Unscramble the word";inp.autocomplete="off";view.append(inp);
+ const row=make("div","bar");view.append(row);
+ function next(){answer=pool[rand(pool.length)];let letters=answer.split("");for(let i=letters.length-1;i>0;i--){const j=rand(i+1);[letters[i],letters[j]]=[letters[j],letters[i]]}
+ clue.textContent=letters.join("  ");inp.value="";say("Solved "+correct+" · Score "+score)}
+ function check(){if(inp.value.trim().toUpperCase()===answer){score+=10;correct++;next()}else say("Not quite. Try again or skip this word.")}
+ button(row,"Check",check);button(row,"Skip",()=>{score=Math.max(0,score-2);next()});
+ inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();check()}});next();return{}
+}
+function reaction(){
+ const view=wide();let state="ready",timer=null,started=0,attempt=0;
+ const panel=button(view,"Start reaction test",()=>press());panel.style.minHeight="170px";
+ function press(){if(state==="ready"){state="wait";panel.textContent="WAIT FOR GREEN…";panel.style.background="#7b4349";say("Don't press early!");timer=setTimeout(()=>{state="go";started=performance.now();panel.style.background="#267e5c";panel.textContent="PRESS NOW!"},1400+rand(2300))}
+ else if(state==="wait"){clearTimeout(timer);state="ready";panel.textContent="Too early — try again";panel.style.background="#7b4349";say("Too early.")}
+ else if(state==="go"){attempt++;const n=Math.round(performance.now()-started);state="ready";panel.textContent="Try again";panel.style.background="#204459";say("Reaction "+n+" ms · Attempts "+attempt)}}
+ return{stop:()=>clearTimeout(timer),control:d=>{if(d==="action")press()}}
+}
+function higher(){
+ const view=wide();let now=1+rand(13),score=0,round=0,done=false;const card=text(view,"h2","");card.style.fontSize="4rem";
+ function paint(){card.textContent=String(now);say("Correct guesses "+score+" · Round "+round+"/15"+(done?" · Finished!":""))}
+ const row=make("div","bar");view.append(row);
+ function guess(isHigh){if(done)return;const next=1+rand(13);const good=isHigh?next>now:next<now;if(good)score++;round++;now=next;if(round>=15)done=true;paint()}
+ button(row,"↑ Higher",()=>guess(true));button(row,"↓ Lower",()=>guess(false));paint();return{}
+}
+function hanoi(){
+ const view=wide(),pegs=[[4,3,2,1],[],[]],buttons=[],label=text(view,"p","Tap a source peg, then a destination peg.");let selected=-1,moves=0;
+ function paint(){buttons.forEach((b,i)=>{b.textContent=pegs[i].slice().reverse().map(v=>"▰".repeat(v)).join("\n")||"Empty peg";b.style.whiteSpace="pre-wrap";b.className=selected===i?"highlight":""});say("Moves "+moves+" · Goal: move all four discs to peg 3"+(pegs[2].length===4?" · Solved!":""))}
+ function click(i){if(selected<0){if(pegs[i].length)selected=i}
+ else{if(i===selected){selected=-1;paint();return}
+ const from=pegs[selected],to=pegs[i];if(from.length&&(!to.length||to[to.length-1]>from[from.length-1])){to.push(from.pop());moves++}selected=-1}
+ paint()}
+ const row=make("div","bar");view.append(row);for(let i=0;i<3;i++)buttons.push(button(row,"Peg "+(i+1),()=>click(i)));paint();return{}
+}
+const games={brick,blocks,invaders,meteors,flap,frog,racer,catcher,lander,maze,dodge,missile,whack,simon,mines,connect,ttt,lights,word,reaction,higher,hanoi};
+renderList();start(defs.some(d=>"#"+d[0]===location.hash)?location.hash.slice(1):"brick");
+})();
+</script>
+</body>
+</html>

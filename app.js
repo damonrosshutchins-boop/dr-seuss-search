@@ -536,7 +536,7 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "greeneggs-offline-games-20261107";
+const PROXY_WORKER_VERSION = "greeneggs-retro-arcade-20261107";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
 async function verifyProxyWorker() {
 	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
@@ -1781,7 +1781,7 @@ const offlineButton = $("library-enable-offline");
 const offlineStatus = $("library-offline-status");
 offlineButton.addEventListener("click", async () => {
   offlineButton.disabled = true;
-  offlineStatus.textContent = "Saving the two offline game pages to this browser…";
+  offlineStatus.textContent = "Saving all four offline game pages to this browser…";
   try {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:")
       throw new Error("Offline page caching requires a modern HTTPS browser.");
@@ -1819,7 +1819,7 @@ offlineButton.addEventListener("click", async () => {
       const failed=(reply.files||[]).filter(x=>!x.ok).map(x=>x.file).join(", ");
       throw new Error(reply.error||("Couldn't cache "+(failed||"the game pages")+"."));
     }
-    offlineStatus.textContent = "Offline pages saved! Open the arcade or the 352-game catalog directly, even without Wi-Fi. Save individual catalog games separately.";
+    offlineStatus.textContent = "Offline pages saved! Both arcades, the DOS launcher, and the 352-game catalog are cached. Prepare DOS emulator files separately for offline DOS games.";
   } catch (error) {
     offlineStatus.textContent = "Offline setup failed: "+(error?.message||String(error));
   } finally {

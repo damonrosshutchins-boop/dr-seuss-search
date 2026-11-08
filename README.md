@@ -185,3 +185,29 @@ games, cloud games like GeForce NOW/now.gg) still require an internet connection
 No third-party games, videos, or copyrighted external game assets are mirrored
 into this GitHub Pages repository. The offline page cache does not proxy traffic
 or alter Scramjet routing.
+
+
+## Retro Arcade & Emulators (no ROMs or setup)
+
+Open **Games → Retro Arcade & Emulators**. Two subcategories:
+
+- **Offline Arcade**: 22 new original, self-contained arcade-style mini-games
+  from \`retro-arcade.html\`, plus five games already in \`offline-arcade.html\`.
+  Both pages are standalone and use no external assets or services. Use
+  **Enable offline access** while online or download the single HTML file.
+- **Ready-to-Play Emulators**: js-dos/DOSBox with Digger, Tyrian 2000,
+  DOOM shareware, Heretic shareware, and Quake shareware (all already
+  bundled in \`vm/games/\`), and the existing FreeDOS and KolibriOS v86 images.
+  \`dos-arcade.html\` is a dedicated launcher that does not require a
+  manual ROM/BIOS upload, login with a third-party vendor, or game setup.
+  The existing VM emulator is also available from the site's VM button.
+
+To run the DOS arcade **without internet**, choose **Prepare DOS games for
+offline play** once while online. It caches the first-party DOSBox runtime,
+five game bundles, and emulator launcher (roughly 23 MB). Offline support
+still depends on the browser retaining its CacheStorage data; browsers may
+evict it. Some browser/iframe setups may restrict WebAssembly workers.
+
+The new retro-style games are original implementations of arcade mechanics,
+not copies of commercial ROMs or artwork. We do not supply game console ROMs
+that would otherwise need to be acquired or configured.

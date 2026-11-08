@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261106-primary-fallback-wisp1" />
+	<link rel="stylesheet" href="style.css?v=20261107-retro-ui1" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -283,6 +283,9 @@
         <span id="library-offline-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.9rem">Enable offline access while online to cache both game pages. Save catalog games one at a time.</span>
       </div>
 			<div class="library-grid">
+        <button type="button" class="library-card retro-launcher" id="open-retro" aria-controls="retro-view" aria-expanded="false">
+          <span class="library-icon" style="background:#23465c;color:#a3f0d7">🕹️</span><strong>Retro Arcade &amp; Emulators</strong><span>27 offline games · 5 ready-to-play DOS classics</span>
+        </button>
         <button type="button" class="library-card" data-local-url="offline-arcade.html">
           <span class="library-icon" style="background:#078e88;color:#fff">5</span><strong>Offline Arcade</strong><span>Five built-in games · offline after setup</span>
         </button>
@@ -348,6 +351,39 @@
 			<p class="library-footnote">PSP Web is an unofficial PPSSPP browser emulator, not the Windows-only God of War recompilation project. No PSP games are included. Open a game file from a copy you own; the emulator may work better <a href="https://root-hunter.github.io/ppsspp-web/" target="_blank" rel="noopener noreferrer">directly in your browser</a> if proxying blocks WebAssembly or file loading. For the separate WebAssembly recompilation research project, see <a href="https://github.com/snuri00/psp-web-recomp" target="_blank" rel="noopener noreferrer">PSP Web Recomp</a>, which must be built privately from your own files.</p>
 			<p class="library-footnote">now.gg requires an approved embed setup for cloud gameplay on third-party sites. If it does not load here, the provider may need to allow this site's domain.</p>
 			</div>
+      <section id="retro-view" class="retro-view" aria-label="Retro Arcade and Emulators" hidden>
+  <div class="retro-heading">
+    <button type="button" class="chip" id="retro-back">← Back to Games</button>
+    <div><p class="kicker">no ROMs, no setup</p><h3>Retro Arcade &amp; Emulators</h3></div>
+    <p>27 self-contained original arcade games, five preloaded DOS classics, and preconfigured FreeDOS and KolibriOS PC emulators. Pick a game and start playing.</p>
+  </div>
+  <div class="retro-categories" role="group" aria-label="Retro arcade subcategories">
+    <button type="button" class="retro-category" data-retro-category="offline" aria-pressed="true"><strong>Offline Arcade</strong><span>27 ready-to-play games</span></button>
+    <button type="button" class="retro-category" data-retro-category="emulators" aria-pressed="false"><strong>Ready-to-Play Emulators</strong><span>7 emulator choices · no files to upload</span></button>
+  </div>
+  <section id="retro-offline-section" aria-label="Offline arcade games">
+    <p class="retro-note"><strong>No Wi-Fi required after saving the page.</strong> Play instantly, select Enable offline access in Games while connected, or download the single-file game page. Neither arcade requires a ROM, BIOS, or online service.</p>
+    <div class="retro-shortcuts">
+      <a href="retro-arcade.html" download="Seuss-Retro-Arcade.html">Download 22-game arcade</a>
+      <a href="offline-arcade.html" download="Seuss-Offline-Arcade.html">Download five-game arcade</a>
+      <a href="offline-pack.html">Saved HTML games catalog (up to 352)</a>
+    </div>
+    <label class="retro-search-label">Search offline games
+      <input id="retro-search" type="search" placeholder="Search 27 games…" autocomplete="off"/>
+    </label>
+    <p id="retro-count" class="retro-counter" role="status"></p>
+    <div class="retro-grid" id="retro-offline-grid"></div>
+    <p id="retro-empty" class="retro-note" hidden>No offline games match that search.</p>
+  </section>
+  <section id="retro-emulator-section" aria-label="No-ROM emulator games" hidden>
+    <p class="retro-note">The games are already bundled locally. DOSBox starts them automatically; there is no ROM upload or setup process. The preloaded <strong>FreeDOS</strong> image runs in your existing v86 PC emulator and includes a few built-in games.</p>
+    <div class="retro-shortcuts"><button type="button" class="chip" id="retro-cache-dos">Prepare DOS games for offline play (~23 MB)</button><a href="dos-arcade.html">Open DOS Arcade directly</a></div>
+    <p id="retro-cache-status" class="retro-counter" role="status" aria-live="polite">First online visit: prepare the DOS assets here to use the separate DOS Arcade page offline.</p>
+    <div class="retro-grid" id="retro-emulator-grid"></div>
+    <p class="retro-note"><strong>Offline note:</strong> You can save the DOSBox assets and bundled games while connected, but the regular VM interface and some browser emulator features may still need an online session. The dedicated DOS Arcade page provides a simpler offline launch option.</p>
+  </section>
+</section>
+
 			<section id="green-eggs-view" class="green-eggs-view" aria-label="Green Eggs and Ham game library" hidden>
 				<div class="green-eggs-heading">
 					<button type="button" class="chip" id="green-eggs-back">← Back to Games</button>
@@ -790,11 +826,12 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261107-offline-games1"></script>
+	<script src="app.js?v=20261107-retro-arcade1"></script>
+  <script src="retro-ui.js?v=20261107-arcade-category1"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
 	<script src="identity-admin.js?v=20261106-adminspeed1"></script>
-	<script src="vm.js?v=20261106-embedfallback1"></script>
+	<script src="vm.js?v=20261107-digger-classics1"></script>
 </body>
 </html>

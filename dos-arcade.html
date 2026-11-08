@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ready-to-play DOS Arcade · Dr. Seuss Search</title>
+<link rel="stylesheet" href="vm/jsdos/js-dos.css">
+<style>
+*{box-sizing:border-box}
+body{background:#111a2a;color:#eef7ff;font:500 16px/1.5 system-ui,sans-serif;margin:0}
+header{padding:18px clamp(12px,4vw,25px);background:#203248;border-bottom:2px solid #456278}
+.wrap{max-width:1130px;margin:auto}
+h1{font-size:clamp(1.5rem,4vw,2.4rem);margin:0 0 8px}
+header p{margin:0;color:#c4d6e5}
+main{max-width:1130px;margin:auto;padding:17px clamp(12px,4vw,25px) 35px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px;margin:0 0 20px}
+button{font:inherit;cursor:pointer}
+.card{min-height:125px;background:#22384e;color:#fff;border:2px solid #456278;text-align:left;border-radius:13px;padding:14px;display:grid;gap:7px}
+.card:hover,.card[aria-pressed=true]{border-color:#6becbc;background:#28594f}
+.card strong{font-size:1.13rem}.card small{color:#d9ebfa}
+#player{width:100%;min-height:400px;height:min(72vh,690px);background:#070b13;border:2px solid #4f7188;border-radius:12px;overflow:hidden}
+#player>*{width:100%;height:100%}
+.player-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+#message{color:#78eec4;font-weight:800;min-height:25px;margin:8px 0}
+#stop{background:#ffdb86;border:0;border-radius:10px;padding:9px 16px;font-weight:900;color:#192431}
+.note{color:#bdd4e5;font-size:.91rem;margin:14px 0}a{color:#8ee6d1}
+button:focus-visible,a:focus-visible{outline:3px solid #ffd67b;outline-offset:3px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>Ready-to-play DOS Arcade</h1><p>Five preloaded games · DOSBox emulator · no ROM upload, BIOS setup, account, or extra game download required.</p></div></header>
+<main>
+<div class="grid" id="choices"></div>
+<div class="player-head"><h2 id="title">Select a game</h2><button type="button" id="stop">Stop game</button></div>
+<p id="message" role="status">Choose one of the bundled games above.</p>
+<div id="player" aria-label="DOS emulator game screen"></div>
+<p class="note">Uses the locally bundled js-dos/DOSBox engine and the existing free-distribution/shareware game bundles. No external game service is contacted by this page. To use it offline, choose <strong>Prepare emulator offline</strong> in the Retro Arcade & Emulators category while connected. The files occupy approximately 23 MB and remain subject to browser storage limits.</p>
+<p class="note"><a href="retro-arcade.html">22 original offline arcade games</a> · <a href="offline-arcade.html">Five more offline games</a></p>
+</main>
+<script src="vm/jsdos/js-dos.js"></script>
+<script>
+(()=>{
+"use strict";
+const games=[
+{id:"digger",title:"Digger",description:"Classic maze-and-treasure DOS arcade game",file:"digger.jsdos",tip:"Use arrow keys to move."},
+{id:"tyrian",title:"Tyrian 2000",description:"Complete freeware scrolling space shooter",file:"tyrian.jsdos",tip:"Arrow keys move. Space shoots."},
+{id:"doom",title:"DOOM (Shareware)",description:"The first shareware episode",file:"doom.jsdos",tip:"Arrows to move, Ctrl to fire, Space to use."},
+{id:"heretic",title:"Heretic (Shareware)",description:"A fantasy-themed DOS action game",file:"heretic.jsdos",tip:"Arrows to move, Ctrl to fire."},
+{id:"quake",title:"Quake (Shareware)",description:"The shareware episode of the 1996 3D game",file:"quake.jsdos",tip:"Press Esc for the menu; gamepad support varies."}
+];
+const choices=document.getElementById("choices"),screen=document.getElementById("player"),message=document.getElementById("message");
+let runner=null,current=null,generation=0;
+function stop(){
+ generation++;
+ if(runner){try{runner.stop()}catch{}runner=null}
+ screen.replaceChildren();
+ current=null;
+ document.getElementById("title").textContent="Select a game";
+ for(const btn of choices.querySelectorAll("button"))btn.setAttribute("aria-pressed","false");
+ message.textContent="Emulator stopped.";
+}
+document.getElementById("stop").addEventListener("click",stop);
+async function play(item){
+ stop();const seq=generation;current=item;
+ document.getElementById("title").textContent=item.title;
+ const button=choices.querySelector('[data-id="'+item.id+'"]');
+ if(button)button.setAttribute("aria-pressed","true");
+ message.textContent="Loading "+item.title+"… "+item.tip;
+ if(typeof window.Dos!=="function"){
+  message.textContent="The bundled DOSBox engine could not load. Check that its assets have been saved if you are offline.";
+  return;
+ }
+ const element=document.createElement("div");
+ element.style.cssText="width:100%;height:100%;";
+ screen.append(element);
+ try{
+  const instance=window.Dos(element,{
+   url:new URL("vm/games/"+item.file,document.baseURI).href,
+   pathPrefix:new URL("vm/jsdos/emulators/",document.baseURI).href,
+   theme:"dark",backend:"dosbox",backendLocked:true,
+   noCloud:true,autoStart:true,countDownStart:0,kiosk:true,
+   autoSave:false,workerThread:true,mouseCapture:true,
+   imageRendering:"pixelated",renderAspect:"4/3",volume:0.8
+  });
+  if(seq!==generation){try{await instance.stop()}catch{}return}
+  runner=instance;
+  message.textContent=item.title+" started. Click the game window to control it. "+item.tip;
+ }catch(error){
+  if(seq!==generation)return;
+  message.textContent="The emulator could not start: "+(error?.message||error);
+ }
+}
+for(const game of games){
+ const b=document.createElement("button");b.type="button";b.className="card";b.dataset.id=game.id;b.setAttribute("aria-pressed","false");
+ const strong=document.createElement("strong");strong.textContent=game.title;
+ const small=document.createElement("small");small.textContent=game.description;
+ b.append(strong,small);b.addEventListener("click",()=>{void play(game)});
+ choices.append(b);
+}
+window.addEventListener("pagehide",stop);
+const hash=location.hash.replace(/^#/,"");
+if(games.some(g=>g.id===hash))void play(games.find(g=>g.id===hash));
+})();
+</script>
+</body></html>
