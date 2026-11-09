@@ -28,6 +28,20 @@ async function testBrowserOrigin(label,url,scope){
   try{
     const response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:45000});
     assert.equal(response?.status(),200,label+" homepage did not load");
+    if (label === "Render-compatible Node server") {
+      const ai = await page.evaluate(() => ({
+        button: !!document.querySelector("#open-ai"),
+        sectionHidden: document.querySelector("#ai-workspace")?.hidden,
+        frameSrc: document.querySelector("#ai-frame")?.getAttribute("src"),
+        directLink: document.querySelector("#ai-open-original")?.href,
+        sandbox: document.querySelector("#ai-frame")?.getAttribute("sandbox")
+      }));
+      assert.equal(ai.button, true, "AI workspace button missing");
+      assert.equal(ai.sectionHidden, true, "AI workspace should be hidden until opened");
+      assert.equal(ai.frameSrc, null, "AI app must not load before user action");
+      assert.equal(ai.directLink, "https://veloci-search-flow.base44.app/");
+      assert.match(ai.sandbox, /allow-scripts/);
+    }
     const output=await page.evaluate(async ({scope})=>{
       const at=p=>new URL(p,location.origin+scope).pathname;
       const loaded=async url=>{

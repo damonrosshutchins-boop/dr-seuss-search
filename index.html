@@ -11,7 +11,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="vm/jsdos/js-dos.css" />
-	<link rel="stylesheet" href="style.css?v=20261107-wasmrip-proxy-2" />
+	<link rel="stylesheet" href="style.css?v=20261108-veloci-ai-workspace" />
 	<script src="baremux/index.js"></script>
 </head>
 <body>
@@ -31,6 +31,7 @@
 			</a>
 			<div class="top-actions">
 			<button class="chip" id="open-games" type="button">🎮 <span class="chip-label">Games</span></button>
+			<button class="chip chip-ai" id="open-ai" type="button" title="Open Veloci AI">✨ <span class="chip-label">AI</span></button>
 			<button class="chip admin-launch" id="open-admin" type="button" title="Open in-site admin dashboard">🛡️ <span class="chip-label">Admin</span></button>
 			<button class="chip chip-vm" id="open-vm" type="button">
 				<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
@@ -196,6 +197,37 @@
 			<button id="uv-fallback-dismiss" type="button" aria-label="Dismiss Ultraviolet compatibility notice">Dismiss</button>
 		</div>
 		<div id="frame-host" class="frame-host"></div>
+	</section>
+
+	<!-- AI: third-party web app loads only when the visitor opens this tab -->
+	<section id="ai-workspace" class="ai-workspace" aria-label="Veloci AI workspace" hidden>
+		<header class="ai-workspace-header">
+			<div class="ai-workspace-identity">
+				<div class="ai-mark" aria-hidden="true">✦</div>
+				<div>
+					<p class="ai-eyebrow">AI WORKSPACE · EXTERNAL WEB APP</p>
+					<h2>Veloci <span>Search Flow</span></h2>
+				</div>
+			</div>
+			<div class="ai-workspace-actions">
+				<button class="chip" type="button" id="ai-reload">↻ Reload</button>
+				<a class="chip" href="https://veloci-search-flow.base44.app/" target="_blank" rel="noopener noreferrer" id="ai-open-original">Open original ↗</a>
+				<button class="chip" type="button" id="ai-home">⌂ Home</button>
+			</div>
+		</header>
+		<div class="ai-workspace-body">
+			<div class="ai-app-frame">
+				<iframe id="ai-frame" title="Veloci Search Flow AI app" loading="lazy" referrerpolicy="no-referrer"
+					sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+			</div>
+			<aside class="ai-workspace-info" aria-label="About Veloci AI">
+				<span class="ai-info-tag">Connected web app</span>
+				<h3>AI, in its own space.</h3>
+				<p>Veloci Search Flow opens here when its website allows embedding. Sign-in and prompts are handled by Veloci itself.</p>
+				<p class="ai-embed-warning">Blank or blocked screen? Some websites prevent being embedded. Use <strong>Open original</strong> to use the app directly.</p>
+				<a href="https://veloci-search-flow.base44.app/" target="_blank" rel="noopener noreferrer" class="ai-external-link">Visit Veloci Search Flow ↗</a>
+			</aside>
+		</div>
 	</section>
 
 	<!-- VM -->
@@ -927,7 +959,7 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261108-controller-takeover-fix"></script>
+	<script src="app.js?v=20261108-veloci-ai-workspace"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
