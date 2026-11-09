@@ -172,3 +172,15 @@ test("LavenderOS VM launches as an isolated iframe with a direct-open fallback",
   assert.match(page, /id="vm-web-fallback"/);
   assert.match(page, /sandboxed VM iframe/);
 });
+
+test("Web-desktop recovery controls and load timeout are included", async () => {
+  const vm = await readFile(join(projectRoot, "vm.js"), "utf8");
+  const html = await readFile(join(projectRoot, "index.html"), "utf8");
+  assert.match(html, /id="vm-web-reload"/);
+  assert.match(html, /id="vm-web-focus"/);
+  assert.match(vm, /const WEB_DESKTOP_TIMEOUT_MS = 14000/);
+  assert.match(vm, /clearWebLoadTimer\(\)/);
+  assert.match(vm, /frame\.loading = "eager"/);
+  assert.match(vm, /webFrame\.src = current\.req\.url/);
+  assert.match(vm, /webFrame\.contentWindow\?\.focus\(\)/);
+});
