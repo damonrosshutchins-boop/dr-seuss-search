@@ -1,0 +1,67 @@
+name: Vendor local LavenderOS runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-lavenderos.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lavenderos-vendor
+  cancel-in-progress: false
+
+jobs:
+  copy-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download pinned LavenderOS source (without backups)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pinned to the user's public source repository for reproducibility.
+          source_repo="https://github.com/damonrosshutchins-boop/LavenderOS-test.git"
+          source_commit="154eb787a780504a7290602a34c92cd538128a5e"
+          temporary="$(mktemp -d)"
+          trap 'rm -rf "$temporary"' EXIT
+          git clone --quiet --depth 1 --filter=blob:none --sparse --no-checkout "$source_repo" "$temporary/source"
+          git -C "$temporary/source" sparse-checkout set --no-cone "/LavenderOS.html" "/wallpapers/" "/*.css"
+          git -C "$temporary/source" fetch --quiet --depth 1 origin "$source_commit"
+          git -C "$temporary/source" checkout --quiet --detach "$source_commit"
+          test "$(git -C "$temporary/source" rev-parse HEAD)" = "$source_commit"
+          test -s "$temporary/source/LavenderOS.html"
+          test -d "$temporary/source/wallpapers"
+          destination="vm/lavenderos"
+          mkdir -p "$destination"
+          # Only the live HTML, CSS and wallpaper directory. Never include
+          # Python maintenance scripts or dozens of archived 38 MB .bak files.
+          cp "$temporary/source/LavenderOS.html" "$destination/LavenderOS.html"
+          mkdir -p "$destination/wallpapers"
+          cp -a "$temporary/source/wallpapers/." "$destination/wallpapers/"
+          find "$temporary/source" -maxdepth 1 -type f -name '*.css' -print0 |
+            while IFS= read -r -d '' file; do cp "$file" "$destination/"; done
+          printf '%s\n' "$source_commit" > "$destination/SOURCE_COMMIT.txt"
+          test "$(stat -c %s "$destination/LavenderOS.html")" -gt 30000000
+          test "$(find "$destination/wallpapers" -type f | wc -l)" -gt 100
+          echo "Vendored LavenderOS HTML and $(find "$destination/wallpapers" -type f | wc -l) wallpapers"
+          du -sh "$destination"
+      - name: Commit runtime into Seuss Search repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- vm/lavenderos
+          if git diff --cached --quiet; then
+            echo "Vendored runtime already matches pinned source"
+          else
+            git commit -m "Vendor pinned LavenderOS runtime locally"
+            git push origin HEAD:main
+          fi
