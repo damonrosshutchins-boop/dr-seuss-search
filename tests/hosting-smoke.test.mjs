@@ -157,3 +157,18 @@ test("Veloci AI has a dedicated, on-demand internal workspace with direct fallba
   assert.match(app, /if \(!frame\.getAttribute\("src"\)\) frame\.src = VELOCI_AI_URL/);
   assert.match(css, /\.ai-workspace\[hidden\]/);
 });
+
+test("LavenderOS VM launches as an isolated iframe with a direct-open fallback", async () => {
+  const vm = await readFile(join(projectRoot, "vm.js"), "utf8");
+  const page = await readFile(join(projectRoot, "index.html"), "utf8");
+  assert.match(vm, /name: "LavenderOS"/);
+  assert.match(vm, /https:\/\/itzzshiloh\.github\.io\/LavenderOS-test\/LavenderOS\.html/);
+  assert.match(vm, /for \(const s of WEB_SYSTEMS\).*bootWeb\(s\)/);
+  assert.match(vm, /document\.createElement\("iframe"\)/);
+  assert.match(vm, /setAttribute\("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups"\)/);
+  assert.match(vm, /frame\.referrerPolicy = "no-referrer"/);
+  assert.match(vm, /fallbackLink\.href = req\.url/);
+  assert.match(page, /id="vm-web-host"/);
+  assert.match(page, /id="vm-web-fallback"/);
+  assert.match(page, /sandboxed VM iframe/);
+});

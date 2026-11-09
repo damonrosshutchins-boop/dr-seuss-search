@@ -32,7 +32,7 @@
 			desc: "A modern browser desktop with a window manager and app store, hosted by TerbiumOS.",
 			size: "Web app", url: "https://terbiumon.top/" },
 		{ name: "LavenderOS", badge: "Lv", color: "#a78bfa",
-			desc: "A browser-based desktop experience, hosted by LavenderOS-test.",
+			desc: "Launch LavenderOS inside the VM panel as a browser desktop. If the website blocks embedding, use Open directly.",
 			size: "Web app", url: "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html" },
 	];
 
@@ -359,10 +359,14 @@
 		const frame = document.createElement("iframe");
 		frame.title = req.name;
 		frame.referrerPolicy = "no-referrer";
+		// An external desktop must not escape its frame, redirect this site's
+		// top-level window, or access the Seuss Search origin.
+		frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
+		frame.setAttribute("allowfullscreen", "");
 		frame.allow = "fullscreen; clipboard-read; clipboard-write";
 		frame.addEventListener("load", () => {
 			if (generation === bootGeneration && engine === "web")
-				setStatus(req.name + " iframe response received. If you see a browser block message, its host or network does not allow embedding. Try the local desktop below.", true);
+				setStatus(req.name + " frame loaded. If the desktop appears blocked or blank, use the direct link below; embedding permission cannot be overridden.", true);
 		});
 		frame.addEventListener("error", () => {
 			if (generation === bootGeneration && engine === "web")

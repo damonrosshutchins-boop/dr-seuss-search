@@ -41,6 +41,29 @@ async function testBrowserOrigin(label,url,scope){
       assert.equal(ai.frameSrc, null, "AI app must not load before user action");
       assert.equal(ai.directLink, "https://veloci-search-flow.base44.app/");
       assert.match(ai.sandbox, /allow-scripts/);
+      const lavenderCard = await page.evaluate(() =>
+        Array.from(document.querySelectorAll("#web-os-grid .os-card"))
+          .find(item => item.textContent.includes("LavenderOS"))?.textContent || "");
+      assert.match(lavenderCard, /LavenderOS/, "LavenderOS must appear in Web Desktops");
+      // Click from the DOM without depending on remote website availability.
+      await page.route("https://itzzshiloh.github.io/LavenderOS-test/**", route =>
+        route.fulfill({ status: 200, contentType:"text/html", body:"<html><body>LavenderOS test frame</body></html>" }));
+      await page.evaluate(() => {
+        const card = Array.from(document.querySelectorAll("#web-os-grid .os-card"))
+          .find(item => item.textContent.includes("LavenderOS"));
+        card?.click();
+      });
+      await page.waitForFunction(() => !!document.querySelector("#vm-web-host iframe"),{timeout:7000});
+      const lavender = await page.evaluate(() => ({
+        src: document.querySelector("#vm-web-host iframe")?.src,
+        sandbox: document.querySelector("#vm-web-host iframe")?.getAttribute("sandbox"),
+        referrer: document.querySelector("#vm-web-host iframe")?.referrerPolicy,
+        fallback: document.querySelector("#vm-web-fallback a")?.href
+      }));
+      assert.equal(lavender.src,"https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html");
+      assert.equal(lavender.fallback,lavender.src);
+      assert.equal(lavender.referrer,"no-referrer");
+      assert.equal(lavender.sandbox,"allow-scripts allow-same-origin allow-forms allow-popups");
     }
     const output=await page.evaluate(async ({scope})=>{
       const at=p=>new URL(p,location.origin+scope).pathname;
