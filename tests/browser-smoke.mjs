@@ -73,9 +73,9 @@ async function testBrowserOrigin(label,url,scope){
       assert.match(recovery.focus, /Focus desktop/);
       assert.equal(recovery.loading, "eager");
       await page.evaluate(() => document.querySelector("#vm-web-reload").click());
-      await page.waitForFunction(() =>
-        document.querySelector("#vm-web-host iframe")?.src ===
-        new URL("vm/lavenderos/LavenderOS.html",page.url()).href);
+      const localLavenderUrl = new URL("vm/lavenderos/LavenderOS.html",page.url()).href;
+      await page.waitForFunction(expected =>
+        document.querySelector("#vm-web-host iframe")?.src === expected,localLavenderUrl);
       await page.evaluate(() => document.querySelector("#vm-web-focus").click());
     }
     const output=await page.evaluate(async ({scope})=>{
