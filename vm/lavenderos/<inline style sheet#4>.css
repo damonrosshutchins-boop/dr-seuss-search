@@ -1,0 +1,36 @@
+
+/* ============================ WALLPAPER PICKER ==========================
+   Added with the expanded wallpaper library: 20 wallpapers per page with
+   arrow navigation, plus live MP4 thumbnails for the clips that ship next
+   to this file instead of being inlined as base64.
+   ======================================================================= */
+.wp-pager {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 14px; padding: 8px 10px;
+  border: 1px solid var(--card-border); border-radius: 10px; background: var(--card);
+}
+.wp-pager-info { font-size: 12.5px; color: var(--text-sub); text-align: center; flex: 1 1 auto; }
+.wp-pager-info b { color: var(--text); font-weight: 700; }
+.wp-pager-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 40px; height: 34px; padding: 0 12px;
+  border: 1px solid var(--control-border); border-radius: 8px;
+  background: var(--control); color: var(--text);
+  font-size: 13px; font-weight: 600; line-height: 1;
+  transition: background .15s ease, opacity .15s ease, border-color .15s ease;
+  flex: 0 0 auto;
+}
+.wp-pager-btn:hover:not(:disabled) { background: var(--hover-strong); border-color: var(--win-border-strong); }
+.wp-pager-btn:active:not(:disabled) { transform: translateY(1px); }
+.wp-pager-btn:disabled { opacity: .35; cursor: not-allowed; }
+.wp-pager-btn svg { width: 15px; height: 15px; }
+/* MP4 thumbnails decoded from the wallpaper clips themselves */
+.wp-thumb-video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; background: #0b1030; display: block;
+  pointer-events: none;
+}
+@media (max-width: 560px) {
+  .wp-pager-info { font-size: 11.5px; }
+  .wp-pager-btn { height: 32px; padding: 0 9px; min-width: 36px; }
+}

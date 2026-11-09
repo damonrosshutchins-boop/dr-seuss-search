@@ -1,0 +1,200 @@
+
+/* ==========================================================================
+   SAKURAVAULT PATCH 1.3
+   1 - liquid glass polish          2 - performance tiers (Low/Med/High/Potato)
+   3 - start menu additions         4 - rendering & compositing optimisation
+   ========================================================================== */
+
+/* -- 1. glass polish ------------------------------------------------------- */
+#start, #flyout {
+  border-radius: 20px;
+  backdrop-filter: blur(calc(var(--glass-blur, 22px) * 2)) saturate(var(--glass-sat, 180%)) brightness(1.05);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur, 22px) * 2)) saturate(var(--glass-sat, 180%)) brightness(1.05);
+  box-shadow: 0 28px 80px rgba(0,0,0,.60), 0 2px 10px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.16);
+  transition: opacity .2s ease, transform .3s cubic-bezier(.16,.86,.26,1);
+}
+#taskbar {
+  backdrop-filter: blur(var(--dock-blur, 26px)) saturate(1.8) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(var(--dock-blur, 26px)) saturate(1.8) brightness(1.05) !important;
+}
+.window { transition: box-shadow .25s ease, opacity .22s ease, transform .28s cubic-bezier(.16,.86,.26,1); }
+.window .titlebar {
+  backdrop-filter: blur(calc(var(--glass-blur, 22px) * .8)) saturate(1.4);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur, 22px) * .8)) saturate(1.4);
+}
+/* name the animated properties so nothing can ever animate layout by accident */
+.card, .set-item, .sel-item, .search-field, .text-input, .seg, .seg button,
+.btn-primary, .btn-ghost, .btn-danger, .tb-app, .desktop-icon, .start-pin,
+.recommended, .switch, .switch::after, .perf-tier, .perf-pill, .start-quick button,
+.start-head-btn, .start-foot-actions button {
+  transition-property: background-color, background-image, border-color, color,
+                       box-shadow, transform, opacity, filter;
+  transition-duration: .18s;
+  transition-timing-function: cubic-bezier(.2,.8,.2,1);
+}
+
+/* -- 4. optimisation: skip painting what is off-screen -------------------- */
+.card.item-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 190px;
+  contain: layout paint style;
+}
+.start-pin, .recommended { contain: layout paint style; }
+
+/* -- 3. start menu -------------------------------------------------------- */
+#start h4 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.start-head-btn {
+  font-size: 11px; font-weight: 700; color: var(--text-sub);
+  background: var(--control); border: 1px solid var(--control-border);
+  border-radius: 99px; padding: 4px 11px; cursor: pointer; white-space: nowrap;
+}
+.start-head-btn:hover { background: var(--hover-strong); color: var(--text); border-color: rgba(255,255,255,.24); transform: translateY(-1px); }
+.start-head-btn:active { transform: scale(.96); }
+.start-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 14px; }
+.start-quick button {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 6px; border-radius: 9px;
+  background: var(--control); border: 1px solid var(--control-border);
+  color: var(--text-sub); font-size: 11.5px; font-weight: 700; cursor: pointer;
+  min-width: 0;
+}
+.start-quick button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-quick button:hover { background: var(--hover-strong); border-color: rgba(255,255,255,.24); color: var(--text); transform: translateY(-1px); }
+.start-quick button:active { transform: scale(.97); }
+#start-recent { display: flex; flex-direction: column; gap: 4px; }
+#start-footer { gap: 10px; }
+.start-meta { font-size: 11px; color: var(--text-faint); text-align: center; line-height: 1.3; white-space: nowrap; }
+.start-foot-actions { display: flex; align-items: center; gap: 4px; }
+.start-foot-actions button {
+  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  background: transparent; border: 0; color: var(--text-sub); cursor: pointer;
+}
+.start-foot-actions button:hover { background: var(--hover-strong); color: var(--text); transform: translateY(-1px); }
+.start-foot-actions button:active { transform: scale(.94); }
+
+/* update centre: scrolling frame */
+.upd-scroll {
+  max-height: 300px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 2px 12px 4px 2px; margin: -2px -6px 0 -2px;
+}
+.upd-scroll ul { list-style: disc; padding-left: 18px; margin: 4px 0 0; font-size: 13px; color: var(--text-sub); line-height: 1.8; }
+.upd-scroll li { margin-bottom: 3px; }
+.upd-scroll li b { color: var(--text); font-weight: 700; }
+.upd-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.upd-badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 99px;
+  background: rgba(248,165,194,.14); color: #f8a5c2; border: 1px solid rgba(248,165,194,.3);
+}
+
+/* performance page */
+.perf-tier {
+  display: flex; align-items: flex-start; gap: 13px; padding: 13px;
+  border-radius: 14px; background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.08); cursor: pointer; margin-bottom: 10px;
+}
+.perf-tier:last-child { margin-bottom: 0; }
+.perf-tier:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.17); transform: translateY(-1px); }
+.perf-tier:active { transform: translateY(0) scale(.996); }
+.perf-tier.active {
+  background: rgba(255,255,255,.085); border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 6px 22px rgba(0,0,0,.25);
+}
+.perf-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.perf-tier-ico {
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  flex: 0 0 auto; border: 1px solid;
+}
+.perf-tier-body { flex: 1; min-width: 0; }
+.perf-tier-name {
+  font-size: 14px; font-weight: 700; letter-spacing: -.2px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.perf-tier-cur {
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+  padding: 2px 7px; border-radius: 99px; background: var(--accent); color: #fff;
+}
+.perf-tier-desc { font-size: 12.2px; color: var(--text-sub); line-height: 1.55; margin-top: 4px; }
+.perf-tier-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.perf-tier-chips span {
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 99px;
+  background: rgba(255,255,255,.06); border: 1px solid var(--card-border); color: var(--text-sub);
+}
+.perf-tier-check { width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; color: var(--accent); opacity: 0; }
+.perf-tier.active .perf-tier-check { opacity: 1; }
+.perf-meter { display: inline-flex; gap: 4px; align-items: center; margin-left: auto; }
+.perf-meter i { display: block; width: 20px; height: 5px; border-radius: 99px; background: rgba(255,255,255,.14); }
+.perf-meter i.on { background: var(--accent); }
+.perf-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 7px 12px; border-radius: 99px; cursor: pointer; flex: 0 0 auto;
+  background: rgba(255,255,255,.07); border: 1px solid var(--control-border);
+  color: var(--text-sub); line-height: 0;
+}
+.perf-pill:hover { background: var(--hover-strong); color: var(--text); border-color: rgba(255,255,255,.24); transform: translateY(-1px); }
+.perf-pill:active { transform: scale(.95); }
+
+/* -- 2. performance tiers -------------------------------------------------- */
+/* MEDIUM - glass turned down, the priciest decoration dropped */
+body.perf-medium .window::before, body.perf-medium #start::before,
+body.perf-medium #flyout::before, body.perf-medium #oobe-card::before,
+body.perf-medium .glass-panel::before { opacity: .35 !important; }
+body.perf-medium .text-input, body.perf-medium .search-field, body.perf-medium .seg,
+body.perf-medium #start-search, body.perf-medium .btn-ghost,
+body.perf-medium .window .titlebar {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+body.perf-medium .window-body, body.perf-medium #start, body.perf-medium #flyout,
+body.perf-medium #oobe-card, body.perf-medium h2, body.perf-medium h3,
+body.perf-medium h4 { text-shadow: none !important; }
+body.perf-medium .card { box-shadow: 0 2px 10px rgba(0,0,0,.25) !important; }
+
+/* HIGH - no window blur, no sheen, no rims, near-solid panels */
+body.perf-high .window, body.perf-high .card, body.perf-high #context-menu,
+body.perf-high #oobe-card, body.perf-high .lg-surface, body.perf-high .glass-panel,
+body.perf-high .window .titlebar, body.perf-high #announcement-bar {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+body.perf-high .window::before, body.perf-high .window::after,
+body.perf-high #start::before, body.perf-high #start::after,
+body.perf-high #flyout::before, body.perf-high #flyout::after,
+body.perf-high #oobe-card::before, body.perf-high #oobe-card::after,
+body.perf-high .glass-panel::before, body.perf-high .glass-panel::after { display: none !important; }
+body.perf-high .window { background: rgba(19,21,31,.96) !important; box-shadow: 0 18px 46px rgba(0,0,0,.45) !important; }
+body.perf-high .window.focused { box-shadow: 0 22px 54px rgba(0,0,0,.5) !important; }
+body.perf-high #start, body.perf-high #flyout {
+  background: rgba(16,18,27,.95) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+body.perf-high #taskbar {
+  background: rgba(14,16,25,.94) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+body.perf-high .card { box-shadow: 0 2px 8px rgba(0,0,0,.28) !important; }
+body.perf-high .text-input, body.perf-high .search-field, body.perf-high .seg,
+body.perf-high #start-search, body.perf-high .btn-ghost { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.perf-high .window-body, body.perf-high #start, body.perf-high #flyout,
+body.perf-high #oobe-card, body.perf-high h2, body.perf-high h3,
+body.perf-high h4 { text-shadow: none !important; }
+
+/* dock magnification + permanent compositor layers: high & potato only */
+body.perf-high .dk-art, body.perf-potato .dk-art { transform: none !important; will-change: auto; }
+body.perf-potato .dk-art { transition: none !important; }
+
+/* hover lifts stop above medium */
+body.perf-high .card:hover, body.perf-high .btn-primary:hover, body.perf-high .btn-ghost:hover,
+body.perf-high .desktop-icon:hover, body.perf-high .tb-app:hover, body.perf-high .start-pin:hover,
+body.perf-high .recommended:hover, body.perf-high .set-item:hover,
+body.perf-potato .card:hover, body.perf-potato .btn-primary:hover, body.perf-potato .btn-ghost:hover,
+body.perf-potato .desktop-icon:hover, body.perf-potato .tb-app:hover, body.perf-potato .start-pin:hover,
+body.perf-potato .recommended:hover, body.perf-potato .set-item:hover { transform: none !important; }
+
+/* motion off at high & potato (same recipe the OS already uses for reduce motion) */
+body.perf-no-motion *, body.perf-no-motion *::before, body.perf-no-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+body.perf-potato .window, body.perf-potato .card, body.perf-potato #start,
+body.perf-potato #flyout, body.perf-potato #taskbar, body.perf-potato .set-item {
+  box-shadow: none !important;
+}
