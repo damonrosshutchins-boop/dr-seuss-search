@@ -873,6 +873,7 @@ window.dssRecheckActiveSite = async () => {
 function publicActiveSiteView(tab = currentSiteTab()) {
 	if (!tab || tab.type === "home") return "Home";
 	if (tab.type === "talk") return "Seuss Talk";
+	if (tab.type === "ai") return "Veloci AI";
 	if (tab.type === "admin") return "Admin Dashboard";
 	if (tab.type === "vm") return "VM";
 	if (tab.rammerhead) return "Rammerhead";
@@ -918,7 +919,7 @@ function renderSiteTabs() {
 		const select = document.createElement("button");
 		select.type = "button";
 		select.className = "site-tab-select";
-		select.textContent = (tab.type === "talk" ? "💬 " : tab.type === "vm" ? "🖥 " : "") + tab.title;
+		select.textContent = (tab.type === "talk" ? "💬 " : tab.type === "vm" ? "🖥 " : tab.type === "ai" ? "✦ " : "") + tab.title;
 		select.title = tab.title;
 		select.setAttribute("aria-current", tab.id === activeSiteTabId ? "page" : "false");
 		select.addEventListener("click", () => activateSiteTab(tab.id));
@@ -961,6 +962,7 @@ function activateSiteTab(id) {
 	$("home").hidden = tab.type !== "home";
 	$("browser").hidden = tab.type !== "web" && tab.type !== "direct";
 	$("seuss-talk").hidden = tab.type !== "talk";
+	$("ai-workspace").hidden = tab.type !== "ai";
 	$("vm").hidden = tab.type !== "vm";
 	$("admin-workspace").hidden = tab.type !== "admin";
 
@@ -1011,6 +1013,8 @@ function activateSiteTab(id) {
 	} else if (tab.type === "talk") {
 		document.title = "Seuss Talk · Dr. Seuss Search";
 		window.dispatchEvent(new Event("seuss-talk-tab-open"));
+	} else if (tab.type === "ai") {
+		document.title = "Veloci AI · Dr. Seuss Search";
 	} else if (tab.type === "vm") {
 		document.title = "VM · Dr. Seuss Search";
 	} else if (tab.type === "admin") {
@@ -1025,6 +1029,7 @@ function closeSiteTab(id) {
 	if (index < 0) return;
 	const tab = siteTabs[index];
 	if (tab.type === "talk") window.dispatchEvent(new Event("seuss-talk-tab-close"));
+	if (tab.type === "ai") $("ai-frame").removeAttribute("src");
 	if (tab.searchAbort) tab.searchAbort.abort();
 	if (tab.customAbort) tab.customAbort.abort();
 	if (tab.pane) tab.pane.remove();
@@ -1052,6 +1057,27 @@ function switchAwayFromSeussTalk() {
 	if (other) activateSiteTab(other.id);
 	else createSiteTab("home", "New Tab");
 }
+// This is an independent third-party app; it never runs through Scramjet.
+// Only start its iframe after the person explicitly opens the AI tab.
+const VELOCI_AI_URL = "https://veloci-search-flow.base44.app/";
+function openAITab() {
+	if (!requireSeussAccount()) return;
+	let tab = siteTabs.find(item => item.type === "ai");
+	if (!tab) tab = createSiteTab("ai", "Veloci AI");
+	else activateSiteTab(tab.id);
+	const frame = $("ai-frame");
+	if (!frame.getAttribute("src")) frame.src = VELOCI_AI_URL;
+}
+$("open-ai").addEventListener("click", openAITab);
+$("ai-reload").addEventListener("click", () => {
+	if (currentSiteTab()?.type === "ai") $("ai-frame").src = VELOCI_AI_URL;
+});
+$("ai-home").addEventListener("click", () => {
+	const tab = siteTabs.find(item => item.type === "home");
+	if (tab) activateSiteTab(tab.id);
+	else createSiteTab("home", "New Tab");
+});
+window.openAITab = openAITab;
 function openVMTab() {
 	if (!requireSeussAccount()) return;
 	let tab = siteTabs.find(item => item.type === "vm");
