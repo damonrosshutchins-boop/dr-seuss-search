@@ -120,3 +120,14 @@ test("admin relay code remains outside public GitHub files", async () => {
   assert.match(page,/id="s-admin-relay-code"/);
   assert.doesNotMatch(page,/DAMONTHEGOAT/);
 });
+
+test("Scramjet worker rewriter initializes when config arrives via message first", async () => {
+  // Upstream v1 regression: loadConfig() returned early when the controller
+  // had sent this.config before the worker's first fetch, leaving $W undefined.
+  const bundle = await readFile(join(projectRoot, "scram", "scramjet.all.js"), "utf8");
+  const script = await readFile(join(projectRoot, "sw.js"), "utf8");
+  assert.match(bundle, /loadConfig\(\)\{if\(!this\.config\)/);
+  assert.doesNotMatch(bundle, /loadConfig\(\)\{if\(this\.config\)return;/);
+  assert.match(bundle, /isInternalConfigReady\(\)/);
+  assert.match(script, /rewriterReady = scramjet\.isInternalConfigReady\(\)/);
+});

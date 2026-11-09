@@ -333,9 +333,12 @@ self.addEventListener("message", (event) => {
         SCRAMJET_PATH + encodeURIComponent("https://example.org/"),
         self.location.origin
       ).href;
-      const matches = prefix === SCRAMJET_PATH &&
+      // Routing alone can pass while Scramjet's private rewrite state is absent.
+      // Reject readiness until its internal configuration is initialized too.
+      const rewriterReady = scramjet.isInternalConfigReady();
+      const matches = rewriterReady && prefix === SCRAMJET_PATH &&
         scramjet.route({ request: new Request(testUrl) });
-      reply.postMessage({ ok:matches, prefix:prefix || "", expected:SCRAMJET_PATH });
+      reply.postMessage({ ok:matches, rewriterReady, prefix:prefix || "", expected:SCRAMJET_PATH });
     } catch (err) {
       reply.postMessage({ ok:false, error:err && err.message || "Config unavailable" });
     }
