@@ -46,8 +46,8 @@ async function testBrowserOrigin(label,url,scope){
           .find(item => item.textContent.includes("LavenderOS"))?.textContent || "");
       assert.match(lavenderCard, /LavenderOS/, "LavenderOS must appear in Web Desktops");
       // Click from the DOM without depending on remote website availability.
-      await page.route("https://itzzshiloh.github.io/LavenderOS-test/**", route =>
-        route.fulfill({ status: 200, contentType:"text/html", body:"<html><body>LavenderOS test frame</body></html>" }));
+      await page.route("**/vm/lavenderos/LavenderOS.html", route =>
+        route.fulfill({ status: 200, contentType:"text/html", body:"<html><body>Locally vendored LavenderOS test frame</body></html>" }));
       await page.evaluate(() => {
         const card = Array.from(document.querySelectorAll("#web-os-grid .os-card"))
           .find(item => item.textContent.includes("LavenderOS"));
@@ -60,10 +60,10 @@ async function testBrowserOrigin(label,url,scope){
         referrer: document.querySelector("#vm-web-host iframe")?.referrerPolicy,
         fallback: document.querySelector("#vm-web-fallback a")?.href
       }));
-      assert.equal(lavender.src,"https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html");
-      assert.equal(lavender.fallback,lavender.src);
+      assert.equal(lavender.src,new URL("vm/lavenderos/LavenderOS.html",page.url()).href);
+      assert.equal(lavender.fallback,"https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html");
       assert.equal(lavender.referrer,"no-referrer");
-      assert.equal(lavender.sandbox,"allow-scripts allow-same-origin allow-forms allow-popups");
+      assert.equal(lavender.sandbox,"allow-scripts allow-forms allow-popups allow-downloads");
       const recovery = await page.evaluate(() => ({
         reload: document.querySelector("#vm-web-reload")?.textContent,
         focus: document.querySelector("#vm-web-focus")?.textContent,
@@ -75,7 +75,7 @@ async function testBrowserOrigin(label,url,scope){
       await page.evaluate(() => document.querySelector("#vm-web-reload").click());
       await page.waitForFunction(() =>
         document.querySelector("#vm-web-host iframe")?.src ===
-        "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html");
+        new URL("vm/lavenderos/LavenderOS.html",page.url()).href);
       await page.evaluate(() => document.querySelector("#vm-web-focus").click());
     }
     const output=await page.evaluate(async ({scope})=>{
