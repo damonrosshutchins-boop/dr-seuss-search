@@ -67,6 +67,9 @@ async function testBrowserOrigin(label,url,scope){
       if(!worker || worker.scriptURL!==expected)
         throw new Error("Correct service worker never controlled the page: "+
           (worker?.scriptURL||"none")+" expected "+expected);
+      // Reproduce the bug on a new worker: a controller update message
+      // assigns this.config before loadConfig() handles the route check.
+      if(scope==="/") await instance.modifyConfig({});
       const reply=await new Promise((resolve,reject)=>{
         const channel=new MessageChannel();
         const timer=setTimeout(()=>reject(new Error("Worker route-check timed out")),8500);
