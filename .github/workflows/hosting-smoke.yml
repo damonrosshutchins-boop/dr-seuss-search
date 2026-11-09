@@ -18,5 +18,6 @@ jobs:
           node --check server.js
           node --check sw.js
           node --check app.js
+          node --check identity-admin.js
       - name: Test both hosting paths
         run: node --test tests/hosting-smoke.test.mjs

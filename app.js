@@ -139,6 +139,7 @@ async function showAdminRelaySettings() {
 	$("s-admin-relay-enabled").disabled = false;
 	$("s-admin-relay-enabled").checked = !!adminRelaySession;
 	$("s-admin-relay-url").value = adminRelaySession;
+	$("s-admin-relay-code").value = "";
 	$("s-admin-relay-status").textContent = adminRelaySession
 		? "Session-only relay selected for Scramjet."
 		: "Disabled — existing primary and fallback relays are unchanged.";
@@ -368,6 +369,7 @@ $("s-reset").onclick = () => {
 	$("s-transport").value = DEFAULTS.transport;
 	$("s-admin-relay-enabled").checked = false;
 	$("s-admin-relay-url").value = "";
+	$("s-admin-relay-code").value = "";
 	$("s-admin-relay-status").textContent = "Admin relay will be cleared when Settings is saved.";
 	$("s-wisp").value = DEFAULTS.wisp;
 	syncWispPreset();
@@ -402,6 +404,30 @@ $("settings-form").addEventListener("submit", async (event) => {
 			adminRelayPermissionChecked = false;
 			$("s-admin-relay-panel").hidden = true;
 			$("s-admin-relay-status").textContent = "Admin permission could not be verified.";
+			return;
+		}
+		const accessCodeInput = $("s-admin-relay-code");
+		const accessCode = accessCodeInput.value;
+		accessCodeInput.value = "";
+		if (!accessCode) {
+			$("s-admin-relay-status").textContent = "Enter the admin relay code to activate this session.";
+			return;
+		}
+		try {
+			if (typeof window.seussGetAdminRelayAccessToken !== "function")
+				throw new Error("Admin identity is not available.");
+			const accessToken = await window.seussGetAdminRelayAccessToken();
+			if (!accessToken) throw new Error("Admin sign-in is required.");
+			const response = await fetch("https://seuss-scramjet-private.onrender.com/api/admin/relay-access", {
+				method: "POST", mode: "cors", cache: "no-store",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ code:accessCode, accessToken })
+			});
+			const check = await response.json();
+			if (!response.ok || check.ok !== true) throw new Error(check.error || "Access denied.");
+		} catch (error) {
+			$("s-admin-relay-status").textContent =
+				"Admin relay code verification failed: " + (error?.message || String(error));
 			return;
 		}
 	}
