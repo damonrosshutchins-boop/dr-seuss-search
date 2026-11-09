@@ -80,6 +80,8 @@ async function testBrowserOrigin(label,url,scope){
       return {reply,controller:worker.scriptURL,scope};
     },{scope});
     assert.equal(output.reply?.ok,true,label+" worker route check failed: "+JSON.stringify(output.reply));
+    if (label === "Render-compatible Node server")
+      assert.equal(output.reply.rewriterReady,true,label+" worker config was not initialized for rewrite requests");
     assert.equal(output.reply.prefix,scope+"scramjet/",label+" route prefix");
     console.log("PASS "+label+": browser worker active and Scramjet route check true",JSON.stringify(output));
     if(consoleErrors.length)
