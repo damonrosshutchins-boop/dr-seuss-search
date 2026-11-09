@@ -64,6 +64,19 @@ async function testBrowserOrigin(label,url,scope){
       assert.equal(lavender.fallback,lavender.src);
       assert.equal(lavender.referrer,"no-referrer");
       assert.equal(lavender.sandbox,"allow-scripts allow-same-origin allow-forms allow-popups");
+      const recovery = await page.evaluate(() => ({
+        reload: document.querySelector("#vm-web-reload")?.textContent,
+        focus: document.querySelector("#vm-web-focus")?.textContent,
+        loading: document.querySelector("#vm-web-host iframe")?.loading
+      }));
+      assert.match(recovery.reload, /Reload desktop/);
+      assert.match(recovery.focus, /Focus desktop/);
+      assert.equal(recovery.loading, "eager");
+      await page.evaluate(() => document.querySelector("#vm-web-reload").click());
+      await page.waitForFunction(() =>
+        document.querySelector("#vm-web-host iframe")?.src ===
+        "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html");
+      await page.evaluate(() => document.querySelector("#vm-web-focus").click());
     }
     const output=await page.evaluate(async ({scope})=>{
       const at=p=>new URL(p,location.origin+scope).pathname;

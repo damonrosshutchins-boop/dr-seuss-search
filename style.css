@@ -1759,3 +1759,12 @@ body:not(.site-authenticated) #site-login:not([open]) {
   .ai-workspace-info { align-self: stretch; }
   .ai-workspace-header { padding-top: 22px; }
 }
+
+/* Web desktop quick recovery and keyboard focus. */
+.vm-web-fallback-actions button { cursor: pointer; }
+.vm-stage.web .vm-web-host iframe { min-width: 0; min-height: 0; outline: none; }
+.vm-stage.web .vm-web-host iframe:focus-visible { outline: 3px solid var(--teal); outline-offset: -3px; }
+@media (max-width: 640px) {
+  .vm-web-fallback-actions { gap: 7px; }
+  .vm-web-fallback-actions .chip { min-height: 36px; }
+}

@@ -59,6 +59,12 @@
 	const compatButton = $("vm-game-compat");
 	const directButton = $("vm-game-direct");
 	const DOS_BOOT_TIMEOUT_MS = 25000;
+	const WEB_DESKTOP_TIMEOUT_MS = 14000;
+	let webLoadTimer = null;
+	function clearWebLoadTimer() {
+		if (webLoadTimer !== null) clearTimeout(webLoadTimer);
+		webLoadTimer = null;
+	}
 
 	/* ---------- helpers ---------- */
 	function loadScript(src) {
@@ -127,6 +133,7 @@
 	async function shutdown(invalidate = true) {
 		if (invalidate) bootGeneration++;
 		if (dosBootTimer) { clearTimeout(dosBootTimer); dosBootTimer = null; }
+		clearWebLoadTimer();
 		dosStarted = false;
 		gameActions.hidden = true;
 		const e = emulator, d = dos;
@@ -358,6 +365,9 @@
 		setStatus("Opening " + req.name + "…");
 		const frame = document.createElement("iframe");
 		frame.title = req.name;
+		// User explicitly selected this web desktop: load it immediately.
+		frame.loading = "eager";
+		frame.setAttribute("aria-label", req.name + " external desktop");
 		frame.referrerPolicy = "no-referrer";
 		// An external desktop must not escape its frame, redirect this site's
 		// top-level window, or access the Seuss Search origin.
@@ -365,18 +375,44 @@
 		frame.setAttribute("allowfullscreen", "");
 		frame.allow = "fullscreen; clipboard-read; clipboard-write";
 		frame.addEventListener("load", () => {
-			if (generation === bootGeneration && engine === "web")
-				setStatus(req.name + " frame loaded. If the desktop appears blocked or blank, use the direct link below; embedding permission cannot be overridden.", true);
+			if (generation !== bootGeneration || engine !== "web") return;
+			clearWebLoadTimer();
+			// Cross-origin iframe load does not prove that the app rendered.
+			setStatus(req.name + " responded. If it remains blank, select Reload desktop or Open directly below.", true);
 		});
 		frame.addEventListener("error", () => {
-			if (generation === bootGeneration && engine === "web")
-				setStatus("The external " + req.name + " website could not be embedded. Use the built-in KolibriOS desktop instead.", true);
+			if (generation !== bootGeneration || engine !== "web") return;
+			clearWebLoadTimer();
+			setStatus(req.name + " could not load in the embedded frame. Try Open directly or KolibriOS.", true);
 		});
 		webFrame = frame;
 		ui.webHost.appendChild(frame);
 		setTools({ restart: 1, power: 1 });
 		frame.src = req.url;
+		webLoadTimer = setTimeout(() => {
+			if (generation !== bootGeneration || engine !== "web" || webFrame !== frame) return;
+			webLoadTimer = null;
+			setStatus(req.name + " is taking longer than usual. Try Reload desktop or Open directly below.", true);
+		}, WEB_DESKTOP_TIMEOUT_MS);
 	}
+	// Reload only the external desktop, not the entire VM page.
+	$("vm-web-reload").addEventListener("click", () => {
+		if (engine !== "web" || !current || !webFrame) return;
+		const generation = bootGeneration;
+		clearWebLoadTimer();
+		setStatus("Reloading " + current.req.name + "…");
+		webFrame.src = current.req.url;
+		webLoadTimer = setTimeout(() => {
+			if (generation !== bootGeneration || engine !== "web") return;
+			webLoadTimer = null;
+			setStatus("Still waiting for " + current.req.name + ". Try Open directly below.", true);
+		}, WEB_DESKTOP_TIMEOUT_MS);
+	});
+	$("vm-web-focus").addEventListener("click", () => {
+		if (engine !== "web" || !webFrame) return;
+		try { webFrame.contentWindow?.focus(); } catch {}
+		webFrame.focus();
+	});
 
 	/* ---------- scaling ---------- */
 	const SCALE_MODES = [
