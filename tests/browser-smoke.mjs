@@ -83,6 +83,10 @@ async function testBrowserOrigin(label,url,scope){
       return {reply,controller:worker.scriptURL,scope};
     },{scope});
     assert.equal(output.reply?.ok,true,label+" worker route check failed: "+JSON.stringify(output.reply));
+    // The test worker deliberately has a different query/version than app.js.
+    // A working controller must not be rejected for this harmless difference.
+    assert.equal(await page.evaluate(() => verifyProxyWorker()), true,
+      label+" rejected a functional controller because its script URL differs");
     if (label === "Render-compatible Node server")
       assert.equal(output.reply.rewriterReady,true,label+" worker config was not initialized for rewrite requests");
     assert.equal(output.reply.prefix,scope+"scramjet/",label+" route prefix");
