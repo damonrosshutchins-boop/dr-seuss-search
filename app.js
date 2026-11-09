@@ -563,67 +563,69 @@ async function loadProxyRuntime() {
 // A ready registration is not necessarily controlling this page. An encoded
 // /scramjet/ URL without the controlling service worker is served by GitHub
 // Pages as a nonexistent static file, yielding the exact 404 seen in games.
-const PROXY_WORKER_VERSION = "config-init-fix-20261108";
+const PROXY_WORKER_VERSION = "controller-takeover-fix-20261108";
 const PROXY_WORKER_URL = at("sw.js") + "?v=" + PROXY_WORKER_VERSION;
-async function verifyProxyWorker() {
-	const expected = new URL(PROXY_WORKER_URL, location.origin).href;
-	const timeoutMs = 14000;
-	const worker = await new Promise((resolve, reject) => {
-		const active = () => {
-			const controller = navigator.serviceWorker.controller;
-			return controller && controller.state === "activated" &&
-				controller.scriptURL === expected ? controller : null;
-		};
-		const now = active();
-		if (now) { resolve(now); return; }
-		let done = false;
-		const cleanup = () => {
-			navigator.serviceWorker.removeEventListener("controllerchange", check);
-			clearInterval(interval);
-			clearTimeout(timeout);
-		};
-		const check = () => {
-			if (done) return;
-			const current = active();
-			if (!current) return;
-			done = true;
-			cleanup();
-			resolve(current);
-		};
-		navigator.serviceWorker.addEventListener("controllerchange", check);
-		const interval = setInterval(check, 150);
-		const timeout = setTimeout(() => {
-			if (done) return;
-			done = true;
-			cleanup();
-			reject(new Error("The updated Scramjet worker did not take control. Reload the page once and try again."));
-		}, timeoutMs);
-		check();
-	});
+// A different service-worker script URL does not imply broken routing. Browsers
+// can continue using a healthy previous worker while a replacement activates.
+// Verify behavior on the worker that ACTUALLY controls this tab.
+async function checkControllingScramjetWorker(worker) {
 	return new Promise((resolve, reject) => {
 		const channel = new MessageChannel();
-		const timeout = setTimeout(() => {
-			channel.port1.close();
-			reject(new Error("Scramjet did not respond to its route check. Reload the site."));
-		}, 6000);
-		channel.port1.onmessage = (event) => {
+		let settled = false;
+		const finish = (error, result) => {
+			if (settled) return;
+			settled = true;
 			clearTimeout(timeout);
 			channel.port1.close();
-			const response = event.data || {};
-			if (response.ok && response.prefix === at("scramjet/")) resolve(true);
-			else reject(new Error(
-				"Scramjet worker route does not match this site's URL path. " +
-				(response.error || "Expected " + at("scramjet/") + ", received " + (response.prefix || "none"))
-			));
+			if (error) reject(error); else resolve(result);
 		};
+		const timeout = setTimeout(
+			() => finish(new Error("The controlling service worker did not respond to its routing check.")),
+			4500
+		);
+		channel.port1.onmessage = event => finish(null, event.data || {});
 		try {
 			worker.postMessage({ type:"dss-scramjet-route-check" }, [channel.port2]);
-		} catch (err) {
-			clearTimeout(timeout);
-			channel.port1.close();
-			reject(err);
-		}
+		} catch (error) { finish(error); }
 	});
+}
+async function verifyProxyWorker() {
+	const expectedPrefix = at("scramjet/");
+	const deadline = Date.now() + 13000;
+	let lastReason = "No active service worker controls this tab.";
+	while (Date.now() < deadline) {
+		const controller = navigator.serviceWorker.controller;
+		if (controller && controller.state === "activated") {
+			try {
+				const response = await checkControllingScramjetWorker(controller);
+				if (response.ok === true && response.prefix === expectedPrefix &&
+					response.rewriterReady === true) return true;
+				lastReason = response.error ||
+					("Worker routing or rewrite configuration is outdated. " +
+					"Expected " + expectedPrefix + ", received " + (response.prefix || "none") + ".");
+			} catch (error) {
+				lastReason = error?.message || String(error);
+			}
+		}
+		if (Date.now() >= deadline) break;
+		await new Promise(resolve => {
+			let finished = false;
+			const finish = () => {
+				if (finished) return;
+				finished = true;
+				clearTimeout(timeout);
+				navigator.serviceWorker.removeEventListener("controllerchange", finish);
+				resolve();
+			};
+			navigator.serviceWorker.addEventListener("controllerchange", finish);
+			const timeout = setTimeout(finish, 350);
+		});
+	}
+	const reg = await navigator.serviceWorker.getRegistration(BASE.href);
+	const diagnosis = reg?.active ? "An installed worker is active but this tab is not using a compatible one." :
+		"Scramjet's service worker has not activated on this browser.";
+	throw new Error(diagnosis + " " + lastReason +
+		" Use the Repair Scramjet button below to refresh only this site's worker.");
 }
 let ready = null;
 function boot() {
@@ -1080,7 +1082,25 @@ function showError(title, detail) {
 	$("error").hidden = false;
 	$("error-title").textContent = title;
 	$("error-detail").textContent = detail || "";
+	$("repair-scramjet").hidden = !title.startsWith("Scramjet routing");
 }
+$("repair-scramjet").addEventListener("click", async () => {
+	const button = $("repair-scramjet");
+	button.disabled = true;
+	button.textContent = "Repairing worker…";
+	try {
+		// Only this site's scope, not unrelated browser registrations or caches.
+		const reg = await navigator.serviceWorker.getRegistration(BASE.href);
+		if (reg) await reg.unregister();
+		location.reload();
+	} catch (error) {
+		button.disabled = false;
+		button.textContent = "Repair Scramjet";
+		showError("Scramjet routing is not ready.",
+			"Worker repair failed: " + (error?.message || String(error)) +
+			". Try reloading this site manually.");
+	}
+});
 function createFrameForTab(tab) {
 	if (tab.frame) return tab.frame;
 	const pane = document.createElement("div");
