@@ -262,7 +262,7 @@
 				</div>
 				<h3 class="vm-section">Web Desktops <span>Browser-based operating systems</span></h3>
 				<ul class="os-grid" id="web-os-grid"></ul>
-				<p class="vm-note">Choose LavenderOS to open its website in an embedded, sandboxed VM iframe. This is an external browser desktop, not a v86 PC. If its host disallows framing, use the direct-open link below the VM.</p>
+				<p class="vm-note">LavenderOS runs from a local copy of its source files hosted with Seuss Search, not from the external LavenderOS website. It opens inside an isolated iframe. Some settings/storage features may be limited by this isolation; the original website is available as a backup.</p>
 				<h3 class="vm-section">Full PCs <span>v86 &middot; boot a whole operating system</span></h3>
 				<ul class="os-grid" id="os-grid"></ul>
 				<div class="vm-opts">
@@ -302,7 +302,7 @@
 				<p class="vm-hint" id="vm-hint">Click the screen to type. Use the mouse button above to capture the pointer, and press Esc to release it.</p>
 				<div class="vm-hint vm-web-fallback" id="vm-web-fallback" hidden>
 					<strong>This web desktop is hosted on a different website.</strong>
-					<span>External desktops open in a sandboxed iframe. If you see a blank screen or an embedding error, the host may block framing; use the original site directly or choose KolibriOS. Seuss Search does not bypass those restrictions.</span>
+					<span>LavenderOS is bundled locally and opens in an isolated iframe. If it stays blank, try Reload desktop, the original LavenderOS website as a backup, or KolibriOS. Other web desktops may still block embedding.</span>
 					<div class="vm-web-fallback-actions">
 						<button type="button" class="chip" id="vm-web-reload">Reload desktop</button>
 						<button type="button" class="chip" id="vm-web-focus">Focus desktop</button>
@@ -966,6 +966,6 @@
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
 	<script src="identity-admin.js?v=20261106-adminspeed1"></script>
-	<script src="vm.js?v=20261108-lavender-reliability"></script>
+	<script src="vm.js?v=20261108-local-lavenderos-source"></script>
 </body>
 </html>

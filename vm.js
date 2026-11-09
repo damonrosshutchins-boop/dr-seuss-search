@@ -32,8 +32,9 @@
 			desc: "A modern browser desktop with a window manager and app store, hosted by TerbiumOS.",
 			size: "Web app", url: "https://terbiumon.top/" },
 		{ name: "LavenderOS", badge: "Lv", color: "#a78bfa",
-			desc: "Launch LavenderOS inside the VM panel as a browser desktop. If the website blocks embedding, use Open directly.",
-			size: "Web app", url: "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html" },
+			desc: "A locally hosted LavenderOS desktop bundled with Seuss Search, not an external iframe.",
+			size: "Local web desktop", url: vmAt("lavenderos/LavenderOS.html"),
+			upstreamUrl: "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html" },
 	];
 
 	const $ = (id) => document.getElementById(id);
@@ -355,14 +356,24 @@
 		enterStage(req.name);
 		engine = "web";
 		ui.stage.classList.add("web");
-		ui.hint.textContent = "This is a hosted browser desktop, not a PC emulator. Some embedded browser features may be limited.";
+		const localDesktop = new URL(req.url, location.href).origin === location.origin;
+		ui.hint.textContent = localDesktop
+			? "This is LavenderOS code served locally by Seuss Search, isolated from your account in a sandboxed frame."
+			: "This is a hosted browser desktop, not a PC emulator. Some embedded browser features may be limited.";
 		ui.webFallback.hidden = false;
 		const fallbackLink = ui.webFallback.querySelector("a");
 		const fallbackTitle = ui.webFallback.querySelector("strong");
-		if (fallbackTitle) fallbackTitle.textContent = req.name + " is hosted on a different website.";
-		if (fallbackLink) { fallbackLink.href = req.url; fallbackLink.textContent = "Open " + req.name + " directly (if permitted)"; }
+		if (fallbackTitle) fallbackTitle.textContent = localDesktop
+			? req.name + " runs from files hosted with Seuss Search."
+			: req.name + " is hosted on a different website.";
+		if (fallbackLink) {
+			fallbackLink.href = req.upstreamUrl || req.url;
+			fallbackLink.textContent = req.upstreamUrl
+				? "Open the original hosted LavenderOS if the local copy has problems"
+				: "Open " + req.name + " directly (if permitted)";
+		}
 		ui.webHost.hidden = false;
-		setStatus("Opening " + req.name + "…");
+		setStatus((localDesktop ? "Starting local " : "Opening ") + req.name + "…");
 		const frame = document.createElement("iframe");
 		frame.title = req.name;
 		// User explicitly selected this web desktop: load it immediately.
@@ -371,7 +382,12 @@
 		frame.referrerPolicy = "no-referrer";
 		// An external desktop must not escape its frame, redirect this site's
 		// top-level window, or access the Seuss Search origin.
-		frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
+		// The locally vendored desktop is SAME-ORIGIN with Seuss Search;
+		// it must be given an opaque sandbox origin to protect account data.
+		// The external cross-origin desktop can retain its own storage origin.
+		frame.setAttribute("sandbox", localDesktop
+			? "allow-scripts allow-forms allow-popups allow-downloads"
+			: "allow-scripts allow-same-origin allow-forms allow-popups");
 		frame.setAttribute("allowfullscreen", "");
 		frame.allow = "fullscreen; clipboard-read; clipboard-write";
 		frame.addEventListener("load", () => {
