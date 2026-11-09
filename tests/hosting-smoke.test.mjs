@@ -131,3 +131,13 @@ test("Scramjet worker rewriter initializes when config arrives via message first
   assert.match(bundle, /isInternalConfigReady\(\)/);
   assert.match(script, /rewriterReady = scramjet\.isInternalConfigReady\(\)/);
 });
+
+test("worker readiness checks real route health rather than comparing script URLs", async () => {
+  const app = await readFile(join(projectRoot, "app.js"), "utf8");
+  const html = await readFile(join(projectRoot, "index.html"), "utf8");
+  assert.match(app, /checkControllingScramjetWorker\(controller\)/);
+  assert.match(app, /response\.rewriterReady === true/);
+  assert.doesNotMatch(app, /controller\.scriptURL === expected/);
+  assert.match(html, /id="repair-scramjet"/);
+  assert.match(html, /Open the public Render-hosted Scramjet website/);
+});
