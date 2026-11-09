@@ -141,3 +141,19 @@ test("worker readiness checks real route health rather than comparing script URL
   assert.match(html, /id="repair-scramjet"/);
   assert.match(html, /Open the public Render-hosted Scramjet website/);
 });
+
+test("Veloci AI has a dedicated, on-demand internal workspace with direct fallback", async () => {
+  const html = await readFile(join(projectRoot, "index.html"), "utf8");
+  const app = await readFile(join(projectRoot, "app.js"), "utf8");
+  const css = await readFile(join(projectRoot, "style.css"), "utf8");
+  assert.match(html, /id="open-ai"/);
+  assert.match(html, /id="ai-workspace"/);
+  assert.match(html, /id="ai-frame"[^>]*loading="lazy"/);
+  assert.match(html, /sandbox="allow-scripts allow-forms allow-same-origin/);
+  assert.match(html, /https:\/\/veloci-search-flow\.base44\.app\//);
+  assert.match(html, /id="ai-open-original"/);
+  assert.match(app, /function openAITab\(\)/);
+  assert.match(app, /tab\.type === "ai"/);
+  assert.match(app, /if \(!frame\.getAttribute\("src"\)\) frame\.src = VELOCI_AI_URL/);
+  assert.match(css, /\.ai-workspace\[hidden\]/);
+});
