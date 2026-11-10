@@ -1,5 +1,5 @@
 'use strict';
-// Dedicated, destination-restricted Wisp v1 endpoint for the curated wasm.rip catalog.
+// Dedicated destination-restricted Wisp endpoints for curated game launchers.
 // It does not permit arbitrary hosts, ports, UDP, CONNECT tunneling, or HTTP URL fetching.
 const http=require('node:http');
 const dns=require('node:dns').promises;
@@ -10,12 +10,16 @@ const ALLOWED_ORIGINS=new Set([
   'https://damonrosshutchins-boop.github.io',
   'https://seuss-scramjet-private.onrender.com'
 ]);
-const DESTINATION='wasm.rip';
+const ROUTES=Object.freeze({
+  '/game-wisp/':new Set(['wasm.rip']),
+  '/duckmath-wisp/':new Set(['duckmath.org','ubg100.github.io']),
+  '/sm64-wisp/':new Set(['heyitsheart.github.io'])
+});
 const MAX_STREAMS=8, MAX_CLIENTS=60, MAX_PACKET=65536, WINDOW=16;
 const server=http.createServer((req,res)=>{
   if(req.url==='/health' && req.method==='GET'){
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-    res.end(JSON.stringify({ok:true,protocol:'wisp-v1',destination:DESTINATION,port:443,tcpOnly:true}));
+    res.end(JSON.stringify({ok:true,protocol:'wisp-v1',routes:Object.fromEntries(Object.entries(ROUTES).map(([path,hosts])=>[path,[...hosts]])),port:443,tcpOnly:true}));
     return;
   }
   res.writeHead(404,{'Content-Type':'text/plain','Cache-Control':'no-store'});res.end('Not found');
@@ -54,14 +58,15 @@ server.on('upgrade',(req,socket,head)=>{
   const origin=req.headers.origin;
   // Browser game requests must originate at our own site; non-browser clients are
   // not granted arbitrary routing either, since destination checks are mandatory.
-  if(req.url!=='/game-wisp/'||!ALLOWED_ORIGINS.has(origin)||clients>=MAX_CLIENTS){
+  if(!Object.hasOwn(ROUTES,req.url)||!ALLOWED_ORIGINS.has(origin)||clients>=MAX_CLIENTS){
     socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');socket.destroy();return;
   }
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
-wss.on('connection',ws=>{
+wss.on('connection',(ws,req)=>{
   clients++;
   const streams=new Map();
+  const permitted=ROUTES[req.url];
   const continueWindow=Buffer.alloc(4);continueWindow.writeUInt32LE(WINDOW);
   write(ws,3,0,continueWindow);
   ws.on('message',async (data,isBinary)=>{
@@ -71,13 +76,14 @@ wss.on('connection',ws=>{
     if(type===1){
       if(streams.has(id)||streams.size>=MAX_STREAMS||body.length<4||
          body[0]!==1||body.readUInt16LE(1)!==443||
-         body.subarray(3).toString('utf8')!==DESTINATION){
+         !permitted.has(body.subarray(3).toString('utf8'))){
         write(ws,4,id,Buffer.from([0x48]));return;
       }
       try{
         // Dial the resolved numeric address, never the client's hostname. Validate
         // DNS every time to prevent private-address rebinding.
-        const resolved=await dns.lookup(DESTINATION,{family:4});
+        const destination=body.subarray(3).toString('utf8');
+        const resolved=await dns.lookup(destination,{family:4});
         if(!publicAddress(resolved.address))throw Error('Non-public destination');
         if(ws.readyState!==ws.OPEN||streams.size>=MAX_STREAMS)return;
         const peer=net.connect({host:resolved.address,port:443,timeout:10000});
