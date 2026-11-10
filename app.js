@@ -1890,18 +1890,38 @@ $("rammerhead-copy").addEventListener("click", async () => {
 
 // This endpoint restricts every server-side CONNECT to wasm.rip TCP/443.
 // The site catalog chooses when to use it; it is never a general Wisp preset.
-const GAME_WISP_URL = "wss://seuss-wasmrip-wisp.onrender.com/game-wisp/";
-let gameWispModeActive = false;
-async function useWasmRipGameTransport(enabled) {
-	if (enabled) {
-		const handshake = await probeWispHandshake(GAME_WISP_URL, 18000);
-		if (!handshake.ok) throw new Error("Game-only Wisp unavailable: " + handshake.reason);
-		await applyTransport(true, preferredTransport(), GAME_WISP_URL);
-		gameWispModeActive = true;
-	} else if (gameWispModeActive) {
-		await configureTransport(true);
-		gameWispModeActive = false;
-	}
+const RESTRICTED_GAME_WISP = Object.freeze({
+  wasm: "wss://seuss-wasmrip-wisp.onrender.com/game-wisp/",
+  duckmath: "wss://seuss-wasmrip-wisp.onrender.com/duckmath-wisp/",
+  sm64: "wss://seuss-wasmrip-wisp.onrender.com/sm64-wisp/"
+});
+let gameWispModeActive = "";
+async function useCuratedGameTransport(mode = "") {
+  if (mode) {
+    const address = RESTRICTED_GAME_WISP[mode];
+    if (!address) throw new Error("Unrecognized game relay.");
+    if (gameWispModeActive === mode) return;
+    const handshake = await probeWispHandshake(address, 18000);
+    if (!handshake.ok) throw new Error("Restricted game Wisp unavailable: " + handshake.reason);
+    await applyTransport(true, preferredTransport(), address);
+    gameWispModeActive = mode;
+  } else if (gameWispModeActive) {
+    await configureTransport(true);
+    gameWispModeActive = "";
+  }
+}
+function isApprovedDuckMathWispGame(url) {
+  try {
+    const target = new URL(url);
+    return target.origin === "https://duckmath.org" &&
+      ["/g4m3s/2048.html","/g4m3s/Doodle-Jump.html",
+       "/g4m3s/CookieClicker.html"].includes(target.pathname) &&
+      !target.search && !target.hash;
+  } catch { return false; }
+}
+function isApprovedSm64WispGame(url) {
+  try { return new URL(url).href === "https://heyitsheart.github.io/sm3das/64/"; }
+  catch { return false; }
 }
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
@@ -1925,7 +1945,7 @@ async function go(input, options = {}) {
 	if (!url) return;
 	// Game launchers must never proceed if the account's destination-rule
 	// checker is unavailable. The ordinary browsing modes stay unchanged.
-	if ((options.wasmRipProxy === true || options.gameEmbed === true) &&
+	if ((options.wasmRipProxy === true || options.duckmathProxy === true || options.sm64Proxy === true || options.gameEmbed === true) &&
 		typeof window.dssSitePolicyCheck !== "function") {
 		showError("Game site rules are unavailable.",
 			"Reconnect to the site's safety checks before launching this game.");
@@ -1982,8 +2002,10 @@ async function go(input, options = {}) {
 	// Only curated WASM.RIP launcher clicks use the destination-limited relay.
 	// Normal Scramjet browsing restores the saved Wisp preference.
 	try {
-		await useWasmRipGameTransport(options.wasmRipProxy === true &&
-			isCuratedWasmRipGameUrl(url));
+		const requestedGameRelay = options.wasmRipProxy === true && isCuratedWasmRipGameUrl(url) ? "wasm" :
+			options.duckmathProxy === true && isApprovedDuckMathWispGame(url) ? "duckmath" :
+			options.sm64Proxy === true && isApprovedSm64WispGame(url) ? "sm64" : "";
+		await useCuratedGameTransport(requestedGameRelay);
 	} catch (error) {
 		showError("The restricted game Wisp tunnel is unavailable.",
 			String(error && error.message || error) + " Try again or choose the original-site game option.");
@@ -2277,6 +2299,8 @@ function launchLibraryGame(event, url, options = {}) {
 	const gameTitle = options.title ||
 		event.currentTarget?.querySelector("strong")?.textContent?.trim() ||
 		siteTabTitle(url);
+	const isSm64Game = !options.forceEmbed && isApprovedSm64WispGame(url) &&
+		event.currentTarget?.dataset?.proxyUrl === "https://heyitsheart.github.io/sm3das/64/";
 	const isWasmGame = !options.forceEmbed &&
 		event.currentTarget?.classList?.contains("wasm-rip-game") === true &&
 		isCuratedWasmRipGameUrl(url);
@@ -2302,8 +2326,28 @@ function launchLibraryGame(event, url, options = {}) {
 		});
 		return;
 	}
+	if (isSm64Game) {
+		void go(url, {forceScramjet:true,sm64Proxy:true,newTab:true,title:gameTitle});
+		return;
+	}
 	void go(url, { forceLite:true, gameEmbed:true, newTab:true, title:gameTitle });
 }
+// A game card in the first-party DuckMath catalog may request a narrowly
+// approved launcher. Never accept arbitrary URLs from a postMessage sender.
+window.addEventListener("message", event => {
+  if (event.origin !== location.origin ||
+      event.data?.type !== "dss-duckmath-wisp-launch") return;
+  const tab = currentSiteTab();
+  if (tab?.type !== "direct" ||
+      !tab.url.endsWith("/duckmath-games.html") ||
+      event.source !== tab.directFrame?.contentWindow) return;
+  const file = event.data.file;
+  if (!["2048.html","Doodle-Jump.html","CookieClicker.html"].includes(file)) return;
+  const destination = "https://duckmath.org/g4m3s/" + file;
+  if (!isApprovedDuckMathWispGame(destination)) return;
+  void go(destination, {forceScramjet:true,duckmathProxy:true,newTab:true,
+    title:"DuckMath · " + file.replace(/\\.html$/, "")});
+});
 document.querySelectorAll("[data-proxy-url]").forEach(button => {
 	button.addEventListener("click", event => launchLibraryGame(event, button.dataset.proxyUrl));
 });
