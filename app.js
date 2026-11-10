@@ -1399,7 +1399,8 @@ function showSeussSearch(query, options = {}) {
 		try {
 			const choices = typeof window.seussGetApprovedSearchSources === "function"
 				? await window.seussGetApprovedSearchSources() : [];
-			if (controller.signal.aborted || tab.searchAbort !== controller) return;
+			if (controller.signal.aborted || !siteTabs.includes(tab) ||
+				!tab.pane?.contains(main)) return;
 			const sources = {
 				wikipedia: ["Wikipedia", "https://en.wikipedia.org/w/index.php?search="],
 				bing: ["Bing", "https://www.bing.com/search?q="]
