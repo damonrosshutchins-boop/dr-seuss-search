@@ -134,6 +134,12 @@
 						<p class="talk-muted">Only blocked domains are logged, without full addresses or page contents.</p>
 						<div id="site-guard-events" class="site-admin-list"></div>
 					</div>
+					<section class="site-private-search-admin" aria-label="Approved search websites">
+						<div class="site-admin-heading"><h3>Approved search websites</h3><button id="site-private-search-refresh" class="chip talk-small" type="button">Refresh</button></div>
+						<p class="talk-muted">Site admins can approve or disable supported search links shown in Seuss Search results. Approved links still open using ordinary browser/network rules. This does not create a proxy tunnel, override blocked-site rules, or allow arbitrary destinations.</p>
+						<div id="site-private-search-sources" class="site-admin-list"></div>
+						<p id="site-private-search-status" class="talk-muted" role="status"></p>
+					</section>
 					<h3>Manage Seuss Talk rooms</h3>
 					<div id="site-admin-rooms" class="site-admin-list"></div>
 					<h4 id="site-admin-selected-room">Choose a room to manage its members</h4>
@@ -961,11 +967,11 @@
 	</dialog>
 
 	<script src="custom-loader.js?v=20261107-reader-media2"></script>
-	<script src="app.js?v=20261108-veloci-ai-workspace"></script>
+	<script src="app.js?v=20261109-approved-search-links"></script>
 	<script src="ui-extras.js?v=20261105-performance1"></script>
 	<script src="adblock.js?v=20261105-adblock1"></script>
 	<script src="chat.js?v=20261106-seusstalkwebcam3"></script>
-	<script src="identity-admin.js?v=20261106-adminspeed1"></script>
+	<script src="identity-admin.js?v=20261109-approved-search-links"></script>
 	<script src="vm.js?v=20261108-local-lavenderos-vendored"></script>
 </body>
 </html>
