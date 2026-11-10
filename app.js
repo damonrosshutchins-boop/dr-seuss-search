@@ -1526,7 +1526,7 @@ function showEmbeddingNotice(target, options = {}) {
 }
 const FIRST_PARTY_GAME_FILES = new Set([
 	"nes-homebrew.html","console-emulators.html",
-	"dos-arcade.html","offline-pack.html"
+	"dos-arcade.html","offline-pack.html","duckmath-games.html"
 ]);
 // Game pages often use WebAssembly fetch, WebGL, and IndexedDB on their own
 // origin. An opaque sandbox origin breaks those APIs even for otherwise
