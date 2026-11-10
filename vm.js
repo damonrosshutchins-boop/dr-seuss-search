@@ -43,9 +43,9 @@
 			desc: "A modern browser desktop with a window manager and app store, hosted by TerbiumOS.",
 			size: "Web app", url: "https://terbiumon.top/" },
 		{ name: "LavenderOS", badge: "Lv", color: "#a78bfa",
-			desc: "A locally hosted LavenderOS desktop bundled with Seuss Search, not an external iframe.",
-			size: "Local web desktop", url: vmAt("lavenderos/LavenderOS.html"),
-			upstreamUrl: "https://itzzshiloh.github.io/LavenderOS-test/LavenderOS.html" },
+			desc: "Latest LavenderOS from your LavenderOS-test GitHub repository. Requires that repository's GitHub Pages deployment.",
+			size: "External GitHub Pages desktop",
+			url: "https://damonrosshutchins-boop.github.io/LavenderOS-test/LavenderOS.html" },
 	];
 
 	const $ = (id) => document.getElementById(id);
