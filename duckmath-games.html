@@ -33,7 +33,8 @@ const catalog=[{"file":"1v1.lol.html","label":"1v1.lol"},{"file":"2048.html","la
 const host=document.getElementById("grid"),search=document.getElementById("search"),count=document.getElementById("count");
 const catalogView=document.getElementById("catalog"),player=document.getElementById("player"),frame=document.getElementById("frame");
 const provider="https://duckmath.org/g4m3s/";
-const restrictedWispFiles=new Set(["2048.html","Doodle-Jump.html","CookieClicker.html"]);
+const restrictedWispTargets={"2048.html":"https://ubg100.github.io/games/2048-master/index.html","Doodle-Jump.html":"https://ubg100.github.io/games/doodlejump/index.html","CookieClicker.html":"https://ubg100.github.io/games/cookie-clicker/index.html"};
+const restrictedWispFiles=new Set(Object.keys(restrictedWispTargets));
 for(const item of catalog){
   const button=document.createElement("button");button.className="game";button.type="button";button.textContent=item.label+(restrictedWispFiles.has(item.file)?" · Render Wisp":"");
   button.dataset.search=item.label.toLowerCase();
@@ -42,7 +43,7 @@ for(const item of catalog){
       window.parent.postMessage({type:"dss-duckmath-wisp-launch",file:item.file},location.origin);
       return;
     }
-    const target=provider+encodeURIComponent(item.file);
+    const target=restrictedWispTargets[item.file] || provider+encodeURIComponent(item.file);
     document.getElementById("title").textContent=item.label;
     document.getElementById("original").href=target;
     frame.src=target;catalogView.hidden=true;player.hidden=false;window.scrollTo(0,0);
