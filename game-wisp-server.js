@@ -12,7 +12,7 @@ const ALLOWED_ORIGINS=new Set([
 ]);
 const ROUTES=Object.freeze({
   '/game-wisp/':new Set(['wasm.rip']),
-  '/duckmath-wisp/':new Set(['duckmath.org','ubg100.github.io']),
+  '/duckmath-wisp/':new Set(['ubg100.github.io']),
   '/sm64-wisp/':new Set(['heyitsheart.github.io'])
 });
 const MAX_STREAMS=8, MAX_CLIENTS=60, MAX_PACKET=65536, WINDOW=16;
