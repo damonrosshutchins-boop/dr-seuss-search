@@ -190,3 +190,22 @@ test("Web-desktop recovery controls and load timeout are included", async () => 
   assert.match(vm, /webFrame\.src = current\.req\.url/);
   assert.match(vm, /webFrame\.contentWindow\?\.focus\(\)/);
 });
+
+test("Admin-approved search links are role-gated and do not create a relay",async()=>{
+  const html=await readFile(join(projectRoot,"index.html"),"utf8");
+  const admin=await readFile(join(projectRoot,"identity-admin.js"),"utf8");
+  const app=await readFile(join(projectRoot,"app.js"),"utf8");
+  const server=await readFile(join(projectRoot,"server.js"),"utf8");
+  assert.match(html,/id="site-private-search-sources"/);
+  assert.match(html,/id="site-private-search-refresh"/);
+  assert.match(html,/only pre-reviewed sources|supported search links|supported public search|search links shown/i);
+  assert.match(admin,/seussGetApprovedSearchSources/);
+  assert.match(admin,/site_admin_set_private_search_source/);
+  assert.match(admin,/server\("site_check_admin"\)/);
+  assert.match(app,/Admin-approved search websites/);
+  assert.match(app,/Object\.hasOwn\(sources, item\.source\)/);
+  assert.match(app,/dssSitePolicyCheck\(address\)/);
+  assert.match(app,/await go\(address, \{ forceLite:true, newTab:true \}\)/);
+  assert.doesNotMatch(server,/\/api\/privacy\/search/);
+  assert.doesNotMatch(server,/server\.on\('upgrade'/);
+});

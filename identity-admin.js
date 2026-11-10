@@ -58,6 +58,15 @@
     const { data, error } = await api.auth.getSession();
     return error ? null : data.session?.access_token || null;
   };
+  // Read-only provider choices for the existing Seuss Search results view.
+  // Destination navigation still passes the site's normal policy checker.
+  window.seussGetApprovedSearchSources = async () => {
+    if (!loggedIn || lastState !== "active" || !window.seussAccountReady) return [];
+    const { data, error } = await api.from("site_private_search_sources")
+      .select("source,approved").order("source");
+    if (error) throw error;
+    return Array.isArray(data) ? data.filter(x=>x.approved===true) : [];
+  };
   function setLock(state) {
     if (state === lastState) return;
     lastState = state;
@@ -903,9 +912,55 @@
       feedback("site-access-admin-status", "Could not update request: " + errText(error), true);
     }
   }
+  const SEARCH_SOURCE_NAMES = {
+    wikipedia: "Wikipedia · en.wikipedia.org",
+    bing: "Bing · www.bing.com"
+  };
+  async function refreshSearchApprovals() {
+    if (!isAdmin || !api) return;
+    const list = $("site-private-search-sources");
+    list.replaceChildren(create("p","talk-muted","Loading website approvals…"));
+    try {
+      const { data, error } = await api.from("site_private_search_sources")
+        .select("source,approved").order("source");
+      if (error) throw error;
+      list.replaceChildren();
+      for (const source of ["wikipedia","bing"]) {
+        const approved = data?.find(item=>item.source===source)?.approved===true;
+        const row = create("div","site-admin-row");
+        const label = create("span","",SEARCH_SOURCE_NAMES[source] +
+          (approved ? " · Approved" : " · Not approved"));
+        const toggle = create("button","chip talk-small",approved ? "Disable" : "Approve");
+        toggle.type = "button";
+        toggle.addEventListener("click",async()=>{
+          toggle.disabled=true;
+          try {
+            if (!isAdmin || !(await server("site_check_admin")))
+              throw new Error("Admin permission required");
+            const saved=await server("site_admin_set_private_search_source",{
+              p_source:source,p_approved:!approved
+            });
+            if(saved!==true) throw new Error("Approval was not saved");
+            feedback("site-private-search-status",SEARCH_SOURCE_NAMES[source] +
+              (approved ? " disabled." : " approved."));
+            await refreshSearchApprovals();
+          } catch(error) {
+            feedback("site-private-search-status",
+              "Could not update website approval: " + errText(error),true);
+          } finally{toggle.disabled=false;}
+        });
+        row.append(label,toggle);
+        list.append(row);
+      }
+    }catch(error){
+      list.replaceChildren(create("p","talk-muted",
+        "Website approvals are unavailable: " + errText(error)));
+    }
+  }
   async function refreshAdmin() {
     if (!isAdmin) return;
-    await Promise.all([refreshUsers(), refreshRooms(), refreshGuard(), refreshAccessRequests()]);
+    await Promise.all([refreshUsers(), refreshRooms(), refreshGuard(),
+      refreshAccessRequests(), refreshSearchApprovals()]);
   }
   const tutorial = $("tutorial");
   if (tutorial && tutorial.open) tutorial.close();
@@ -986,6 +1041,7 @@
   });
   $("site-admin-activate").addEventListener("click", claimAdmin);
   $("site-admin-refresh").addEventListener("click", refreshAdmin);
+  $("site-private-search-refresh").addEventListener("click", refreshSearchApprovals);
   $("site-guard-add").addEventListener("click", editGuardRule);
   $("site-guard-domain").addEventListener("keydown", event => {
     if (event.key === "Enter") {
