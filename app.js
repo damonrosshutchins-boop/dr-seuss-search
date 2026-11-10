@@ -1389,6 +1389,43 @@ function showSeussSearch(query, options = {}) {
 	main.append(heading,explainer,form,actions,heading2,status,results);
 	tab.searchAbort = new AbortController();
 	const controller = tab.searchAbort;
+	// Admin-curated links are normal website navigations: no Render fetch,
+	// proxy tunnel or bypass of the site's domain moderation.
+	const approvedHeader = seussSearchNode("h2", "", "Admin-approved search websites");
+	const approvedStatus = seussSearchNode("p", "seuss-search-note", "Loading approved search links…");
+	const approvedLinks = seussSearchNode("div", "seuss-search-actions");
+	main.append(approvedHeader, approvedStatus, approvedLinks);
+	(async () => {
+		try {
+			const choices = typeof window.seussGetApprovedSearchSources === "function"
+				? await window.seussGetApprovedSearchSources() : [];
+			if (controller.signal.aborted || tab.searchAbort !== controller) return;
+			const sources = {
+				wikipedia: ["Wikipedia", "https://en.wikipedia.org/w/index.php?search="],
+				bing: ["Bing", "https://www.bing.com/search?q="]
+			};
+			let count = 0;
+			for (const item of choices) {
+				if (!item || item.approved !== true ||
+					!Object.hasOwn(sources, item.source)) continue;
+				const [label, baseUrl] = sources[item.source];
+				const address = baseUrl + encodeURIComponent(q);
+				approvedLinks.append(seussSearchButton("Search with " + label, async () => {
+					// Fail closed when the domain rules cannot be checked.
+					if (!requireSeussAccount() ||
+						typeof window.dssSitePolicyCheck !== "function") return;
+					if (await window.dssSitePolicyCheck(address))
+						await go(address, { forceLite:true, newTab:true });
+				}));
+				count++;
+			}
+			approvedStatus.textContent = count
+				? "Only the links approved by site admins appear here. Your browser and network rules still apply."
+				: "No search websites are currently approved by admins.";
+		} catch {
+			approvedStatus.textContent = "Approved search links are temporarily unavailable.";
+		}
+	})();
 	const clock = setTimeout(() => controller.abort(), 12000);
 	const apiUrl = new URL("https://en.wikipedia.org/w/api.php");
 	for (const [key,value] of Object.entries({
