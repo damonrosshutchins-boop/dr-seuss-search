@@ -1910,14 +1910,14 @@ async function useCuratedGameTransport(mode = "") {
     gameWispModeActive = "";
   }
 }
+const DUCKMATH_GAME_TARGETS = Object.freeze({
+  "2048.html": "https://ubg100.github.io/games/2048-master/index.html",
+  "Doodle-Jump.html": "https://ubg100.github.io/games/doodlejump/index.html",
+  "CookieClicker.html": "https://ubg100.github.io/games/cookie-clicker/index.html"
+});
 function isApprovedDuckMathWispGame(url) {
-  try {
-    const target = new URL(url);
-    return target.origin === "https://duckmath.org" &&
-      ["/g4m3s/2048.html","/g4m3s/Doodle-Jump.html",
-       "/g4m3s/CookieClicker.html"].includes(target.pathname) &&
-      !target.search && !target.hash;
-  } catch { return false; }
+  try { return Object.values(DUCKMATH_GAME_TARGETS).includes(new URL(url).href); }
+  catch { return false; }
 }
 function isApprovedSm64WispGame(url) {
   try { return new URL(url).href === "https://heyitsheart.github.io/sm3das/64/"; }
@@ -2343,7 +2343,7 @@ window.addEventListener("message", event => {
       event.source !== tab.directFrame?.contentWindow) return;
   const file = event.data.file;
   if (!["2048.html","Doodle-Jump.html","CookieClicker.html"].includes(file)) return;
-  const destination = "https://duckmath.org/g4m3s/" + file;
+  const destination = DUCKMATH_GAME_TARGETS[file];
   if (!isApprovedDuckMathWispGame(destination)) return;
   void go(destination, {forceScramjet:true,duckmathProxy:true,newTab:true,
     title:"DuckMath · " + file.replace(/\\.html$/, "")});
