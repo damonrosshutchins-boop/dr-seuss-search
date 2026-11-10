@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DuckMath Games · Dr. Seuss Search</title>
+<style>
+:root{color-scheme:light;--ink:#29241f;--bg:#fff5e5;--accent:#d8262f}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:20px;background:#ffdfab;border-bottom:3px solid var(--ink)}
+h1{margin:0 0 7px}p{line-height:1.5}main{padding:18px;max-width:1200px;margin:auto}
+a{color:#91212a}button,input{font:inherit}button{cursor:pointer}
+input{width:100%;padding:12px;border:2px solid #746c5f;border-radius:12px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px}
+.game{border:2px solid var(--ink);border-radius:12px;padding:17px;background:white;text-align:left;font-weight:700}
+.game:hover,.game:focus-visible{background:#ffe2bb}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:10px 0 16px}
+.btn{padding:10px 15px;background:white;border:2px solid var(--ink);border-radius:10px;text-decoration:none;font-weight:700;color:var(--ink)}
+#player[hidden],#catalog[hidden]{display:none}
+iframe{width:100%;height:72vh;min-height:350px;background:white;border:2px solid var(--ink);border-radius:12px}
+small{color:#65594e}
+</style></head><body>
+<header><h1>DuckMath Games</h1><p>A searchable collection of external game pages from the DuckMath GitHub repository.</p></header>
+<main>
+<section id="catalog"><p>Games open from their original providers. They are <strong>not</strong> routed through the WASM.RIP-only Render Wisp tunnel. Some providers do not allow embedding.</p>
+<label for="search">Search games</label><input type="search" id="search" placeholder="Search DuckMath games...">
+<p id="count" role="status"></p><div class="grid" id="grid"></div></section>
+<section id="player" hidden><div class="bar"><button class="btn" id="back" type="button">Back to games</button><strong id="title"></strong><a class="btn" id="original" rel="noopener noreferrer" target="_blank">Open original game page</a></div>
+<p>This game loads directly from DuckMath, not through Render. If the frame does not work, use the original game page link.</p>
+<iframe id="frame" title="DuckMath game" sandbox="allow-scripts allow-forms allow-pointer-lock allow-modals allow-popups allow-downloads" allow="fullscreen; gamepad; autoplay" allowfullscreen referrerpolicy="no-referrer"></iframe>
+</section>
+<p><small>Source: <a href="https://github.com/Divij-Agarwal-42/duckmath.github.io" target="_blank" rel="noopener noreferrer">DuckMath repository</a>. Links may change; availability and rights to individual games belong to their providers.</small></p>
+</main><script>
+"use strict";
+const catalog=[{"file":"1v1.lol.html","label":"1v1.lol"},{"file":"2048.html","label":"2048"},{"file":"2DFortnite.html","label":"2DFortnite"},{"file":"Bingo.html","label":"Bingo"},{"file":"CSSurf.html","label":"CSSurf"},{"file":"CastleDefender.html","label":"Castle Defender"},{"file":"Combat_reloaded.html","label":"Combat reloaded"},{"file":"CookieClicker.html","label":"Cookie Clicker"},{"file":"Digital-Museum.html","label":"Digital Museum"},{"file":"Doodle-Jump.html","label":"Doodle Jump"},{"file":"EndlessLake.html","label":"Endless Lake"},{"file":"Five-Nights-At-Freddys.html","label":"Five Nights At Freddys"},{"file":"FlappyBird.html","label":"Flappy Bird"},{"file":"FridayNightFunkin.html","label":"Friday Night Funkin"},{"file":"Getting-Over-It.html","label":"Getting Over It"},{"file":"HabboClicker.html","label":"Habbo Clicker"},{"file":"Madalin-Stunt-Cars-2.html","label":"Madalin Stunt Cars 2"},{"file":"Minigolf.html","label":"Minigolf"},{"file":"MoneyMovers.html","label":"Money Movers"},{"file":"MotoX3M.html","label":"Moto X3M"},{"file":"Paper.io.html","label":"Paper.io"},{"file":"PaperMinecraft.html","label":"Paper Minecraft"},{"file":"PizzaParty.html","label":"Pizza Party"},{"file":"Rooftop-Snipers.html","label":"Rooftop Snipers"},{"file":"Run3.html","label":"Run3"},{"file":"SM64.html","label":"SM64"},{"file":"Smash.html","label":"Smash"},{"file":"Spiral-Roll.html","label":"Spiral Roll"},{"file":"Stickmanpeacekeeper.html","label":"Stickmanpeacekeeper"},{"file":"Super-Star-Car.html","label":"Super Star Car"},{"file":"TanukiSunset.html","label":"Tanuki Sunset"},{"file":"Tetris.html","label":"Tetris"},{"file":"Uno.html","label":"Uno"},{"file":"Yohoho.io.html","label":"Yohoho.io"},{"file":"Zombs.io.html","label":"Zombs.io"},{"file":"agar.io.html","label":"agar.io"},{"file":"amogus.html","label":"amogus"},{"file":"angry-birds.html","label":"angry birds"},{"file":"baldisbasics.html","label":"baldisbasics"},{"file":"brotato.html","label":"brotato"},{"file":"call-of-duty.html","label":"call of duty"},{"file":"club-penguin.html","label":"club penguin"},{"file":"crossyroads.html","label":"crossyroads"},{"file":"cs.html","label":"cs"},{"file":"driftboss.html","label":"driftboss"},{"file":"ducklife.html","label":"ducklife"},{"file":"ducklife2.html","label":"ducklife2"},{"file":"ducklife3.html","label":"ducklife3"},{"file":"ducklife4.html","label":"ducklife4"},{"file":"fighter-aircraft-pilot.html","label":"fighter aircraft pilot"},{"file":"fireboy.html","label":"fireboy"},{"file":"fortnite-z.html","label":"fortnite z"},{"file":"funny-sh00ter.html","label":"funny sh00ter"},{"file":"geometry_dash.html","label":"geometry dash"},{"file":"granny.html","label":"granny"},{"file":"hole.io.html","label":"hole.io"},{"file":"krunker.io.html","label":"krunker.io"},{"file":"monkey-mart.html","label":"monkey mart"},{"file":"only-up.html","label":"only up"},{"file":"pixel-gun-3d.html","label":"pixel gun 3d"},{"file":"pokemon-ruby.html","label":"pokemon ruby"},{"file":"pvz.html","label":"pvz"},{"file":"rally-point.html","label":"rally point"},{"file":"retro_bowl.html","label":"retro bowl"},{"file":"shellshock.html","label":"shellshock"},{"file":"slither.io.html","label":"slither.io"},{"file":"slope.html","label":"slope"},{"file":"subway_surfers.html","label":"subway surfers"},{"file":"subwaymexico.html","label":"subwaymexico"},{"file":"venge.io.html","label":"venge.io"},{"file":"yetidash.html","label":"yetidash"}];
+const host=document.getElementById("grid"),search=document.getElementById("search"),count=document.getElementById("count");
+const catalogView=document.getElementById("catalog"),player=document.getElementById("player"),frame=document.getElementById("frame");
+const provider="https://duckmath.org/g4m3s/";
+for(const item of catalog){
+  const button=document.createElement("button");button.className="game";button.type="button";button.textContent=item.label;
+  button.dataset.search=item.label.toLowerCase();
+  button.addEventListener("click",()=>{
+    const target=provider+encodeURIComponent(item.file);
+    document.getElementById("title").textContent=item.label;
+    document.getElementById("original").href=target;
+    frame.src=target;catalogView.hidden=true;player.hidden=false;window.scrollTo(0,0);
+  });host.appendChild(button);
+}
+function filter(){
+  const query=search.value.trim().toLowerCase();let visible=0;
+  for(const button of host.children){const show=button.dataset.search.includes(query);button.hidden=!show;if(show)visible++;}
+  count.textContent=visible+" of "+catalog.length+" games";
+}
+search.addEventListener("input",filter);filter();
+document.getElementById("back").addEventListener("click",()=>{frame.removeAttribute("src");player.hidden=true;catalogView.hidden=false;window.scrollTo(0,0);});
+</script></body></html>
