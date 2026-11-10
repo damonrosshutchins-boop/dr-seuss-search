@@ -13,7 +13,8 @@ const ALLOWED_ORIGINS=new Set([
 const ROUTES=Object.freeze({
   '/game-wisp/':new Set(['wasm.rip']),
   '/duckmath-wisp/':new Set(['ubg100.github.io']),
-  '/sm64-wisp/':new Set(['heyitsheart.github.io'])
+  '/sm64-wisp/':new Set(['heyitsheart.github.io']),
+  '/approved-wisp/':new Set(['www.youtube.com','youtube.com','wasm.rip','heyitsheart.github.io','1v1lolgame.org'])
 });
 const MAX_STREAMS=8, MAX_CLIENTS=60, MAX_PACKET=65536, WINDOW=16;
 const server=http.createServer((req,res)=>{
