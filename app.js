@@ -1893,7 +1893,8 @@ $("rammerhead-copy").addEventListener("click", async () => {
 const RESTRICTED_GAME_WISP = Object.freeze({
   wasm: "wss://seuss-wasmrip-wisp.onrender.com/game-wisp/",
   duckmath: "wss://seuss-curated-game-wisp.onrender.com/duckmath-wisp/",
-  sm64: "wss://seuss-curated-game-wisp.onrender.com/sm64-wisp/"
+  sm64: "wss://seuss-curated-game-wisp.onrender.com/sm64-wisp/",
+  approved: "wss://seuss-approved-sites-wisp.onrender.com/approved-wisp/"
 });
 let gameWispModeActive = "";
 async function useCuratedGameTransport(mode = "") {
@@ -1906,7 +1907,7 @@ async function useCuratedGameTransport(mode = "") {
     // libcurl may fail TLS negotiations for these hosted browser games.
     // Use the independently bundled Epoxy Wisp transport for curated game
     // launches only; normal browsing retains the user's saved transport.
-    const gameTransport = (mode === "sm64" || mode === "duckmath") ? "epoxy" : preferredTransport();
+    const gameTransport = (mode === "sm64" || mode === "duckmath" || mode === "approved") ? "epoxy" : preferredTransport();
     await applyTransport(true, gameTransport, address);
     gameWispModeActive = mode;
   } else if (gameWispModeActive) {
@@ -1921,6 +1922,16 @@ const DUCKMATH_GAME_TARGETS = Object.freeze({
 });
 function isApprovedDuckMathWispGame(url) {
   try { return Object.values(DUCKMATH_GAME_TARGETS).includes(new URL(url).href); }
+  catch { return false; }
+}
+const APPROVED_SITE_LAUNCH_URLS = Object.freeze([
+  "https://www.youtube.com/",
+  "https://wasm.rip/",
+  "https://heyitsheart.github.io/sm3das/64/",
+  "https://1v1lolgame.org/"
+]);
+function isApprovedSiteWispLaunch(url) {
+  try { return APPROVED_SITE_LAUNCH_URLS.includes(new URL(url).href); }
   catch { return false; }
 }
 function isApprovedSm64WispGame(url) {
@@ -1949,7 +1960,7 @@ async function go(input, options = {}) {
 	if (!url) return;
 	// Game launchers must never proceed if the account's destination-rule
 	// checker is unavailable. The ordinary browsing modes stay unchanged.
-	if ((options.wasmRipProxy === true || options.duckmathProxy === true || options.sm64Proxy === true || options.gameEmbed === true) &&
+	if ((options.wasmRipProxy === true || options.duckmathProxy === true || options.sm64Proxy === true || options.approvedSiteProxy === true || options.gameEmbed === true) &&
 		typeof window.dssSitePolicyCheck !== "function") {
 		showError("Game site rules are unavailable.",
 			"Reconnect to the site's safety checks before launching this game.");
@@ -2008,7 +2019,8 @@ async function go(input, options = {}) {
 	try {
 		const requestedGameRelay = options.wasmRipProxy === true && isCuratedWasmRipGameUrl(url) ? "wasm" :
 			options.duckmathProxy === true && isApprovedDuckMathWispGame(url) ? "duckmath" :
-			options.sm64Proxy === true && isApprovedSm64WispGame(url) ? "sm64" : "";
+			options.sm64Proxy === true && isApprovedSm64WispGame(url) ? "sm64" :
+			options.approvedSiteProxy === true && isApprovedSiteWispLaunch(url) ? "approved" : "";
 		await useCuratedGameTransport(requestedGameRelay);
 	} catch (error) {
 		showError("The restricted game Wisp tunnel is unavailable.",
@@ -2303,6 +2315,9 @@ function launchLibraryGame(event, url, options = {}) {
 	const gameTitle = options.title ||
 		event.currentTarget?.querySelector("strong")?.textContent?.trim() ||
 		siteTabTitle(url);
+	const isApprovedSiteGame = !options.forceEmbed &&
+		event.currentTarget?.classList?.contains("approved-wisp-site") === true &&
+		isApprovedSiteWispLaunch(url);
 	const isSm64Game = !options.forceEmbed && isApprovedSm64WispGame(url) &&
 		event.currentTarget?.dataset?.proxyUrl === "https://heyitsheart.github.io/sm3das/64/";
 	const isWasmGame = !options.forceEmbed &&
@@ -2324,6 +2339,10 @@ function launchLibraryGame(event, url, options = {}) {
 	// not an iframe pointed directly at the original host. An explicitly
 	// chosen direct-embed fallback and original-site link remain available.
 	// go() checks the destination site policy before either launch.
+	if (isApprovedSiteGame) {
+		void go(url, {forceScramjet:true,approvedSiteProxy:true,newTab:true,title:gameTitle});
+		return;
+	}
 	if (isWasmGame) {
 		void go(url, {
 			forceScramjet:true,wasmRipProxy:true,newTab:true,title:gameTitle
