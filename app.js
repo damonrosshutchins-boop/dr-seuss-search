@@ -716,11 +716,11 @@ async function chooseWispRelay(force = false) {
 // Serialize transport changes: a network retry and Settings save must not
 // race and replace each other's working Wisp connection.
 let transportChangeQueue = Promise.resolve();
-function applyTransport(force = false, requestedTransport = preferredTransport()) {
+function applyTransport(force = false, requestedTransport = preferredTransport(), relayOverride = "") {
 	const transport = Object.hasOwn(TRANSPORTS, requestedTransport)
 		? requestedTransport : "libcurl";
 	const path = TRANSPORTS[transport];
-	const relay = activeWisp || settings.wisp;
+	const relay = relayOverride || activeWisp || settings.wisp;
 	const opts = transport === "epoxy" ? { wisp: relay } : { websocket: relay };
 	const signature = JSON.stringify([path, opts]);
 	const task = transportChangeQueue.catch(() => {}).then(async () => {
@@ -1888,6 +1888,21 @@ $("rammerhead-copy").addEventListener("click", async () => {
 	}
 });
 
+// This endpoint restricts every server-side CONNECT to wasm.rip TCP/443.
+// The site catalog chooses when to use it; it is never a general Wisp preset.
+const GAME_WISP_URL = "wss://seuss-wasmrip-wisp.onrender.com/game-wisp/";
+let gameWispModeActive = false;
+async function useWasmRipGameTransport(enabled) {
+	if (enabled) {
+		const handshake = await probeWispHandshake(GAME_WISP_URL, 18000);
+		if (!handshake.ok) throw new Error("Game-only Wisp unavailable: " + handshake.reason);
+		await applyTransport(true, preferredTransport(), GAME_WISP_URL);
+		gameWispModeActive = true;
+	} else if (gameWispModeActive) {
+		await configureTransport(true);
+		gameWispModeActive = false;
+	}
+}
 async function go(input, options = {}) {
 	if (!requireSeussAccount()) return;
 	if (!options.forceScramjet && !options.nativeSearch &&
@@ -1962,6 +1977,16 @@ async function go(input, options = {}) {
 		ready = null;
 		showError("Scramjet routing is not ready.", (err && err.message || String(err)) +
 			" Reload this page and retry Scramjet; the website was not opened as a broken GitHub Pages file.");
+		return;
+	}
+	// Only curated WASM.RIP launcher clicks use the destination-limited relay.
+	// Normal Scramjet browsing restores the saved Wisp preference.
+	try {
+		await useWasmRipGameTransport(options.wasmRipProxy === true &&
+			isCuratedWasmRipGameUrl(url));
+	} catch (error) {
+		showError("The restricted game Wisp tunnel is unavailable.",
+			String(error && error.message || error) + " Try again or choose the original-site game option.");
 		return;
 	}
 	tab.type = "web";
