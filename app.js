@@ -1903,7 +1903,11 @@ async function useCuratedGameTransport(mode = "") {
     if (gameWispModeActive === mode) return;
     const handshake = await probeWispHandshake(address, 18000);
     if (!handshake.ok) throw new Error("Restricted game Wisp unavailable: " + handshake.reason);
-    await applyTransport(true, preferredTransport(), address);
+    // libcurl may fail TLS negotiations for these hosted browser games.
+    // Use the independently bundled Epoxy Wisp transport for curated game
+    // launches only; normal browsing retains the user's saved transport.
+    const gameTransport = (mode === "sm64" || mode === "duckmath") ? "epoxy" : preferredTransport();
+    await applyTransport(true, gameTransport, address);
     gameWispModeActive = mode;
   } else if (gameWispModeActive) {
     await configureTransport(true);
