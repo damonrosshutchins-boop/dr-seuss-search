@@ -19,7 +19,7 @@ small{color:#65594e}
 </style></head><body>
 <header><h1>DuckMath Games</h1><p>A searchable collection of external game pages from the DuckMath GitHub repository.</p></header>
 <main>
-<section id="catalog"><p>Games open from their original providers. They are <strong>not</strong> routed through the WASM.RIP-only Render Wisp tunnel. Some providers do not allow embedding.</p>
+<section id="catalog"><p>2048, Doodle Jump, and Cookie Clicker have a restricted Render Wisp launch option when opened from Dr. Seuss Search. Other games open directly from their providers. This host allowlist is not a per-HTTPS-path restriction.</p>
 <label for="search">Search games</label><input type="search" id="search" placeholder="Search DuckMath games...">
 <p id="count" role="status"></p><div class="grid" id="grid"></div></section>
 <section id="player" hidden><div class="bar"><button class="btn" id="back" type="button">Back to games</button><strong id="title"></strong><a class="btn" id="original" rel="noopener noreferrer" target="_blank">Open original game page</a></div>
@@ -33,10 +33,15 @@ const catalog=[{"file":"1v1.lol.html","label":"1v1.lol"},{"file":"2048.html","la
 const host=document.getElementById("grid"),search=document.getElementById("search"),count=document.getElementById("count");
 const catalogView=document.getElementById("catalog"),player=document.getElementById("player"),frame=document.getElementById("frame");
 const provider="https://duckmath.org/g4m3s/";
+const restrictedWispFiles=new Set(["2048.html","Doodle-Jump.html","CookieClicker.html"]);
 for(const item of catalog){
-  const button=document.createElement("button");button.className="game";button.type="button";button.textContent=item.label;
+  const button=document.createElement("button");button.className="game";button.type="button";button.textContent=item.label+(restrictedWispFiles.has(item.file)?" · Render Wisp":"");
   button.dataset.search=item.label.toLowerCase();
   button.addEventListener("click",()=>{
+    if(restrictedWispFiles.has(item.file) && window.parent!==window){
+      window.parent.postMessage({type:"dss-duckmath-wisp-launch",file:item.file},location.origin);
+      return;
+    }
     const target=provider+encodeURIComponent(item.file);
     document.getElementById("title").textContent=item.label;
     document.getElementById("original").href=target;
