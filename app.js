@@ -1892,8 +1892,8 @@ $("rammerhead-copy").addEventListener("click", async () => {
 // The site catalog chooses when to use it; it is never a general Wisp preset.
 const RESTRICTED_GAME_WISP = Object.freeze({
   wasm: "wss://seuss-wasmrip-wisp.onrender.com/game-wisp/",
-  duckmath: "wss://seuss-wasmrip-wisp.onrender.com/duckmath-wisp/",
-  sm64: "wss://seuss-wasmrip-wisp.onrender.com/sm64-wisp/"
+  duckmath: "wss://seuss-curated-game-wisp.onrender.com/duckmath-wisp/",
+  sm64: "wss://seuss-curated-game-wisp.onrender.com/sm64-wisp/"
 });
 let gameWispModeActive = "";
 async function useCuratedGameTransport(mode = "") {
