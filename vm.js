@@ -6,6 +6,17 @@
 (() => {
 	const VM_BASE = new URL("vm/", document.baseURI);
 	const vmAt = (p) => new URL(p, VM_BASE).href;
+	// Use only the fixed, first-party WASM asset host; never proxy arbitrary URLs.
+	// If the free Render service is asleep or unreachable, keep the existing local copy working.
+	const GAME_ASSET_ROOT = "https://seuss-game-assets.onrender.com/assets/";
+	async function v86WasmUrl() {
+		const remote = GAME_ASSET_ROOT + "v86.wasm";
+		try {
+			const response = await fetch(remote, { method: "HEAD", mode: "cors", signal: AbortSignal.timeout(2500) });
+			if (response.ok && response.headers.get("content-type")?.includes("application/wasm")) return remote;
+		} catch {}
+		return vmAt("v86.wasm");
+	}
 
 	const GAMES = [
         { name: "Digger", badge: "D", color: "#c28b34", desc: "A tiny ready-to-play DOS maze and treasure game, already bundled locally.", size: "27 KB", url: "games/digger.jsdos", tip: "Use the arrow keys to move." },
@@ -184,7 +195,7 @@
 		setStatus("Loading " + req.name + "…");
 		try {
 		emulator = new window.V86({
-			wasm_path: vmAt("v86.wasm"),
+			wasm_path: await v86WasmUrl(),
 			bios: { url: vmAt("seabios.bin") },
 			vga_bios: { url: vmAt("vgabios.bin") },
 			memory_size: req.mem * 1024 * 1024,
